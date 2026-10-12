@@ -1,0 +1,8 @@
+{
+  "name": "vuuy — Asistente de WhatsApp y Ofertas Cercanas",
+  "description": "Asistente sobre WhatsApp para descubrir ofertas y promociones cercanas en Lima y generar contactos comerciales para negocios locales.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
