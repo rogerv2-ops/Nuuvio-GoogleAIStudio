@@ -39,6 +39,12 @@ export const GESTION_MENU: GestionMenuItem[] = [
         ruta: '/gestion/analitica/atribucion',
         titulo: 'Rendimiento y Atribución',
         descripcion: 'Rastreo UTM por canal, campaña y origen de registros'
+      },
+      {
+        id: 'analitica-ofertas-whatsapp',
+        ruta: '/gestion/analitica/ofertas-whatsapp',
+        titulo: 'Ofertas & Alcance WhatsApp',
+        descripcion: 'Evolución semanal de ofertas y alcance estimado en WhatsApp'
       }
     ]
   },
@@ -60,6 +66,12 @@ export const GESTION_MENU: GestionMenuItem[] = [
         ruta: '/gestion/usuarios/puntos-referidos',
         titulo: 'Puntos y referidos',
         descripcion: 'Saldos acumulados, canjes solicitados y ranking viral'
+      },
+      {
+        id: 'usuarios-auditoria',
+        ruta: '/gestion/usuarios/auditoria',
+        titulo: 'Log de Auditoría',
+        descripcion: 'Histórico de intentos de registro, unicidad de WhatsApp/email y resultado'
       }
     ]
   },
@@ -146,8 +158,8 @@ export const GESTION_MENU: GestionMenuItem[] = [
       {
         id: 'ofertas-categorias-banners',
         ruta: '/gestion/ofertas/categorias-banners',
-        titulo: 'Categorías y banners',
-        descripcion: 'Taxonomía de rubros comerciales y destacados visuales'
+        titulo: 'Categorías del Catálogo',
+        descripcion: 'Taxonomía de rubros comerciales para clasificación del catálogo'
       }
     ]
   },
@@ -269,8 +281,14 @@ export const GESTION_MENU: GestionMenuItem[] = [
       {
         id: 'config-agentes',
         ruta: '/gestion/configuracion/agentes',
-        titulo: 'Agentes IA',
-        descripcion: 'Parámetros del asistente Gemini 2.5 Flash y prompts de respuesta'
+        titulo: 'Proveedores de IA',
+        descripcion: 'Orquestación multi-proveedor (Gemini, OpenAI, Anthropic, OpenRouter, Local), modelos y API keys'
+      },
+      {
+        id: 'config-banners',
+        ruta: '/gestion/configuracion/banners',
+        titulo: 'Banners del Feed',
+        descripcion: 'Gestión y orden de imágenes rotativas del header del feed'
       }
     ]
   }

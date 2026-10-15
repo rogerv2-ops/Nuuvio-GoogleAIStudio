@@ -11,11 +11,12 @@ import { usuariosModule } from '../modules/usuarios';
 import { comerciosModule } from '../modules/comercios';
 import { clicsAtribucionModule } from '../modules/clics';
 import { BannerHeader } from './BannerHeader';
-import { UserRegistrationFunnelModal } from './UserRegistrationFunnelModal';
+import { UserRegistrationFunnelModal, limpiarYNormalizarTelefono } from './UserRegistrationFunnelModal';
 import { capturarAtribucionDeUrl } from '../utils/attribution';
 import { coreEvents } from '../core/events';
 import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
 import { esOfertaNueva } from '../utils/ofertaUtils';
+import { abrirWhatsAppNativo } from '../utils/whatsappNative';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -42,6 +43,18 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [modalQuienesSomosAbierto, setModalQuienesSomosAbierto] = useState(false);
   const [modalTerminosAbierto, setModalTerminosAbierto] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [botPhone, setBotPhone] = useState<string>('51987654321');
+
+  useEffect(() => {
+    fetch('/api/whatsapp/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.ok && data.botPhone) {
+          setBotPhone(data.botPhone);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Formulario de registro de usuario legacy (para fallback de modal general)
   const [formUser, setFormUser] = useState({
@@ -92,9 +105,13 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       setVersionOfertas(v => v + 1);
     });
 
-    // 3. Detección automática del token de verificación por enlace de 1 clic (?verify_token=...)
+    // 3. Detección automática del token de verificación por enlace de 1 clic (?verify_token=...) o apertura de registro (?registro=true)
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('registro') === 'true' || params.get('action') === 'register') {
+        setMotivoFunnel('general');
+        setModalFunnelAbierto(true);
+      }
       const token = params.get('verify_token') || params.get('token');
       if (token) {
         const usuarioVerificado = usuariosModule.verificarPorToken(token);
@@ -173,30 +190,24 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   // Verificar si el usuario actual está registrado y verificado
   const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
 
-  const handleContactarOferta = (oferta: Offer) => {
-    if (!estaVerificado) {
-      coreEvents.emitir({
-        tipoEvento: 'click_bloqueado_sin_registro',
-        actorTipo: 'usuario',
-        actorId: 'anonimo',
-        distrito: oferta.distrito,
-        origen: 'web',
-        datos: { accion: 'whatsapp', ofertaId: oferta.id, comercioNombre: oferta.comercioNombre }
-      });
-      setOfertaObjetivoFunnel(oferta);
-      setMotivoFunnel('whatsapp');
-      setModalFunnelAbierto(true);
-      return;
-    }
-
-    const resultado = clicsAtribucionModule.registrarClicContactar({
-      ofertaId: oferta.id,
-      usuarioId: usuarioActivo.id,
-      usuarioCodigoRef: usuarioActivo.codigoRef,
-      canal: 'web'
+  const handleContactarOferta = (oferta?: Offer | null) => {
+    const targetPhone = botPhone || '51987654321';
+    coreEvents.emitir({
+      tipoEvento: 'click_lo_quiero_directo',
+      actorTipo: 'usuario',
+      actorId: usuarioActivo?.id || 'anonimo',
+      distrito: oferta?.distrito || 'Lima',
+      origen: 'web',
+      datos: {
+        accion: 'lo_quiero_whatsapp_directo',
+        ofertaId: oferta?.id,
+        comercioNombre: oferta?.comercioNombre
+      }
     });
 
-    window.open(resultado.waUrl, '_blank');
+    // En móviles Android/iOS invoca whatsapp://send para abrir el selector nativo del sistema ("Abrir con: WhatsApp / WhatsApp Business")
+    // En escritorio detecta la permanencia del foco tras 1200ms y redirige automáticamente a la web oficial (https://api.whatsapp.com/send)
+    abrirWhatsAppNativo(targetPhone, 'Ofertas');
   };
 
   const handleCompartirOferta = (oferta: Offer) => {
@@ -227,17 +238,19 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  const handleRegistrarUsuarioSubmit = (e: React.FormEvent) => {
+  const handleRegistrarUsuarioSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formUser.nombre || !formUser.email || !formUser.telefono) {
       alert('Por favor completa todos los campos requeridos.');
       return;
     }
 
-    const res = usuariosModule.registrarUsuario({
+    const telFinal = limpiarYNormalizarTelefono(formUser.telefono, '+51');
+
+    const res = await usuariosModule.registrarUsuarioAsync({
       nombre: formUser.nombre,
       apellido: formUser.apellido,
-      telefono: formUser.telefono,
+      telefono: telFinal,
       email: formUser.email,
       edad: Number(formUser.edad),
       genero: formUser.genero,
@@ -326,14 +339,12 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               </button>
             ) : (
               <button
-                onClick={() => {
-                  setOfertaObjetivoFunnel(null);
-                  setMotivoFunnel('general');
-                  setModalFunnelAbierto(true);
-                }}
-                className="px-3.5 py-1.5 bg-[#0F172A] hover:bg-black text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+                onClick={() => handleContactarOferta(null)}
+                className="px-3.5 py-1.5 bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title="Pedir ofertas directamente por WhatsApp"
               >
-                Registrarme
+                <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                <span>Pedir por WhatsApp</span>
               </button>
             )}
 
@@ -346,7 +357,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
           </div>
         </div>
 
-        {/* ================= HEADER IMAGE: banner-ficha-oferta-mujer ================= */}
+        {/* ================= HEADER IMAGE: banner.webp ================= */}
         <BannerHeader />
 
         {/* ================= BUSCADOR ANCHO COMPLETO ================= */}
@@ -401,15 +412,33 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                       }}
                       className="relative aspect-[4/5] w-full bg-stone-200 cursor-pointer overflow-hidden rounded-t-[20px]"
                     >
-                      <img
-                        src={oferta.imagenes[0]}
-                        alt={oferta.titulo}
-                        className="w-full h-full object-cover rounded-t-[20px] group-hover:scale-102 transition-transform duration-300"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          handleImgError(e, getCategoryFallbackImage(oferta.categoria, oferta.titulo));
-                        }}
-                      />
+                      {oferta.videoUrl ? (
+                        <div className="relative w-full h-full">
+                          <video
+                            src={oferta.videoUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover rounded-t-[20px]"
+                          />
+                          <div className="absolute top-12 left-3.5 z-10">
+                            <span className="bg-black/80 backdrop-blur-xs text-white text-[9px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase flex items-center gap-1 border border-white/20 shadow-md">
+                              <span>🎬</span> Video Veo
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={oferta.imagenes[0]}
+                          alt={oferta.titulo}
+                          className="w-full h-full object-cover rounded-t-[20px] group-hover:scale-102 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            handleImgError(e, getCategoryFallbackImage(oferta.categoria, oferta.titulo));
+                          }}
+                        />
+                      )}
 
                       {/* Top Left Badges: NUEVO, EXPIRA EN & BOOSTED */}
                       <div className="absolute top-3.5 left-3.5 flex flex-wrap items-center gap-1.5 z-10">
@@ -450,17 +479,18 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                       </button>
 
                       {/* Dark Scrim Overlay at the bottom of the 4:5 photo */}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-10 text-white z-10">
-                        <h3 className="font-bold text-base text-white leading-tight">
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-5 sm:p-6 pt-20 text-white z-10 space-y-2.5">
+                        <h3 className="font-black text-2xl sm:text-3xl md:text-4xl text-white leading-[1.05] tracking-tight uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]">
                           {oferta.titulo}
                         </h3>
-                        <div className="flex items-center justify-between text-xs text-white/90 pt-1">
-                          <span className="flex items-center gap-1.5 font-medium">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                            <span>{oferta.comercioNombre}</span>
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/25">
+                          <span className="flex items-center gap-2 font-black text-sm sm:text-base text-white">
+                            <Store className="w-5 h-5 text-emerald-400 shrink-0 drop-shadow-sm" />
+                            <span className="truncate max-w-[180px] sm:max-w-[220px]">{oferta.comercioNombre}</span>
                           </span>
-                          <span className="text-[11px] text-white/80 font-medium">
-                            📍 10 km · {oferta.distrito}
+                          <span className="inline-flex items-center gap-2 bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-amber-400/50 text-amber-300 font-black text-sm sm:text-base shadow-lg">
+                            <MapPin className="w-6 h-6 text-amber-400 shrink-0 drop-shadow-md" />
+                            <span>10 km · {oferta.distrito}</span>
                           </span>
                         </div>
                       </div>
@@ -474,7 +504,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                             setFichaOferta(oferta);
                             setFotoActivaIndex(0);
                           }}
-                          className="font-bold text-base text-[#0F172A] hover:text-[#1B4332] cursor-pointer leading-snug"
+                          className="font-extrabold text-xl sm:text-2xl text-[#0F172A] hover:text-[#1B4332] cursor-pointer leading-snug tracking-tight"
                         >
                           {oferta.titulo}
                         </h4>
@@ -493,45 +523,16 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                         </span>
                       </div>
 
-                      {/* Action Buttons: 💬 WhatsApp & ↗ Compartir (Condicionados a registro) */}
-                      <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-stone-100">
-                        {estaVerificado ? (
-                          <button
-                            onClick={() => handleContactarOferta(oferta)}
-                            className="w-full py-2.5 px-3 bg-[#15803D] hover:bg-[#166534] text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                          >
-                            <MessageCircle className="w-4 h-4 fill-white" />
-                            <span>Lo quiero</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleContactarOferta(oferta)}
-                            className="w-full py-2.5 px-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-2xl text-[11px] font-bold flex items-center justify-center gap-1.5 border border-stone-200/90 transition-all cursor-pointer group/btn"
-                            title="Regístrate previamente para pedir la oferta"
-                          >
-                            <Lock className="w-3.5 h-3.5 text-stone-400 group-hover/btn:text-stone-700 shrink-0" />
-                            <span className="truncate">Regístrate para 'Lo quiero'</span>
-                          </button>
-                        )}
-
-                        {estaVerificado ? (
-                          <button
-                            onClick={() => handleCompartirOferta(oferta)}
-                            className="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-[#0F172A] rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border border-[#EAE5D9] transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>Lo comparto</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleCompartirOferta(oferta)}
-                            className="w-full py-2.5 px-2 bg-stone-50 hover:bg-stone-100 text-stone-500 rounded-2xl text-[11px] font-bold flex items-center justify-center gap-1.5 border border-dashed border-stone-200 transition-all cursor-pointer group/btn"
-                            title="Regístrate previamente para compartir ofertas"
-                          >
-                            <Lock className="w-3.5 h-3.5 text-stone-400 group-hover/btn:text-stone-700 shrink-0" />
-                            <span className="truncate">Regístrate para 'Lo comparto'</span>
-                          </button>
-                        )}
+                      {/* Action Button: 💬 WhatsApp "Lo quiero" a ancho completo (botón compartir eliminado) */}
+                      <div className="pt-2 border-t border-stone-100">
+                        <button
+                          onClick={() => handleContactarOferta(oferta)}
+                          className="w-full py-3 px-4 bg-[#15803D] hover:bg-[#166534] text-white rounded-2xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                          title="Pedir oferta directamente por WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-white" />
+                          <span>Lo quiero</span>
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -548,24 +549,17 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     Mostrando las 7 ofertas destacadas de hoy en Lima
                   </h3>
                   <p className="text-xs text-stone-200 mt-1 max-w-md mx-auto leading-relaxed">
-                    {estaVerificado
-                      ? 'Pronto más comercios locales publicarán nuevas ofertas en tu distrito. ¡Recibirás novedades en tu WhatsApp oficial!'
-                      : 'Regístrate gratis para desbloquear el catálogo completo, contactar a los comercios y recibir ofertas personalizadas por WhatsApp.'}
+                    ¡Recibe al instante las mejores ofertas exclusivas cerca de ti directamente por WhatsApp sin formularios previos ni esperas!
                   </p>
                 </div>
-                {!estaVerificado && (
-                  <button
-                    onClick={() => {
-                      setOfertaObjetivoFunnel(null);
-                      setMotivoFunnel('general');
-                      setModalFunnelAbierto(true);
-                    }}
-                    className="px-6 py-2.5 bg-[#FF5722] hover:bg-[#F4511E] text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Crear cuenta gratuita y desbloquear</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => handleContactarOferta(null)}
+                  className="px-6 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4 fill-white" />
+                  <span>Pedir ofertas en WhatsApp</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </>
           )}
@@ -664,11 +658,20 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               )}
 
               {/* Bottom Scrim Overlay */}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4 pt-12 text-white z-10">
-                <span className="text-xs text-white/80 font-medium flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                  {fichaOferta.distrito}, Lima · {fichaOferta.comercioNombre}
-                </span>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-5 sm:p-6 pt-20 text-white z-10 space-y-2">
+                <h3 className="font-black text-2xl sm:text-3xl text-white leading-[1.05] tracking-tight uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]">
+                  {fichaOferta.titulo}
+                </h3>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/25 text-sm sm:text-base font-black">
+                  <span className="flex items-center gap-1.5 text-white">
+                    <Store className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{fichaOferta.comercioNombre}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-amber-400/50 text-amber-300 font-black text-sm sm:text-base shadow-md">
+                    <MapPin className="w-5 h-5 text-amber-400 shrink-0" />
+                    <span>10 km · {fichaOferta.distrito}</span>
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -721,42 +724,15 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               </div>
 
               {/* CTAs */}
-              <div className="space-y-2 pt-2">
-                {estaVerificado ? (
-                  <button
-                    onClick={() => handleContactarOferta(fichaOferta)}
-                    className="w-full py-3 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Lo quiero</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleContactarOferta(fichaOferta)}
-                    className="w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300/80 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer group/cta"
-                  >
-                    <Lock className="w-4 h-4 text-stone-500 group-hover/cta:text-stone-800" />
-                    <span>Regístrate para 'Lo quiero'</span>
-                  </button>
-                )}
-
-                {estaVerificado ? (
-                  <button
-                    onClick={() => handleCompartirOferta(fichaOferta)}
-                    className="w-full py-2.5 bg-[#F5F2EB] hover:bg-[#EAE5D9] text-[#1C1917] rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-[#EAE5D9] transition-colors"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>{copiado ? '¡Enlace copiado!' : 'Lo comparto (+10 puntos)'}</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleCompartirOferta(fichaOferta)}
-                    className="w-full py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-500 rounded-2xl text-xs font-medium flex items-center justify-center gap-1.5 border border-dashed border-stone-200 transition-all cursor-pointer group/cta"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-stone-400 group-hover/cta:text-stone-600" />
-                    <span>Regístrate para 'Lo comparto'</span>
-                  </button>
-                )}
+              <div className="pt-2">
+                <button
+                  onClick={() => handleContactarOferta(fichaOferta)}
+                  className="w-full py-3 px-4 bg-[#15803D] hover:bg-[#166534] text-white rounded-2xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                  title="Pedir oferta directamente por WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4 fill-white" />
+                  <span>Lo quiero</span>
+                </button>
               </div>
             </div>
           </div>
@@ -834,7 +810,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-[#57534E]">Número de WhatsApp</label>
+                  <label className="text-[11px] font-semibold text-[#57534E]">Número de WhatsApp *</label>
                   <input
                     type="text"
                     required
@@ -843,6 +819,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     placeholder="+51 912 345 678"
                     className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332]"
                   />
+                  <p className="text-[10px] text-[#78716C] mt-0.5">Código de país preconfigurado (🇵🇪 +51 Perú).</p>
                 </div>
 
                 <div>
@@ -906,7 +883,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-[#1C1917]">Registro de Negocio</h3>
-                <p className="text-xs text-[#78716C]">Publica tus ofertas y recibe leads comerciales</p>
+                <p className="text-xs text-[#78716C]">Sé uno de los 100 comercios fundadores: publica tus ofertas y recibe clientes de tu barrio directo en tu WhatsApp.</p>
               </div>
               <button onClick={() => setModalRegistroComercioAbierto(false)} className="text-[#78716C] hover:text-[#1C1917]">
                 ✕
@@ -980,7 +957,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] font-semibold text-[#57534E]">WhatsApp Negocio</label>
+                    <label className="text-[11px] font-semibold text-[#57534E]">WhatsApp Negocio *</label>
                     <input
                       type="text"
                       required
@@ -989,6 +966,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                       placeholder="+51 987 654 321"
                       className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332]"
                     />
+                    <p className="text-[10px] text-[#78716C] mt-0.5">Código de país preconfigurado (🇵🇪 +51).</p>
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold text-[#57534E]">Distrito del Local</label>

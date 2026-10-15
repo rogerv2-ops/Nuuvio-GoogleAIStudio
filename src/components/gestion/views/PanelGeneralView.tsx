@@ -13,6 +13,10 @@ import { coreConfig } from '../../../core/config';
 import { coreEvents } from '../../../core/events';
 import { usuariosModule } from '../../../modules/usuarios';
 import { facturacionModule } from '../../../modules/facturacion';
+import { TopOfertasSistemaDraggableWidget } from '../TopOfertasSistemaDraggableWidget';
+import { ExecutiveMetricsRechartsWidget } from '../ExecutiveMetricsRechartsWidget';
+import { TendenciasOfertasRechartsWidget } from '../../common/TendenciasOfertasRechartsWidget';
+import { TrendBadge } from '../../common/TrendBadge';
 
 interface PanelGeneralViewProps {
   onNavegar: (ruta: string) => void;
@@ -140,7 +144,13 @@ export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar })
         )}
       </div>
 
-      {/* 2. Sección: QUÉ ATENDER HOY (Alertas y Tareas Urgentes) */}
+      {/* 2. Sección Consolidada: Métricas Ejecutivas y Visualización Recharts */}
+      <ExecutiveMetricsRechartsWidget onNavegar={onNavegar} />
+
+      {/* Gráfico de Tendencias en el AdminPanel: 5 ofertas con más clics en los últimos 7 días */}
+      <TendenciasOfertasRechartsWidget />
+
+      {/* 3. Sección: QUÉ ATENDER HOY (Alertas y Tareas Urgentes) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -191,78 +201,10 @@ export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar })
         )}
       </div>
 
-      {/* 3. Métricas Principales del Negocio */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div 
-          onClick={() => onNavegar('/gestion/analitica')}
-          className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs hover:border-emerald-500/50 cursor-pointer transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 uppercase">Leads Generados</span>
-            <div className="p-2 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-              <MessageCircle className="w-4 h-4 text-emerald-700" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-stone-900">{kpis.totalClicsContactar}</span>
-            <span className="text-[10px] text-emerald-700 font-semibold">+18% sem</span>
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1">Contactos iniciados a comercios</p>
-        </div>
+      {/* 4. Sección Destacada: Top 9 Ofertas Más Exitosas del Mes (Rendimiento Comercial) */}
+      <TopOfertasSistemaDraggableWidget onNavegar={onNavegar} limite={9} />
 
-        <div 
-          onClick={() => onNavegar('/gestion/comercios/ventas-confirmadas')}
-          className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs hover:border-emerald-500/50 cursor-pointer transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 uppercase">Ventas Informadas</span>
-            <div className="p-2 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-              <TrendingUp className="w-4 h-4 text-indigo-700" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-stone-900">{ventasConfirmadas.length}</span>
-            <span className="text-[10px] text-indigo-700 font-semibold">Cód. Personal</span>
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1">Informadas por los comercios</p>
-        </div>
-
-        <div 
-          onClick={() => onNavegar('/gestion/comercios/pipeline')}
-          className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs hover:border-emerald-500/50 cursor-pointer transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 uppercase">Comercios en Red</span>
-            <div className="p-2 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
-              <Building2 className="w-4 h-4 text-amber-700" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-stone-900">{kanbanItems.length}</span>
-            <span className="text-[10px] text-amber-700 font-semibold">{comerciosPendientes.length} pendientes</span>
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1">7 etapas en Pipeline CRM</p>
-        </div>
-
-        <div 
-          onClick={() => onNavegar('/gestion/campanas-cobro')}
-          className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs hover:border-emerald-500/50 cursor-pointer transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-stone-500 uppercase">Saldo PPC Total</span>
-            <div className="p-2 bg-sky-50 rounded-xl group-hover:bg-sky-100 transition-colors">
-              <CreditCard className="w-4 h-4 text-sky-700" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-stone-900">{totalClicsSaldo}</span>
-            <span className="text-[10px] text-sky-700 font-semibold">clics</span>
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1">Distribuido en {packs.length} packs</p>
-        </div>
-      </div>
-
-      {/* 4. Directorio Modular: Accesos a las 7 Secciones */}
+      {/* 5. Directorio Modular: Accesos a las 7 Secciones */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-black text-stone-900 tracking-tight">

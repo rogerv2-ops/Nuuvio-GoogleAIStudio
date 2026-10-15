@@ -9,6 +9,7 @@ import { WahaQrModal } from './WahaQrModal';
 
 interface WhatsAppConfigData {
   modoActivo: 'meta' | 'waha';
+  numeroTelefono?: string;
   metaConfig: {
     phoneNumberId: string;
     wabaId: string;
@@ -133,6 +134,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modoActivo: nuevoModo,
+          numeroTelefono: config.numeroTelefono,
           metaConfig: config.metaConfig,
           wahaConfig: config.wahaConfig
         })
@@ -195,7 +197,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
   };
 
   const getWebhookUrlCompleta = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://vuuy.pe';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio';
     return `${origin}${modoSeleccionado === 'meta' ? config.metaConfig.webhookUrl : config.wahaConfig.webhookUrl}`;
   };
 
@@ -401,6 +403,22 @@ export const WhatsAppConfigPanel: React.FC = () => {
 
               {/* Campos de configuración WAHA */}
               <div className="space-y-4 pt-1">
+                <div className="space-y-1 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/80">
+                  <label className="text-xs font-bold text-[#1B4332] flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Número Telefónico de Respaldo / Oficial</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={config.numeroTelefono || ""}
+                    onChange={e => setConfig({ ...config, numeroTelefono: e.target.value })}
+                    placeholder="Ej: 51912345678"
+                    className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono font-medium text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
+                  />
+                  <p className="text-[11px] text-stone-500">
+                    Se utilizará automáticamente si no hay una sesión de código QR vinculada activamente.
+                  </p>
+                </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-stone-700">URL del Endpoint de WAHA</label>
                   <input

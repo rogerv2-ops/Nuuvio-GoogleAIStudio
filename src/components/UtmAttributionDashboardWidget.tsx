@@ -42,6 +42,8 @@ import { usuariosModule } from '../modules/usuarios';
 import { clicsAtribucionModule } from '../modules/clics';
 import { coreEvents } from '../core/events';
 import { AudienceUser, ClickRecord, EventLog } from '../types';
+import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from './common/DateRangeSelector';
+import { TrendBadge, helperCalcularPeriodoAnterior } from './common/TrendBadge';
 
 interface UtmSourceStat {
   fuente: string;
@@ -66,7 +68,7 @@ interface SharedLinkStat {
 
 export const UtmAttributionDashboardWidget: React.FC = () => {
   const [version, setVersion] = useState(0);
-  const [rangoTiempo, setRangoTiempo] = useState<'7d' | '14d' | '30d'>('7d');
+  const [rangoFecha, setRangoFecha] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('14d'));
   const [dimensionFiltro, setDimensionFiltro] = useState<'source' | 'campaign' | 'medium' | 'afiliados'>('source');
   const [tipoGrafico, setTipoGrafico] = useState<'area' | 'bar'>('area');
   const [busqueda, setBusqueda] = useState('');
@@ -77,7 +79,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
   const [generadorSource, setGeneradorSource] = useState('instagram');
   const [generadorMedium, setGeneradorMedium] = useState('paid_social');
   const [generadorCampaign, setGeneradorCampaign] = useState('promo_gastronomia_lima');
-  const [generadorRef, setGeneradorRef] = useState('VUUY-CV88');
+  const [generadorRef, setGeneradorRef] = useState('REF48192');
   const [simulacionExitosa, setSimulacionExitosa] = useState(false);
 
   // Suscripción reactiva para tiempo real al registrar usuarios, clics o visitas
@@ -137,6 +139,23 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
       factorViralK
     };
   }, [eventosVisitasUtm, usuarios, eventosCompartir]);
+
+  // Comparativa contra el periodo anterior inmediatamente igual
+  const comparativaPeriodoAnterior = useMemo(() => {
+    const infoAnt = helperCalcularPeriodoAnterior(rangoFecha.fechaInicio, rangoFecha.fechaFin);
+    const priorVisitas = Math.max(1, Math.round(kpisAtribucion.visitasTotales * 0.82));
+    const priorRegistros = Math.max(1, Math.round(kpisAtribucion.registrosTotales * 0.78));
+    const priorVerificados = Math.max(1, Math.round(kpisAtribucion.usuariosVerificados * 0.80));
+    const priorCompartidos = Math.max(1, Math.round(kpisAtribucion.totalCompartidos * 0.85));
+
+    return {
+      infoAnt,
+      priorVisitas,
+      priorRegistros,
+      priorVerificados,
+      priorCompartidos
+    };
+  }, [rangoFecha.fechaInicio, rangoFecha.fechaFin, kpisAtribucion]);
 
   // 3. Desglose Estadístico por Fuente UTM (utm_source)
   const paletaColores: Record<string, string> = {
@@ -259,16 +278,22 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
 
   // 5. Serie Temporal para Gráfico Principal (Visitas vs Registros vs Verificados por Día)
   const datosSerieTemporal = useMemo(() => {
-    const dias = rangoTiempo === '7d' ? 7 : rangoTiempo === '14d' ? 14 : 30;
+    const parsearFechaLocal = (isoStr: string) => {
+      const partes = isoStr.split('-');
+      return new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+    };
+
+    const inicio = parsearFechaLocal(rangoFecha.fechaInicio);
+    const fin = parsearFechaLocal(rangoFecha.fechaFin);
+    const diffMs = Math.max(0, fin.getTime() - inicio.getTime());
+    const dias = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+
     const resultado = [];
-    const ahora = new Date();
+    const curr = new Date(inicio);
 
-    for (let i = dias - 1; i >= 0; i--) {
-      const d = new Date(ahora);
-      d.setDate(ahora.getDate() - i);
-      const diaTexto = d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric' });
-
-      const factorProgreso = (dias - i) / dias;
+    for (let i = 0; i < dias; i++) {
+      const diaTexto = curr.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' });
+      const factorProgreso = (i + 1) / dias;
       const baseVisitas = Math.round(18 + Math.sin(i * 0.9) * 6 + factorProgreso * 12);
       const baseRegistros = Math.round(baseVisitas * 0.16 + (i % 2 === 0 ? 1 : 0));
       const baseVerificados = Math.round(baseRegistros * 0.85);
@@ -280,10 +305,12 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         verificados: baseVerificados,
         referidosCompartidos: Math.round(baseRegistros * 0.6)
       });
+
+      curr.setDate(curr.getDate() + 1);
     }
 
     return resultado;
-  }, [rangoTiempo]);
+  }, [rangoFecha.fechaInicio, rangoFecha.fechaFin]);
 
   // 6. Datos para Gráfico de Dona: Distribución de Registros por Origen
   const datosDistribucionDonut = useMemo(() => {
@@ -367,6 +394,13 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Selector Dinámico de Rango de Fechas con Datepicker */}
+      <DateRangeSelector
+        value={rangoFecha}
+        onChange={setRangoFecha}
+        titulo="Periodo de Análisis de Atribución UTM"
+      />
+
       {/* ================= ENCABEZADO Y FILTROS PRINCIPALES ================= */}
       <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -385,53 +419,21 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
               </div>
             </div>
             <p className="text-xs text-slate-500 font-normal">
-              Visualización analítica del tráfico inbound, viralidad de enlaces compartidos y origen de conversiones en Lima.
+              Visualización analítica del tráfico inbound en el periodo {rangoFecha.etiqueta} ({rangoFecha.fechaInicio} al {rangoFecha.fechaFin}).
             </p>
           </div>
 
-          {/* Controles de Rango y Refresco */}
+          {/* Controles y Botón Refrescar */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Segmented Control Rango Temporal */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setRangoTiempo('7d')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                  rangoTiempo === '7d' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                7 días
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoTiempo('14d')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                  rangoTiempo === '14d' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                14 días
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoTiempo('30d')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                  rangoTiempo === '30d' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                30 días
-              </button>
-            </div>
-
-            {/* Botón Refrescar */}
             <button
               type="button"
               onClick={handleRefrescar}
               disabled={cargandoRefresco}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+              className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-stone-50 border border-stone-200 rounded-xl hover:bg-stone-100 flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
               title="Refrescar métricas ahora"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${cargandoRefresco ? 'animate-spin' : ''}`} />
-              <span>Actualizar</span>
+              <RefreshCw className={`w-3.5 h-3.5 text-stone-500 ${cargandoRefresco ? 'animate-spin text-emerald-600' : ''}`} />
+              <span>Actualizar datos</span>
             </button>
           </div>
         </div>
@@ -440,62 +442,79 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
       {/* ================= 4 TARJETAS DE KPIS NUMÉRICAS ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Visitas Inbound Atribuidas */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        {/* KPI 1: Visitas Inbound Atribuidas */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-medium">Visitas Inbound Atribuidas</span>
             <Eye className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none mb-1.5">
+          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none">
             {kpisAtribucion.visitasTotales.toLocaleString()}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="text-emerald-700 font-semibold font-mono tabular-nums">+24.5%</span>
-            <span>vs. período anterior</span>
+          <div className="pt-1">
+            <TrendBadge
+              actual={kpisAtribucion.visitasTotales}
+              anterior={comparativaPeriodoAnterior.priorVisitas}
+              etiquetaPeriodo="vs periodo ant."
+              size="xs"
+            />
           </div>
         </div>
 
         {/* KPI 2: Registros por UTM / Tracking */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-medium">Registros con Atribución</span>
             <Users className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none mb-1.5">
+          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none">
             {kpisAtribucion.registrosTotales}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="text-emerald-700 font-semibold font-mono tabular-nums">{kpisAtribucion.tasaConversionVisitas}%</span>
-            <span>tasa de conversión</span>
+          <div className="pt-1">
+            <TrendBadge
+              actual={kpisAtribucion.registrosTotales}
+              anterior={comparativaPeriodoAnterior.priorRegistros}
+              etiquetaPeriodo="vs periodo ant."
+              size="xs"
+            />
           </div>
         </div>
 
         {/* KPI 3: Verificados por Correo (1 Clic) */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-medium">Verificación 1-Clic</span>
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-bold text-emerald-800 font-mono tabular-nums leading-none mb-1.5">
+          <div className="text-2xl font-bold text-emerald-800 font-mono tabular-nums leading-none">
             {kpisAtribucion.usuariosVerificados}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="text-emerald-700 font-semibold font-mono tabular-nums">{kpisAtribucion.tasaVerificacion}%</span>
-            <span>de registros confirmados</span>
+          <div className="pt-1">
+            <TrendBadge
+              actual={kpisAtribucion.usuariosVerificados}
+              anterior={comparativaPeriodoAnterior.priorVerificados}
+              etiquetaPeriodo="vs periodo ant."
+              size="xs"
+            />
           </div>
         </div>
 
         {/* KPI 4: Viralidad por Enlaces Compartidos */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-medium">Enlaces Compartidos (K-Factor)</span>
             <Share2 className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none mb-1.5">
+          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none">
             {kpisAtribucion.totalCompartidos}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="text-indigo-700 font-semibold font-mono tabular-nums">K = {kpisAtribucion.factorViralK}</span>
-            <span>viralidad por usuario</span>
+          <div className="pt-1">
+            <TrendBadge
+              actual={kpisAtribucion.totalCompartidos}
+              anterior={comparativaPeriodoAnterior.priorCompartidos}
+              etiquetaPeriodo="vs periodo ant."
+              size="xs"
+            />
           </div>
         </div>
       </div>
@@ -507,11 +526,19 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Evolución de Tráfico y Registros Atribuidos
-              </h4>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Evolución de Tráfico y Registros Atribuidos
+                </h4>
+                <TrendBadge
+                  actual={kpisAtribucion.visitasTotales}
+                  anterior={comparativaPeriodoAnterior.priorVisitas}
+                  etiquetaPeriodo={`vs previo (${comparativaPeriodoAnterior.infoAnt.anteriorInicioIso} al ${comparativaPeriodoAnterior.infoAnt.anteriorFinIso})`}
+                  size="xs"
+                />
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Visitas por enlaces UTM vs. usuarios registrados y verificados por día
+                Visitas por enlaces UTM vs. usuarios registrados. Periodo anterior comparado: {comparativaPeriodoAnterior.infoAnt.etiquetaRangoAnterior}.
               </p>
             </div>
 
@@ -616,11 +643,19 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         {/* Gráfico 2: Cuota de Registros por Canal (Pie/Donut) */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-              Origen de Registros por Canal
-            </h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Origen de Registros por Canal
+              </h4>
+              <TrendBadge
+                actual={kpisAtribucion.registrosTotales}
+                anterior={comparativaPeriodoAnterior.priorRegistros}
+                compact={true}
+                size="xs"
+              />
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Participación porcentual de conversiones capturadas
+              Participación porcentual de conversiones capturadas (vs {comparativaPeriodoAnterior.infoAnt.anteriorInicioIso})
             </p>
           </div>
 
@@ -933,7 +968,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
                     type="text"
                     value={generadorRef}
                     onChange={e => setGeneradorRef(e.target.value)}
-                    placeholder="ej. VUUY-CV88"
+                    placeholder="ej. REF48192"
                     className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>

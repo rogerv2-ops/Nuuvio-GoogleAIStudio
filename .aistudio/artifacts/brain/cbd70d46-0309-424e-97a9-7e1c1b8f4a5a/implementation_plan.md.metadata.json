@@ -1,6 +1,6 @@
 {
-  "summary":  "Plan de Reorganización Modular del Panel de Comercio de vuuy.\nEstructura en 5 dominios y utilidades con lenguaje de dueño de negocio:\n- Inicio (/comercio): Portada con KPIs reales, pulso del local y alertas de acción rápida.\n- Mis ofertas (/comercio/ofertas): Catálogo, Nueva oferta (4:5), En revisión, Historial y Detalle.\n- Resultados (/comercio/resultados): Vistas vs Clics de contacto vs Ventas, desglose por oferta y por zona/canal.\n- Campañas de clics (/comercio/campanas): Saldo de clics, consumo, packs PPC y comprobantes.\n- Ventas confirmadas (/comercio/ventas): Validador de código personal de 6 dígitos sin QR, historial y canjes condicionales.\n- Mi negocio (/comercio/negocio): Ficha de datos, local único y preferencias.\n- Utilidades: Notificaciones y Ayuda.\nAislamiento estricto de negocio según sesión (rogerv707@gmail.com -> merch_01 La Bodega Verde), sin mezclar datos de otros comercios.",
-  "updatedAt":  "2026-10-11T22:03:17.820757546Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Plan de implementación para la validación previa de usuarios de WhatsApp en base de datos, enmascaramiento con botón interactivo CTA, renderizado fiel de tarjetas con badges y precios, código de referido REF+5 dígitos y depuración de enlaces web.",
+  "updatedAt": "2026-10-14T17:23:05.569932528Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

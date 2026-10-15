@@ -2,13 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Menu, X, ChevronRight, ChevronDown, ChevronLeft, 
   Search, Shield, Bell, Calendar, ArrowLeft, Store, 
-  CheckCircle2, AlertCircle, ExternalLink, Building2
+  CheckCircle2, AlertCircle, ExternalLink, Building2,
+  RotateCw, Check, Sparkles
 } from 'lucide-react';
 import { GESTION_MENU, resolverRutaCanonica } from './gestionMenuConfig';
 import { GestionMenuItem, GestionSubItem, GestionBreadcrumb } from './types';
 import { coreSecurity } from '../../core/security';
 import { comerciosModule } from '../../modules/comercios';
 import { ofertasModule } from '../../modules/ofertas';
+import { bannersModule } from '../../modules/banners';
+import { purgarTodasLasCaches } from '../../utils/resourceVersion';
 
 // Vistas de Dominio
 import { PanelGeneralView } from './views/PanelGeneralView';
@@ -50,6 +53,25 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
   const [sidebarColapsadoDesktop, setSidebarColapsadoDesktop] = useState(false);
   const [busquedaGlobal, setBusquedaGlobal] = useState('');
   const [rangoFecha, setRangoFecha] = useState('13 — 19 Oct, 2025');
+  const [limpiandoCache, setLimpiandoCache] = useState(false);
+  const [mensajeCache, setMensajeCache] = useState<string | null>(null);
+
+  const handleLimpiarTodasLasCaches = async () => {
+    try {
+      setLimpiandoCache(true);
+      setMensajeCache(null);
+      const res = await purgarTodasLasCaches();
+      await bannersModule.sincronizarConServidor();
+      setMensajeCache(`✓ Caché purgada (${res.version.slice(-4)})`);
+      setTimeout(() => setMensajeCache(null), 3500);
+    } catch (err) {
+      console.error('Error al purgar caché:', err);
+      setMensajeCache('Error al purgar');
+      setTimeout(() => setMensajeCache(null), 3000);
+    } finally {
+      setLimpiandoCache(false);
+    }
+  };
 
   // Menús desplegados (se expanden/colapsan con control independiente)
   const [menusDesplegados, setMenusDesplegados] = useState<Record<string, boolean>>(() => {
@@ -415,6 +437,31 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
                 <Calendar className="w-3.5 h-3.5 text-stone-400" />
                 <span>{rangoFecha}</span>
               </div>
+
+              {/* Botón Limpiar Caché */}
+              <button
+                type="button"
+                onClick={handleLimpiarTodasLasCaches}
+                disabled={limpiandoCache}
+                title="Limpiar todas las cachés del sistema (navegador, banners, CDN y assets estáticos)"
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-2xs
+                  ${mensajeCache
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-2 ring-emerald-500/20'
+                    : 'bg-white hover:bg-stone-100 text-stone-700 border-stone-200/90 hover:border-stone-300'
+                  }
+                  ${limpiandoCache ? 'opacity-70 cursor-wait' : ''}
+                `}
+              >
+                {mensajeCache ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <RotateCw className={`w-3.5 h-3.5 shrink-0 ${limpiandoCache ? 'animate-spin text-emerald-600' : 'text-stone-500'}`} />
+                )}
+                <span>
+                  {mensajeCache || (limpiandoCache ? 'Limpiando...' : 'Limpiar Caché')}
+                </span>
+              </button>
 
               {/* Botón Volver a la Web */}
               {onVolverAWeb && (

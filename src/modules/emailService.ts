@@ -14,11 +14,15 @@ export interface EmailConfigData {
     pass: string;
     fromName: string;
     fromEmail: string;
+    hasPass?: boolean;
+    configured?: boolean;
   };
   resend: {
     apiKey: string;
     fromEmail: string;
     fromName: string;
+    hasApiKey?: boolean;
+    configured?: boolean;
   };
 }
 
@@ -69,9 +73,9 @@ class EmailService {
       console.warn('Fallo llamada a /api/email/send-verification, usando fallback local:', err);
       // Fallback local en caso de que el backend esté reiniciándose
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const vLink = `${origin}/?verify_token=${params.verificationToken}`;
-      const waNum = (params.botPhone || '51987654321').replace(/\D/g, '');
-      const waLink = `https://wa.me/${waNum}?text=${encodeURIComponent('Oferta')}`;
+      const vLink = `${origin}/bienvenida?verify_token=${params.verificationToken}`;
+      const waNum = (params.botPhone || '').replace(/\D/g, '');
+      const waLink = waNum ? `whatsapp://send?phone=${waNum}&text=${encodeURIComponent('Ofertas')}` : `whatsapp://send?text=${encodeURIComponent('Ofertas')}`;
       return {
         ok: true,
         message: 'Correo procesado (modo de contingencia)',

@@ -1,5 +1,5 @@
 import { 
-  Home, Tag, BarChart2, Zap, CheckCircle2, Store
+  Home, Tag, BarChart2, Zap, CheckCircle2, Store, History
 } from 'lucide-react';
 import { ComercioMenuItem } from './types';
 import { ofertasModule } from '../../modules/ofertas';
@@ -45,9 +45,27 @@ export const OBTENER_COMERCIO_MENU = (comercioId: string): ComercioMenuItem[] =>
         id: 'ofertas-historial',
         ruta: '/comercio/ofertas/historial',
         titulo: 'Historial de ofertas',
-        descripcion: 'Promociones pausadas, agotadas y vencidas'
+        descripcion: 'Promociones previas, pausadas, agotadas y vencidas'
+      },
+      {
+        id: 'ofertas-alcance',
+        ruta: '/comercio/historial-promociones',
+        titulo: 'Historial de promociones',
+        descripcion: 'Estadísticas de alcance, lecturas y contactos WhatsApp'
       }
     ]
+  },
+  {
+    id: 'historial-promociones',
+    ruta: '/comercio/historial-promociones',
+    titulo: 'Historial de promociones',
+    descripcion: 'Promociones enviadas y estadísticas de alcance acumulado',
+    icono: History,
+    badge: () => {
+      const ofrs = ofertasModule.listarOfertasPorComercio(comercioId);
+      return ofrs.length > 0 ? { count: ofrs.length, color: 'bg-emerald-50 text-emerald-800' } : null;
+    },
+    subitems: []
   },
   {
     id: 'resultados',
@@ -164,6 +182,7 @@ export function normalizarRutaComercio(pathnameOrHash: string): string {
   if (ruta === '' || ruta === 'comercio') return '/comercio';
 
   // Redirecciones compatibles de pestañas anteriores
+  if (ruta === 'comercio/historial-promociones' || ruta === 'historial-promociones') return '/comercio/historial-promociones';
   if (ruta === 'comercio/ofertas' || ruta === 'ofertas') return '/comercio/ofertas';
   if (ruta === 'comercio/estadisticas' || ruta === 'estadisticas') return '/comercio/resultados';
   if (ruta === 'comercio/historial' || ruta === 'historial') return '/comercio/ventas';

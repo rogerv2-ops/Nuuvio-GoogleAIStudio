@@ -155,6 +155,10 @@ class OfertasModule {
     categoria: string;
     imagenes: string[];
     diasVencimiento?: number;
+    videoUrl?: string;
+    videoAspectRatio?: '9:16' | '16:9';
+    videoEstado?: 'pendiente' | 'generando' | 'completado' | 'error';
+    videoPrompt?: string;
   }): { ok: boolean; oferta?: Offer; error?: string } {
     const comercio = comerciosModule.obtenerComercio(datos.comercioId);
     if (!comercio || comercio.estado !== 'activo') {
@@ -211,7 +215,11 @@ class OfertasModule {
       creadaEn: new Date().toISOString(),
       vistas: 0,
       clics: 0,
-      leadsCalificados: 0
+      leadsCalificados: 0,
+      videoUrl: datos.videoUrl,
+      videoAspectRatio: datos.videoAspectRatio || (datos.videoUrl ? '9:16' : undefined),
+      videoEstado: datos.videoEstado || (datos.videoUrl ? 'completado' : undefined),
+      videoPrompt: datos.videoPrompt
     };
 
     this.ofertas.set(id, nuevaOferta);
@@ -301,6 +309,23 @@ class OfertasModule {
     const oferta = this.ofertas.get(ofertaId);
     if (!oferta) return false;
     oferta.estado = oferta.estado === 'activa' ? 'pausada' : 'activa';
+    this.guardarEnLocalStorage();
+    this.notificar();
+    return true;
+  }
+
+  public actualizarOfertaVideo(
+    ofertaId: string, 
+    videoUrl: string, 
+    aspectRatio: '9:16' | '16:9' = '9:16',
+    prompt?: string
+  ): boolean {
+    const oferta = this.ofertas.get(ofertaId);
+    if (!oferta) return false;
+    oferta.videoUrl = videoUrl;
+    oferta.videoAspectRatio = aspectRatio;
+    oferta.videoEstado = 'completado';
+    if (prompt) oferta.videoPrompt = prompt;
     this.guardarEnLocalStorage();
     this.notificar();
     return true;

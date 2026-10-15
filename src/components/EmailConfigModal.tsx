@@ -23,13 +23,15 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [smtpSecure, setSmtpSecure] = useState(false);
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
-  const [smtpFromName, setSmtpFromName] = useState('vuuy Ofertas');
-  const [smtpFromEmail, setSmtpFromEmail] = useState('notificaciones@vuuy.pe');
+  const [smtpHasPass, setSmtpHasPass] = useState(false);
+  const [smtpFromName, setSmtpFromName] = useState('Sustrae Imprenta');
+  const [smtpFromEmail, setSmtpFromEmail] = useState('no-reply@mail.sustrae.com');
 
   // Campos Resend
   const [resendApiKey, setResendApiKey] = useState('');
-  const [resendFromEmail, setResendFromEmail] = useState('onboarding@resend.dev');
-  const [resendFromName, setResendFromName] = useState('vuuy Ofertas');
+  const [resendHasApiKey, setResendHasApiKey] = useState(false);
+  const [resendFromEmail, setResendFromEmail] = useState('no-reply@mail.sustrae.com');
+  const [resendFromName, setResendFromName] = useState('Sustrae Imprenta');
 
   // Prueba y logs
   const [correoPrueba, setCorreoPrueba] = useState('');
@@ -47,18 +49,22 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setCargando(true);
       const conf = await emailService.obtenerConfiguracion();
       if (conf) {
-        setProvider(conf.provider || 'smtp');
+        setProvider(conf.provider || 'resend');
         if (conf.smtp) {
           setSmtpHost(conf.smtp.host || 'smtp.gmail.com');
           setSmtpPort(conf.smtp.port || 587);
           setSmtpSecure(!!conf.smtp.secure);
           setSmtpUser(conf.smtp.user || '');
-          setSmtpFromName(conf.smtp.fromName || 'vuuy Ofertas');
-          setSmtpFromEmail(conf.smtp.fromEmail || 'notificaciones@vuuy.pe');
+          setSmtpFromName(conf.smtp.fromName || 'Sustrae Imprenta');
+          setSmtpFromEmail(conf.smtp.fromEmail || 'no-reply@mail.sustrae.com');
+          setSmtpHasPass(!!conf.smtp.hasPass);
+          setSmtpPass('');
         }
         if (conf.resend) {
-          setResendFromEmail(conf.resend.fromEmail || 'onboarding@resend.dev');
-          setResendFromName(conf.resend.fromName || 'vuuy Ofertas');
+          setResendFromEmail(conf.resend.fromEmail || 'no-reply@mail.sustrae.com');
+          setResendFromName(conf.resend.fromName || 'Sustrae Imprenta');
+          setResendHasApiKey(!!conf.resend.hasApiKey || !!conf.resend.configured);
+          setResendApiKey('');
         }
       }
     } catch (e) {
@@ -106,6 +112,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const res = await emailService.guardarConfiguracion(payload);
       if (res.ok) {
         setMensajeEstado({ tipo: 'exito', texto: 'Configuración de correo guardada exitosamente.' });
+        await cargarConfiguracion();
       } else {
         setMensajeEstado({ tipo: 'error', texto: res.message || 'Error al guardar la configuración.' });
       }
@@ -278,7 +285,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Contraseña de Aplicación</label>
                     <input
                       type="password"
-                      placeholder="••••••••••••"
+                      placeholder={smtpHasPass ? "•••••••••••• (Guardada - vacía para no cambiar)" : "••••••••••••"}
                       value={smtpPass}
                       onChange={(e) => setSmtpPass(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
@@ -330,10 +337,17 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </h4>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-stone-700 mb-1">Resend API Key *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-stone-700">Resend API Key *</label>
+                    {resendHasApiKey && (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> API Key Guardada
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="password"
-                    placeholder="re_1234567890abcdef..."
+                    placeholder={resendHasApiKey ? "•••••••••••••••• (Guardada - vacía para no cambiar)" : "re_1234567890abcdef..."}
                     value={resendApiKey}
                     onChange={(e) => setResendApiKey(e.target.value)}
                     className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
@@ -346,7 +360,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Nombre Remitente</label>
                     <input
                       type="text"
-                      placeholder="vuuy Ofertas"
+                      placeholder="Sustrae Imprenta"
                       value={resendFromName}
                       onChange={(e) => setResendFromName(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
@@ -356,7 +370,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Correo Remitente (From)</label>
                     <input
                       type="text"
-                      placeholder="onboarding@resend.dev"
+                      placeholder="no-reply@mail.sustrae.com"
                       value={resendFromEmail}
                       onChange={(e) => setResendFromEmail(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"

@@ -454,7 +454,7 @@ export const SEED_USER: AudienceUser = {
   distrito: 'Miraflores',
   categoriasInteres: ['Gastronomía y Café', 'Moda y Calzado', 'Belleza y Bienestar'],
   puntosSaldo: 140,
-  codigoRef: 'VUUY-CV88',
+  codigoRef: 'REF48192',
   estado: 'activo',
   consentimientos: {
     correo: true,
@@ -462,8 +462,193 @@ export const SEED_USER: AudienceUser = {
     whatsapp: true
   },
   registradoEn: '2026-10-01T14:00:00Z',
-  ultimoMensajeEn: '2026-10-09T18:00:00Z'
+  ultimoMensajeEn: '2026-10-09T18:00:00Z',
+  utm: {
+    source: 'instagram',
+    medium: 'paid_social',
+    campaign: 'promo_gastronomia_lima',
+    content: 'video_reels_acai'
+  }
 };
+
+export const SEED_AUDIENCE_USERS: AudienceUser[] = [
+  SEED_USER,
+  {
+    id: 'usr_demo_02',
+    telefono: '+51 987 111 222',
+    nombre: 'Luciana',
+    apellido: 'Rivas',
+    email: 'luciana.rivas@gmail.com',
+    emailVerificado: false,
+    edad: 26,
+    genero: 'Femenino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'Barranco',
+    categoriasInteres: ['Gastronomía y Café', 'Moda y Calzado'],
+    puntosSaldo: 0,
+    codigoRef: 'REF29381',
+    invitadoPor: 'REF48192',
+    estado: 'pendiente',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-08T10:00:00Z',
+    utm: {
+      source: 'whatsapp',
+      medium: 'chat_share',
+      campaign: 'amigos_vuuy_ofertas'
+    }
+  },
+  {
+    id: 'usr_demo_03',
+    telefono: '+51 987 222 333',
+    nombre: 'Mateo',
+    apellido: 'Alva',
+    email: 'mateo.alva@outlook.com',
+    emailVerificado: true,
+    edad: 31,
+    genero: 'Masculino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'Miraflores',
+    categoriasInteres: ['Gastronomía y Café', 'Tecnología y Gadgets'],
+    puntosSaldo: 30,
+    codigoRef: 'REF83719',
+    estado: 'activo',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-07T12:00:00Z',
+    utm: {
+      source: 'facebook',
+      medium: 'social_post',
+      campaign: 'ofertas_barranco_miraflores',
+      content: 'carrusel_cafeterias'
+    }
+  },
+  {
+    id: 'usr_demo_04',
+    telefono: '+51 987 333 444',
+    nombre: 'Valeria',
+    apellido: 'Mendoza',
+    email: 'valeria.mendoza@gmail.com',
+    emailVerificado: true,
+    edad: 24,
+    genero: 'Femenino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'San Isidro',
+    categoriasInteres: ['Moda y Calzado', 'Belleza y Bienestar'],
+    puntosSaldo: 50,
+    codigoRef: 'REF91024',
+    estado: 'activo',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-09T08:00:00Z',
+    utm: {
+      source: 'tiktok',
+      medium: 'creator_bio',
+      campaign: 'foodies_lima_noche',
+      content: 'link_en_bio'
+    }
+  },
+  {
+    id: 'usr_demo_05',
+    telefono: '+51 987 444 555',
+    nombre: 'Diego',
+    apellido: 'Paredes',
+    email: 'diego.paredes@gmail.com',
+    emailVerificado: true,
+    edad: 34,
+    genero: 'Masculino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'Surco',
+    categoriasInteres: ['Gastronomía y Café', 'Hogar y Decoración'],
+    puntosSaldo: 10,
+    codigoRef: 'REF58219',
+    estado: 'activo',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-09T14:00:00Z',
+    utm: {
+      source: 'google',
+      medium: 'cpc',
+      campaign: 'ofertas_restaurantes_lima',
+      term: 'descuentos cafes lima'
+    }
+  },
+  {
+    id: 'usr_demo_06',
+    telefono: '+51 987 555 666',
+    nombre: 'Andrea',
+    apellido: 'Silva',
+    email: 'andrea.silva@hotmail.com',
+    emailVerificado: true,
+    edad: 28,
+    genero: 'Femenino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'Barranco',
+    categoriasInteres: ['Gastronomía y Café', 'Belleza y Bienestar'],
+    puntosSaldo: 20,
+    codigoRef: 'REF38491',
+    invitadoPor: 'REF48192',
+    estado: 'activo',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-10T11:00:00Z',
+    utm: {
+      source: 'whatsapp',
+      medium: 'chat_share',
+      campaign: 'amigos_vuuy_ofertas'
+    }
+  },
+  {
+    id: 'usr_demo_07',
+    telefono: '+51 987 666 777',
+    nombre: 'Renzo',
+    apellido: 'Chávez',
+    email: 'renzo.chavez@gmail.com',
+    emailVerificado: false,
+    edad: 27,
+    genero: 'Masculino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'San Borja',
+    categoriasInteres: ['Tecnología y Gadgets', 'Gastronomía y Café'],
+    puntosSaldo: 0,
+    codigoRef: 'REF67120',
+    estado: 'pendiente',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-10T16:00:00Z',
+    utm: {
+      source: 'instagram',
+      medium: 'paid_social',
+      campaign: 'promo_gastronomia_lima',
+      content: 'story_swipe'
+    }
+  },
+  {
+    id: 'usr_demo_08',
+    telefono: '+51 987 777 888',
+    nombre: 'Camila',
+    apellido: 'Torres',
+    email: 'camila.torres@gmail.com',
+    emailVerificado: true,
+    edad: 25,
+    genero: 'Femenino',
+    ciudad: 'Lima',
+    provincia: 'Lima',
+    distrito: 'Miraflores',
+    categoriasInteres: ['Moda y Calzado', 'Gastronomía y Café'],
+    puntosSaldo: 10,
+    codigoRef: 'REF72614',
+    invitadoPor: 'REF29381',
+    estado: 'activo',
+    consentimientos: { correo: true, push: true, whatsapp: true },
+    registradoEn: '2026-10-10T18:00:00Z',
+    utm: {
+      source: 'tiktok',
+      medium: 'creator_bio',
+      campaign: 'foodies_lima_noche'
+    }
+  }
+];
 
 export const SEED_CLICK_PACKS: ClickPack[] = [
   {

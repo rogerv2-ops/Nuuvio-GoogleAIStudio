@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, Gift, AlertCircle, ShoppingCart, 
   Clock, Hash, Sparkles, ArrowRight, Bell, Volume2, VolumeX,
-  Radio, Zap, X, Check, ShieldCheck, Play
+  Radio, Zap, X, Check, ShieldCheck, Play, Download, FileSpreadsheet
 } from 'lucide-react';
 import { Merchant, ConfirmedSale } from '../../../types';
 import { clicsAtribucionModule } from '../../../modules/clics';
@@ -190,6 +190,33 @@ export const VentasComercioView: React.FC<VentasComercioViewProps> = ({
         mensaje: res.error || 'Código de canje no válido o ya utilizado.' 
       });
     }
+  };
+
+  // Exportar historial de ventas validadas a CSV
+  const handleExportarCSV = () => {
+    if (ventasLocales.length === 0) return;
+
+    const headers = ['ID Venta', 'Código Personal', 'Fecha Registro', 'Monto (PEN)', 'Estado', 'Comercio ID'];
+    const rows = ventasLocales.map(v => [
+      v.id,
+      v.codigoPersonal,
+      new Date(v.confirmadaEn).toLocaleString('es-PE'),
+      `S/ ${v.montoVenta || 35}.00`,
+      'Confirmada en caja',
+      v.comercioId
+    ]);
+
+    const csvRows = [headers.join(','), ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))];
+    const csvString = '\uFEFF' + csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ventas_confirmadas_${comercio.id}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Función para simular una alerta de canje en vivo (Probar Alerta)
@@ -461,13 +488,31 @@ export const VentasComercioView: React.FC<VentasComercioViewProps> = ({
 
       {/* Historial de Ventas Reportadas */}
       <div className="bg-white rounded-2xl p-5 border border-stone-200/80 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-sm text-[#0F172A]">
-            Historial de Ventas Informadas por tu Negocio
-          </h4>
-          <span className="text-xs text-stone-400 font-mono">
-            {ventasLocales.length} ventas registradas
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 className="font-bold text-sm text-[#0F172A] flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+              <span>Historial de Ventas Informadas por tu Negocio</span>
+            </h4>
+            <p className="text-xs text-stone-400 mt-0.5">
+              Transacciones validadas en caja mediante código personal de cliente.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-stone-400 font-mono">
+              {ventasLocales.length} ventas
+            </span>
+            <button
+              type="button"
+              onClick={handleExportarCSV}
+              disabled={ventasLocales.length === 0}
+              className="px-3.5 py-1.5 bg-[#166534] hover:bg-[#14532D] text-white disabled:bg-stone-200 disabled:text-stone-400 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+              title="Descargar reporte en formato CSV (Excel)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar a CSV</span>
+            </button>
+          </div>
         </div>
 
         {ventasLocales.length === 0 ? (

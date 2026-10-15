@@ -6,6 +6,7 @@ import {
 import { Merchant, Offer } from '../../../types';
 import { MerchantKPIs } from '../../../modules/analitica';
 import { TopOfertasExitosasWidget } from '../TopOfertasExitosasWidget';
+import { TendenciasOfertasRechartsWidget } from '../../common/TendenciasOfertasRechartsWidget';
 
 interface InicioComercioViewProps {
   comercio: Merchant;
@@ -150,6 +151,9 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Gráfico de Tendencias en el Panel de Comercio: 5 ofertas con más clics en los últimos 7 días */}
+      <TendenciasOfertasRechartsWidget comercioId={comercio.id} />
 
       {/* Sección Destacada: Tarjetas de Resumen Rápido de Ofertas Más Exitosas (Clics vs Conversiones) */}
       <TopOfertasExitosasWidget 

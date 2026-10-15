@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Settings, MessageCircle, Mail, Globe, Clock, 
   ToggleLeft, ToggleRight, Shield, Sparkles, CheckCircle2, 
-  ExternalLink, Save, RefreshCw, Key, Eye, EyeOff, Lock, UserPlus, Server
+  ExternalLink, Save, RefreshCw, Key, Eye, EyeOff, Lock, UserPlus, Server, Images
 } from 'lucide-react';
 import { WhatsAppConfigPanel } from '../../WhatsAppConfigPanel';
 import { EmailConfigModal } from '../../EmailConfigModal';
 import { SeoMetadataEditor } from '../../SeoMetadataEditor';
+import { ProveedoresIaView } from './ProveedoresIaView';
+import { BannersConfigView } from './BannersConfigView';
 import { coreConfig } from '../../../core/config';
 import { coreSecurity } from '../../../core/security';
 import { coreEvents } from '../../../core/events';
@@ -69,11 +71,12 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const esWhatsapp = subruta === '/gestion/configuracion/whatsapp';
   const esCorreo = subruta === '/gestion/configuracion/correo';
   const esSeo = subruta === '/gestion/configuracion/seo';
+  const esBanners = subruta === '/gestion/configuracion/banners';
   const esAuditoria = subruta === '/gestion/configuracion/auditoria';
   const esGeneral = subruta === '/gestion/configuracion/general';
   const esSeguridad = subruta === '/gestion/configuracion/seguridad';
   const esAgentes = subruta === '/gestion/configuracion/agentes';
-  const esResumen = !esWhatsapp && !esCorreo && !esSeo && !esAuditoria && !esGeneral && !esSeguridad && !esAgentes;
+  const esResumen = !esWhatsapp && !esCorreo && !esSeo && !esBanners && !esAuditoria && !esGeneral && !esSeguridad && !esAgentes;
 
   const handleToggleFlag = (nombre: keyof typeof flags) => {
     coreConfig.alternarModulo(nombre, 'Super Admin');
@@ -140,6 +143,18 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
         </button>
 
         <button
+          onClick={() => onNavegar('/gestion/configuracion/banners')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            esBanners
+              ? 'bg-[#1B4332] text-white shadow-xs'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <Images className="w-3.5 h-3.5" />
+          <span>Banners del Feed</span>
+        </button>
+
+        <button
           onClick={() => onNavegar('/gestion/configuracion/auditoria')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
             esAuditoria
@@ -184,7 +199,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
           }`}
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Agentes IA</span>
+          <span>Proveedores de IA</span>
         </button>
       </div>
 
@@ -738,66 +753,14 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
         </div>
       )}
 
-      {/* 8. AGENTES IA */}
+      {/* 8. PROVEEDORES Y MODELOS DE IA */}
       {esAgentes && (
-        <div className="bg-white rounded-2xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-5">
-          <div>
-            <h3 className="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-emerald-600" />
-              <span>Configuración de Asistentes IA (Gemini 2.5 Flash)</span>
-            </h3>
-            <p className="text-xs text-stone-500 mt-1 max-w-xl">
-              Ajusta los parámetros del modelo de inteligencia artificial utilizado para recomendaciones y filtrado editorial.
-            </p>
-          </div>
+        <ProveedoresIaView onNavegar={onNavegar} />
+      )}
 
-          {guardadoIa && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Parámetros del agente IA actualizados en CoreConfig.</span>
-            </div>
-          )}
-
-          <form onSubmit={handleGuardarIa} className="space-y-4 max-w-xl">
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">
-                  Modelo de Inteligencia Artificial Activo
-                </label>
-                <select
-                  value={modeloIa as string}
-                  onChange={(e) => setModeloIa(e.target.value)}
-                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800"
-                >
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado / Ultra Rápido)</option>
-                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Razonamiento Complejo)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">
-                  Radio de Cercanía de Ofertas por Defecto (KM)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={radioCercania}
-                  onChange={(e) => setRadioCercania(Number(e.target.value))}
-                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Save className="w-4 h-4" />
-              <span>Guardar Parámetros de IA</span>
-            </button>
-          </form>
-        </div>
+      {/* 9. BANNERS DEL FEED */}
+      {esBanners && (
+        <BannersConfigView />
       )}
     </div>
   );

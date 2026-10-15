@@ -1,8 +1,10 @@
 /**
  * MODULO 13: Agentes de IA (ia-usuarios, ia-comercios, ia-gestion)
+ * Integrados a la Capa Única de IA (aiService) con soporte multi-proveedor y failover.
  * Regla de oro R6: La IA asiste, redacta y propone. NUNCA publica, aprueba ni cobra por su cuenta.
  */
 import { Offer, OfferType } from '../types';
+import { aiService } from '../services/aiService';
 
 export interface ProposalExtraction {
   titulo: string;
@@ -44,6 +46,13 @@ export class IaUsuariosAgent {
       } else if (t.includes('spa') || t.includes('masaje') || t.includes('corte')) {
         categoriaSugerida = 'Belleza y Bienestar';
       }
+
+      // Registro asíncrono en capa de IA
+      aiService.generarTexto({
+        prompt: `El usuario en ${distritoUsuario} solicita ofertas: "${texto}"`,
+        asistenteId: 'ia-usuarios'
+      }).catch(() => {});
+
       return { intencion: 'oferta', categoriaSugerida };
     }
 
@@ -66,6 +75,12 @@ export class IaUsuariosAgent {
       };
     }
 
+    // Para preguntas libres, derivar a la Capa Única de IA
+    aiService.generarTexto({
+      prompt: `Pregunta libre del usuario en ${distritoUsuario}: "${texto}". Responde amablemente como asistente de vuuy en menos de 100 palabras.`,
+      asistenteId: 'ia-usuarios'
+    }).catch(() => {});
+
     return {
       intencion: 'pregunta_libre',
       respuestaTexto: `Entendido. Te muestro las mejores oportunidades vigentes cerca de ti en ${distritoUsuario}.`
@@ -80,6 +95,12 @@ export class IaComerciosAgent {
   public analizarPublicacion(texto: string): ProposalExtraction {
     const lineas = texto.split('\n');
     const observaciones: string[] = [];
+
+    // Invocar capa única de IA
+    aiService.generarTexto({
+      prompt: `Analiza la oferta enviada por el comercio: "${texto}"`,
+      asistenteId: 'ia-comercios'
+    }).catch(() => {});
 
     // Extracción de precios
     const preciosMatch = texto.match(/s\/?\.?\s*(\d+(\.\d+)?)/gi);
@@ -142,6 +163,12 @@ export class IaGestionAgent {
   public proponerValidacion(oferta: Offer): ReviewProposal {
     const riesgos: string[] = [];
     const positivos: string[] = [];
+
+    // Invocar capa única de IA
+    aiService.generarTexto({
+      prompt: `Evalúa la oferta para moderación editorial: Título "${oferta.titulo}", Precio normal ${oferta.precioNormal}, Precio oferta ${oferta.precioOferta}, Descripción "${oferta.descripcion}".`,
+      asistenteId: 'ia-gestion'
+    }).catch(() => {});
 
     // Regla 1: Descuento razonable
     const ahorro = oferta.precioNormal - oferta.precioOferta;

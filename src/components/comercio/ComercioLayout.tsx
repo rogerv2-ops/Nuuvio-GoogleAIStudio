@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Menu, X, ChevronRight, ChevronDown, ChevronLeft,
   Calendar, Bell, Plus, LogOut, ArrowLeft, Store, HelpCircle,
-  ExternalLink, Sparkles, CheckCircle2, AlertTriangle, Shield
+  ExternalLink, Sparkles, CheckCircle2, AlertTriangle, Shield,
+  Upload, Heart, MapPin, MessageCircle, Smartphone, Eye, AlertCircle, Lock,
+  Video, Play, Film, Loader2
 } from 'lucide-react';
 import { Merchant, Offer, ClickRecord, ConfirmedSale } from '../../types';
 import { comerciosModule } from '../../modules/comercios';
@@ -19,10 +21,12 @@ import { ComercioRangoTiempo } from './types';
 // Vistas de dominio
 import { InicioComercioView } from './views/InicioComercioView';
 import { MisOfertasComercioView } from './views/MisOfertasComercioView';
+import { HistorialPromocionesView } from './views/HistorialPromocionesView';
 import { ResultadosComercioView } from './views/ResultadosComercioView';
 import { CampanasComercioView } from './views/CampanasComercioView';
 import { VentasComercioView } from './views/VentasComercioView';
 import { MiNegocioComercioView } from './views/MiNegocioComercioView';
+import { OnboardingTourModal } from './OnboardingTourModal';
 
 interface ComercioLayoutProps {
   onVolverAWeb?: () => void;
@@ -72,12 +76,153 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     stock: 20,
     categoria: comercio?.categoria || 'Gastronomía y Café',
     imagenUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&h=1000&q=80',
-    diasVencimiento: 30
+    diasVencimiento: 30,
+    videoUrl: '',
+    videoAspectRatio: '9:16' as '9:16' | '16:9'
   });
 
-  // Cajón de notificaciones y modal ayuda
+  // Estados para validación de foto de oferta y previsualizador móvil
+  const [modoImagen, setModoImagen] = useState<'upload' | 'url'>('upload');
+  const [errorImagen, setErrorImagen] = useState<string | null>(null);
+  const [infoArchivoImagen, setInfoArchivoImagen] = useState<{ nombre: string; tamanoKb: number } | null>(null);
+  const [modalVistaPreviaMovilAmpliada, setModalVistaPreviaMovilAmpliada] = useState(false);
+
+  // Estados para animación de video con Veo (veo-3.1-fast-generate-preview 9:16)
+  const [generandoVideo, setGenerandoVideo] = useState(false);
+  const [progresoVideo, setProgresoVideo] = useState(0);
+  const [etapaVideo, setEtapaVideo] = useState('');
+  const [vistaPreviaModo, setVistaPreviaModo] = useState<'foto' | 'video'>('foto');
+  const [promptVideoPersonalizado, setPromptVideoPersonalizado] = useState('');
+  const [mostrarOpcionesVideo, setMostrarOpcionesVideo] = useState(false);
+
+  const handleSubirFotoOferta = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 1. Verificación exacta de formato (JPG, PNG, WEBP)
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!tiposPermitidos.includes(file.type)) {
+      setErrorImagen('Formato no permitido. Solo se aceptan imágenes JPG, PNG o WEBP.');
+      return;
+    }
+
+    // 2. Verificación de tamaño máximo (no mayor a 2 MB = 2 * 1024 * 1024 bytes)
+    const MAX_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      const tamanoMb = (file.size / (1024 * 1024)).toFixed(2);
+      setErrorImagen(`La imagen pesa ${tamanoMb} MB. El tamaño máximo permitido es 2.00 MB.`);
+      return;
+    }
+
+    setErrorImagen(null);
+    setInfoArchivoImagen({
+      nombre: file.name,
+      tamanoKb: Math.round(file.size / 1024)
+    });
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setFormOferta(prev => ({ 
+          ...prev, 
+          imagenUrl: event.target!.result as string,
+          videoUrl: '' // Resetear video si sube una imagen nueva
+        }));
+        setVistaPreviaModo('foto');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Función para animar la foto de la oferta a video con Veo (9:16)
+  const handleAnimarConVeo = async () => {
+    if (!formOferta.imagenUrl) {
+      alert('Primero selecciona o sube una imagen para la oferta.');
+      return;
+    }
+
+    setGenerandoVideo(true);
+    setProgresoVideo(15);
+    setEtapaVideo('Iniciando generador de video Veo (veo-3.1-fast-generate-preview)...');
+
+    try {
+      const res = await fetch('/api/gemini/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: formOferta.imagenUrl.startsWith('data:') ? undefined : formOferta.imagenUrl,
+          imageBase64: formOferta.imagenUrl.startsWith('data:') ? formOferta.imagenUrl : undefined,
+          prompt: promptVideoPersonalizado || `Animación cinemática publicitaria de la oferta: ${formOferta.titulo || 'promoción comercial'}. Zoom suave y elegante, iluminación publicitaria para móviles en formato 9:16`,
+          aspectRatio: formOferta.videoAspectRatio || '9:16'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo iniciar la animación');
+      }
+
+      setProgresoVideo(45);
+      setEtapaVideo('Sintetizando movimiento vertical en formato 9:16...');
+
+      // Si el video fue completado directamente
+      if (data.status === 'completed' && data.videoUrl) {
+        setProgresoVideo(100);
+        setEtapaVideo('¡Video animado generado con éxito!');
+        setFormOferta(prev => ({ ...prev, videoUrl: data.videoUrl }));
+        setVistaPreviaModo('video');
+        setTimeout(() => setGenerandoVideo(false), 500);
+        return;
+      }
+
+      // Si es una operación en proceso (Google Veo), consultar status
+      const videoId = data.videoId;
+      const opName = data.operationName;
+      let intentos = 0;
+      let finalizado = false;
+
+      while (!finalizado && intentos < 25) {
+        await new Promise(r => setTimeout(r, 2000));
+        intentos++;
+        const porc = Math.min(94, 45 + intentos * 3);
+        setProgresoVideo(porc);
+        setEtapaVideo(`Renderizando cuadros de movimiento (${porc}%)...`);
+
+        const pollRes = await fetch('/api/gemini/video-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, operationName: opName })
+        });
+
+        const pollData = await pollRes.json();
+        if (pollData.done && pollData.videoUrl) {
+          finalizado = true;
+          setProgresoVideo(100);
+          setEtapaVideo('¡Video vertical listo!');
+          setFormOferta(prev => ({ ...prev, videoUrl: pollData.videoUrl }));
+          setVistaPreviaModo('video');
+          setTimeout(() => setGenerandoVideo(false), 500);
+          break;
+        }
+      }
+    } catch (err: any) {
+      alert(`Error al generar video con Veo: ${err.message || 'Error inesperado'}`);
+      setGenerandoVideo(false);
+    }
+  };
+
+  // Cajón de notificaciones, modal ayuda y Tour de Bienvenida
   const [modalAyudaAbierto, setModalAyudaAbierto] = useState(false);
   const [cajonNotificacionesAbierto, setCajonNotificacionesAbierto] = useState(false);
+  const [modalTourAbierto, setModalTourAbierto] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !comercio?.id) return false;
+    try {
+      const tourCompletado = localStorage.getItem(`vuuy_comercio_tour_v1_${comercio.id}`);
+      return tourCompletado !== 'completado';
+    } catch {
+      return false;
+    }
+  });
 
   // Datos reactivos del negocio autorizado
   const ofertas = ofertasModule.listarOfertasPorComercio(comercio?.id || '');
@@ -139,6 +284,11 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     e.preventDefault();
     if (!comercio) return;
 
+    if (errorImagen) {
+      alert(`Error en la imagen: ${errorImagen}`);
+      return;
+    }
+
     const res = ofertasModule.crearOferta({
       comercioId: comercio.id,
       titulo: formOferta.titulo,
@@ -149,7 +299,10 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
       stock: Number(formOferta.stock),
       categoria: formOferta.categoria,
       imagenes: [formOferta.imagenUrl],
-      diasVencimiento: Number(formOferta.diasVencimiento)
+      diasVencimiento: Number(formOferta.diasVencimiento),
+      videoUrl: formOferta.videoUrl || undefined,
+      videoAspectRatio: formOferta.videoAspectRatio || '9:16',
+      videoEstado: formOferta.videoUrl ? 'completado' : undefined
     });
 
     if (res.ok && res.oferta) {
@@ -164,8 +317,11 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
         stock: 20,
         categoria: comercio.categoria || 'Gastronomía y Café',
         imagenUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&h=1000&q=80',
-        diasVencimiento: 30
+        diasVencimiento: 30,
+        videoUrl: '',
+        videoAspectRatio: '9:16'
       });
+      setVistaPreviaModo('foto');
       navegarA('/comercio/ofertas/en-revision');
     } else {
       alert(res.error || 'Error al crear la oferta.');
@@ -184,6 +340,17 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
           alNavegar={navegarA}
           alAbrirNuevaOferta={() => setModalNuevaOfertaAbierto(true)}
           rangoTexto={rangoTexto}
+        />
+      );
+    }
+    if (rutaActual === '/comercio/historial-promociones' || rutaActual.startsWith('/comercio/historial-promociones') || rutaActual === '/comercio/ofertas/historial') {
+      return (
+        <HistorialPromocionesView
+          comercio={comercio}
+          ofertas={ofertas}
+          rutaActual={rutaActual}
+          alNavegar={navegarA}
+          alAbrirNuevaOferta={() => setModalNuevaOfertaAbierto(true)}
         />
       );
     }
@@ -400,16 +567,27 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
           </div>
 
           {/* Pie del Sidebar: Usuario & Utilidades */}
-          <div className="pt-4 border-t border-stone-100 space-y-2">
+          <div className="pt-4 border-t border-stone-100 space-y-1.5">
             {!sidebarColapsadoDesktop && (
-              <button
-                type="button"
-                onClick={() => setModalAyudaAbierto(true)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-900 hover:bg-stone-50 transition-colors"
-              >
-                <HelpCircle className="w-4 h-4 text-stone-400" />
-                <span>Centro de ayuda</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setModalTourAbierto(true)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-colors border border-emerald-200/60"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-700" />
+                  <span>Guía de Inicio (Tour)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalAyudaAbierto(true)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-900 hover:bg-stone-50 transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4 text-stone-400" />
+                  <span>Centro de ayuda</span>
+                </button>
+              </>
             )}
 
             <div className={`bg-stone-50 rounded-xl p-2.5 flex items-center border border-stone-100 ${
@@ -538,6 +716,17 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                   )}
                 </div>
 
+                {/* Guía de Inicio (Tour) */}
+                <button
+                  type="button"
+                  onClick={() => setModalTourAbierto(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 transition-colors"
+                  title="Abrir Guía de Inicio"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Guía de Inicio</span>
+                </button>
+
                 {/* Notificaciones */}
                 <button 
                   onClick={() => setCajonNotificacionesAbierto(true)}
@@ -551,7 +740,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                 {/* Botón Nueva Oferta */}
                 <button
                   onClick={() => setModalNuevaOfertaAbierto(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#166534] hover:bg-[#14532D] text-white font-bold text-xs rounded-full shadow-xs transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#166534] hover:bg-[#14532D] text-white font-bold text-xs rounded-full shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
                   <span>Nueva oferta</span>
@@ -566,140 +755,671 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
         </div>
       </div>
 
-      {/* ================= MODAL RESPONSIVE: NUEVA OFERTA (4:5) ================= */}
+      {/* ================= MODAL RESPONSIVE: NUEVA OFERTA (PREVISUALIZACIÓN IDÉNTICA AL FEED MÓVIL) ================= */}
       {modalNuevaOfertaAbierto && (
         <div
           onClick={() => setModalNuevaOfertaAbierto(false)}
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-stone-200 space-y-4 my-auto max-h-[92vh] overflow-y-auto"
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl border border-stone-200 space-y-4 my-auto max-h-[94vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
-                <h3 className="font-bold text-base sm:text-lg text-[#0F172A]">Publicar Nueva Oferta</h3>
-                <p className="text-xs text-stone-500">Formato vertical 4:5 obligatorio (máxima conversión en WhatsApp y móvil)</p>
+                <h3 className="font-bold text-base sm:text-lg text-[#0F172A] flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-emerald-700" />
+                  <span>Publicar Nueva Oferta</span>
+                </h3>
+                <p className="text-xs text-stone-500">
+                  Formato vertical 4:5 · Previsualización en tiempo real exacta a cómo se verá en el Feed Público para celulares.
+                </p>
               </div>
               <button 
+                type="button"
                 onClick={() => setModalNuevaOfertaAbierto(false)}
-                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center text-xs font-bold"
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCrearOferta} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-              <div className="space-y-3">
+            <form onSubmit={handleCrearOferta} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* COLUMNA IZQUIERDA: FORMULARIO DE DATOS Y CARGA DE ARCHIVO */}
+              <div className="lg:col-span-7 space-y-3.5">
                 <div>
-                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">Título de la Oferta</label>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">Título de la Oferta *</label>
                   <input
                     type="text"
                     required
                     value={formOferta.titulo}
                     onChange={e => setFormOferta({ ...formOferta, titulo: e.target.value })}
                     placeholder="Ej. Bowl Acai Orgánico con Toppings"
-                    className="w-full p-2 text-xs border border-stone-200 rounded-xl focus:ring-1 focus:ring-emerald-700 outline-none"
+                    className="w-full p-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 outline-none font-medium text-stone-900"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">Descripción atractiva (máx 150 car.)</label>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">Descripción atractiva (máx 150 car.) *</label>
                   <textarea
                     required
                     rows={2}
                     maxLength={150}
                     value={formOferta.descripcion}
                     onChange={e => setFormOferta({ ...formOferta, descripcion: e.target.value })}
-                    placeholder="Acai orgánico de la Amazonía con granola artesanal..."
-                    className="w-full p-2 text-xs border border-stone-200 rounded-xl focus:ring-1 focus:ring-emerald-700 outline-none"
+                    placeholder="Acai orgánico de la Amazonía con granola artesanal y frutas frescas..."
+                    className="w-full p-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 outline-none font-medium text-stone-900"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Precio Normal (S/)</label>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">Precio Normal (S/) *</label>
                     <input
                       type="number"
                       required
+                      min={1}
                       value={formOferta.precioNormal}
                       onChange={e => setFormOferta({ ...formOferta, precioNormal: Number(e.target.value) })}
-                      className="w-full p-2 text-xs border border-stone-200 rounded-xl"
+                      className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-xl font-bold"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Precio Oferta (S/)</label>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">Precio Oferta (S/) *</label>
                     <input
                       type="number"
                       required
+                      min={1}
                       value={formOferta.precioOferta}
                       onChange={e => setFormOferta({ ...formOferta, precioOferta: Number(e.target.value) })}
-                      className="w-full p-2 text-xs border border-stone-200 rounded-xl"
+                      className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-xl font-bold text-emerald-800"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Stock disponible</label>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">Stock disponible *</label>
                     <input
                       type="number"
                       required
+                      min={1}
                       value={formOferta.stock}
                       onChange={e => setFormOferta({ ...formOferta, stock: Number(e.target.value) })}
-                      className="w-full p-2 text-xs border border-stone-200 rounded-xl"
+                      className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-xl"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Vigencia (días)</label>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">Vigencia (días)</label>
                     <input
                       type="number"
                       value={formOferta.diasVencimiento}
                       onChange={e => setFormOferta({ ...formOferta, diasVencimiento: Number(e.target.value) })}
-                      className="w-full p-2 text-xs border border-stone-200 rounded-xl"
+                      className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-xl"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">Foto Vertical (4:5)</label>
-                  <input
-                    type="url"
-                    value={formOferta.imagenUrl}
-                    onChange={e => setFormOferta({ ...formOferta, imagenUrl: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full p-2 text-xs border border-stone-200 rounded-xl"
-                  />
+                {/* CAMPO DE FOTO CON CARGA DE ARCHIVO Y VALIDACIÓN EXACTA (FORMATO + MÁX 2MB) */}
+                <div className="space-y-2 pt-1 border-t border-stone-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-stone-700 block">
+                      Foto de la Oferta (Vertical 4:5, Máx 2 MB) *
+                    </label>
+                    <span className="text-[10px] text-stone-400 font-mono">JPG, PNG, WEBP</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModoImagen('upload')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        modoImagen === 'upload' ? 'bg-[#166534] text-white shadow-2xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Subir Imagen</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoImagen('url')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        modoImagen === 'url' ? 'bg-[#166534] text-white shadow-2xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>Pegar URL</span>
+                    </button>
+                  </div>
+
+                  {modoImagen === 'upload' ? (
+                    <div className="p-3.5 bg-stone-50 border-2 border-dashed border-stone-200/90 rounded-2xl text-center space-y-1.5">
+                      <Upload className="w-5 h-5 text-emerald-700 mx-auto" />
+                      <p className="text-xs font-bold text-stone-700">Selecciona una foto desde tu dispositivo</p>
+                      <p className="text-[10px] text-stone-400">Verificación estricta: Formatos JPG, PNG, WEBP · Límite máximo: 2.0 MB</p>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleSubirFotoOferta}
+                        className="block w-full text-xs text-stone-500 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                      />
+                      {infoArchivoImagen && !errorImagen && (
+                        <div className="p-2 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-xl text-[11px] font-bold flex items-center justify-between shadow-2xs">
+                          <span>✓ {infoArchivoImagen.nombre} ({infoArchivoImagen.tamanoKb} KB)</span>
+                          <span className="text-[10px] text-emerald-700 font-mono bg-emerald-100 px-2 py-0.5 rounded-md">Válido &lt; 2MB</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="url"
+                      value={formOferta.imagenUrl}
+                      onChange={e => {
+                        setErrorImagen(null);
+                        setFormOferta({ ...formOferta, imagenUrl: e.target.value });
+                      }}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full p-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl font-mono text-stone-800"
+                    />
+                  )}
+
+                  {errorImagen && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-[11px] font-bold flex items-center gap-2 shadow-2xs">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{errorImagen}</span>
+                    </div>
+                  )}
+
+                  {/* GENERADOR DE VIDEO VEO (veo-3.1-fast-generate-preview 9:16) */}
+                  <div className="mt-3 p-3 bg-gradient-to-br from-emerald-50/80 via-white to-stone-50 border border-emerald-200/90 rounded-2xl space-y-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+                        <Video className="w-4 h-4 text-emerald-700" />
+                        <span>Animación de Video con IA</span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-mono px-1.5 py-0.5 rounded-full font-bold">
+                          veo-3.1-fast
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMostrarOpcionesVideo(!mostrarOpcionesVideo)}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer"
+                      >
+                        {mostrarOpcionesVideo ? 'Ocultar opciones' : 'Opciones (9:16 / 16:9)'}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-stone-600 leading-snug">
+                      Convierte la foto estática en un video comercial animado para compartir por WhatsApp en historias o mensajes directos.
+                    </p>
+
+                    {mostrarOpcionesVideo && (
+                      <div className="p-2.5 bg-white border border-stone-200/80 rounded-xl space-y-2 text-[11px]">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-700 block mb-1">Formato de Video:</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormOferta(prev => ({ ...prev, videoAspectRatio: '9:16' }))}
+                              className={`py-1 px-2 rounded-lg text-xs font-bold transition-all ${
+                                formOferta.videoAspectRatio === '9:16'
+                                  ? 'bg-emerald-800 text-white shadow-2xs'
+                                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                              }`}
+                            >
+                              📱 9:16 (Vertical Celulares)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormOferta(prev => ({ ...prev, videoAspectRatio: '16:9' }))}
+                              className={`py-1 px-2 rounded-lg text-xs font-bold transition-all ${
+                                formOferta.videoAspectRatio === '16:9'
+                                  ? 'bg-emerald-800 text-white shadow-2xs'
+                                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                              }`}
+                            >
+                              🖥️ 16:9 (Horizontal)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-700 block mb-1">Instrucción de animación (opcional):</label>
+                          <input
+                            type="text"
+                            value={promptVideoPersonalizado}
+                            onChange={e => setPromptVideoPersonalizado(e.target.value)}
+                            placeholder="Ej. Zoom suave con iluminación dorada sobre el producto..."
+                            className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {generandoVideo ? (
+                      <div className="p-3 bg-white border border-emerald-300 rounded-xl space-y-2 shadow-2xs animate-pulse">
+                        <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+                          <span className="flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                            <span>{etapaVideo || 'Sintetizando video animado con Veo...'}</span>
+                          </span>
+                          <span className="font-mono text-emerald-700">{progresoVideo}%</span>
+                        </div>
+                        <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden border border-emerald-100">
+                          <div 
+                            className="bg-emerald-600 h-2 rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${progresoVideo}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-stone-500 text-center font-medium">
+                          Generando video en formato {formOferta.videoAspectRatio || '9:16'} con modelo veo-3.1-fast-generate-preview...
+                        </p>
+                      </div>
+                    ) : formOferta.videoUrl ? (
+                      <div className="p-2.5 bg-emerald-100/70 border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xs">✓</span>
+                          <div>
+                            <p className="text-xs font-bold text-emerald-950">Video Veo {formOferta.videoAspectRatio || '9:16'} generado</p>
+                            <p className="text-[10px] text-emerald-700 font-medium">Listo para previsualizar y enviar por WhatsApp</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setVistaPreviaModo('video')}
+                            className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                          >
+                            Ver en Feed
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAnimarConVeo}
+                            className="px-2 py-1 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-lg text-[11px] font-bold cursor-pointer"
+                            title="Regenerar animación"
+                          >
+                            ↻
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAnimarConVeo}
+                        disabled={!formOferta.imagenUrl || !!errorImagen}
+                        className="w-full py-2.5 px-3 bg-emerald-800 hover:bg-emerald-900 disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <Sparkles className="w-4 h-4 text-emerald-200" />
+                        <span>Animar Imagen a Video con Veo (9:16)</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#166534] hover:bg-[#14532D] text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                  disabled={!!errorImagen || generandoVideo}
+                  className="w-full py-3 bg-[#166534] hover:bg-[#14532D] disabled:bg-stone-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Enviar Oferta a Revisión
+                  <Sparkles className="w-4 h-4 text-emerald-200" />
+                  <span>Enviar Oferta a Revisión</span>
                 </button>
               </div>
 
-              {/* Previsualizador 4:5 */}
-              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-stone-600 mb-2">Previsualización Vertical 4:5</span>
-                <div className="w-36 sm:w-44 aspect-[4/5] rounded-[20px] overflow-hidden bg-stone-200 relative border border-stone-300 shadow-sm">
-                  <img
-                    src={formOferta.imagenUrl}
-                    alt="Previsualización"
-                    className="w-full h-full object-cover rounded-[20px]"
-                    onError={(e) => handleImgError(e, getCategoryFallbackImage(formOferta.categoria, formOferta.titulo))}
-                  />
-                  <div className="absolute top-2 right-2 bg-rose-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black">
-                    S/ {formOferta.precioOferta}
+              {/* COLUMNA DERECHA: SIMULADOR DE FEED MÓVIL EXACTO A PUBLICWEB.TSX */}
+              <div className="lg:col-span-5 bg-stone-100 p-3 sm:p-4 rounded-3xl border border-stone-200/90 flex flex-col items-center space-y-3">
+                <div className="flex items-center justify-between w-full px-1">
+                  <span className="text-xs font-black text-stone-800 flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-emerald-700" />
+                    <span>Vista Previa Feed Móvil</span>
+                  </span>
+                  
+                  {/* SELECTOR ENTRE FOTO Y VIDEO */}
+                  <div className="flex items-center gap-1 bg-stone-200/80 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setVistaPreviaModo('foto')}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                        vistaPreviaModo === 'foto' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                      }`}
+                    >
+                      📸 Foto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!formOferta.videoUrl) {
+                          alert('Primero genera la animación con el botón "Animar Imagen con Veo".');
+                          return;
+                        }
+                        setVistaPreviaModo('video');
+                      }}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                        vistaPreviaModo === 'video' 
+                          ? 'bg-emerald-700 text-white shadow-2xs' 
+                          : formOferta.videoUrl 
+                            ? 'text-emerald-800 hover:text-emerald-950 font-black' 
+                            : 'text-stone-400 opacity-60'
+                      }`}
+                    >
+                      <span>🎬 Video 9:16</span>
+                      {formOferta.videoUrl && vistaPreviaModo !== 'video' && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                      )}
+                    </button>
                   </div>
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 text-white">
-                    <p className="text-[11px] font-bold truncate">{formOferta.titulo || 'Tu oferta'}</p>
-                    <p className="text-[9px] text-stone-300 line-through">Antes S/ {formOferta.precioNormal}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalVistaPreviaMovilAmpliada(true)}
+                    className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Ampliar</span>
+                  </button>
+                </div>
+
+                {/* TELÉFONO CELULAR SIMULADO DE FEED */}
+                <div className="w-full max-w-[300px] bg-white rounded-[24px] border-4 border-stone-900 shadow-xl overflow-hidden relative text-stone-900">
+                  {/* BARRA DE ESTADO */}
+                  <div className="bg-stone-900 text-white text-[9px] px-3.5 py-0.5 flex items-center justify-between font-mono font-bold">
+                    <span>12:00</span>
+                    <div className="w-10 h-2 bg-stone-800 rounded-full mx-auto" />
+                    <span>100% 🔋</span>
+                  </div>
+
+                  {/* BARRA SUPERIOR DEL FEED */}
+                  <div className="bg-[#1B4332] text-white p-2 flex items-center justify-between">
+                    <span className="font-black text-[11px] tracking-wider flex items-center gap-1">
+                      <span>🍃</span> vuuy feed
+                    </span>
+                    <span className="text-[8px] bg-emerald-900/80 px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-200 font-bold">
+                      {comercio?.distrito || 'Miraflores'}
+                    </span>
+                  </div>
+
+                  {/* TARJETA IDÉNTICA AL FEED EN PUBLICWEB.TSX */}
+                  <div className="p-2 bg-stone-50">
+                    <article className="bg-white rounded-[18px] overflow-hidden border border-[#EAE5D9] shadow-2xs text-left">
+                      {/* FOTO O VIDEO FORMATO 4:5 / 9:16 */}
+                      <div className="relative aspect-[4/5] w-full bg-stone-200 overflow-hidden rounded-t-[18px]">
+                        {vistaPreviaModo === 'video' && formOferta.videoUrl ? (
+                          <video
+                            src={formOferta.videoUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover rounded-t-[18px]"
+                          />
+                        ) : (
+                          <img
+                            src={formOferta.imagenUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&h=1000&q=80'}
+                            alt="Previsualización"
+                            className="w-full h-full object-cover rounded-t-[18px]"
+                            onError={(e) => handleImgError(e, getCategoryFallbackImage(formOferta.categoria, formOferta.titulo))}
+                          />
+                        )}
+
+                        {vistaPreviaModo === 'video' && formOferta.videoUrl && (
+                          <div className="absolute top-2 left-2 z-20">
+                            <span className="bg-black/75 backdrop-blur-xs text-white text-[8px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase flex items-center gap-1 border border-white/20 shadow-md">
+                              <Film className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>Video Veo 9:16</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* BADGES SUPERIORES IZQUIERDOS */}
+                        <div className={`absolute left-2 flex flex-col items-start gap-1 z-10 ${vistaPreviaModo === 'video' ? 'top-8' : 'top-2'}`}>
+                          <span className="bg-emerald-600 text-white text-[8px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase flex items-center gap-0.5 shadow-md border border-emerald-400/80">
+                            <Sparkles className="w-2 h-2 text-emerald-200" />
+                            Nuevo
+                          </span>
+                          <span className="bg-[#B91C1C] text-white text-[8px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase shadow-xs">
+                            Expira en 2h 55m
+                          </span>
+                          <span className="bg-[#E0F2FE] text-[#0369A1] text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase flex items-center gap-0.5 shadow-xs border border-[#BAE6FD]">
+                            ⚡ Boosted
+                          </span>
+                        </div>
+
+                        {/* ETIQUETA NARANJA DE PRECIO TOP RIGHT */}
+                        <div className="absolute top-2 right-2 bg-[#FF5722] text-white px-2.5 py-1 rounded-xl shadow-md text-right z-10 leading-none">
+                          <span className="text-[8px] text-white/80 line-through font-semibold block mb-0.5">
+                            S/ {formOferta.precioNormal || 60}
+                          </span>
+                          <span className="text-xs font-black tracking-tight block">
+                            S/ {formOferta.precioOferta || 39}
+                          </span>
+                        </div>
+
+                        {/* CORAZÓN DE FAVORITOS */}
+                        <div className="absolute top-11 right-2 w-6 h-6 rounded-full bg-[#1B4332] text-white flex items-center justify-center shadow-md z-10">
+                          <Heart className="w-3 h-3 fill-white text-white" />
+                        </div>
+
+                        {/* GRADIENTE INFERIOR SOBRE LA FOTO */}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-2.5 pt-10 text-white z-10 space-y-1">
+                          <h3 className="font-black text-xs text-white leading-tight uppercase tracking-tight drop-shadow-md truncate">
+                            {formOferta.titulo || 'TÍTULO DE TU OFERTA'}
+                          </h3>
+                          <div className="flex items-center justify-between gap-1 pt-1 border-t border-white/20 text-[9px]">
+                            <span className="flex items-center gap-1 font-black text-white truncate max-w-[110px]">
+                              <Store className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                              <span className="truncate">{comercio?.nombreComercial || comercio?.razonSocial || 'Tu Local'}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-0.5 bg-black/70 px-1.5 py-0.5 rounded text-amber-300 font-bold shrink-0">
+                              <MapPin className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                              <span>10 km · {comercio?.distrito || 'Miraflores'}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CONTENIDO DE LA TARJETA DEBAJO DE LA FOTO */}
+                      <div className="p-2.5 space-y-1.5">
+                        <div>
+                          <h4 className="font-extrabold text-xs text-[#0F172A] leading-snug truncate">
+                            {formOferta.titulo || 'Título de la Oferta'}
+                          </h4>
+                          <p className="text-[10px] text-[#64748B] mt-0.5 leading-relaxed line-clamp-2">
+                            {formOferta.descripcion || 'Descripción del producto o servicio promocionado...'}
+                          </p>
+                        </div>
+
+                        {/* DESCUENTO Y URGENCIA */}
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <span className="text-[9px] font-black text-emerald-800 bg-[#D1FAE5] px-1.5 py-0.5 rounded">
+                            {formOferta.precioNormal > formOferta.precioOferta
+                              ? Math.round(((formOferta.precioNormal - formOferta.precioOferta) / formOferta.precioNormal) * 100)
+                              : 35}% OFF
+                          </span>
+                          <span className="text-[9px] text-[#64748B] font-medium flex items-center gap-0.5">
+                            ⏱ Solo {formOferta.stock || 20} hoy
+                          </span>
+                        </div>
+
+                        {/* BOTONES DE ACCIÓN: LO QUIERO Y LO COMPARTO */}
+                        <div className="grid grid-cols-2 gap-1 pt-1 border-t border-stone-100">
+                          <div className="w-full py-1.5 px-1.5 bg-[#15803D] text-white rounded-lg text-[9px] font-bold flex items-center justify-center gap-1 shadow-2xs">
+                            <MessageCircle className="w-2.5 h-2.5 fill-white" />
+                            <span>Lo quiero</span>
+                          </div>
+                          <div className="w-full py-1.5 px-1.5 bg-white text-[#0F172A] rounded-lg text-[9px] font-bold border border-[#EAE5D9] flex items-center justify-center gap-1">
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            <span>Lo comparto</span>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+
+                  {/* BARRA INFERIOR DEL TELÉFONO */}
+                  <div className="bg-stone-900 py-1 flex justify-center">
+                    <div className="w-16 h-0.5 bg-stone-600 rounded-full" />
                   </div>
                 </div>
+
+                <p className="text-[10px] text-stone-500 font-medium text-center leading-tight">
+                  Así visualizarán los usuarios tu oferta en la app móvil de vuuy.
+                </p>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL VISTA PREVIA MÓVIL PANTALLA COMPLETA ================= */}
+      {modalVistaPreviaMovilAmpliada && (
+        <div 
+          onClick={() => setModalVistaPreviaMovilAmpliada(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in"
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            className="bg-stone-900 text-white rounded-[36px] max-w-sm w-full p-3 shadow-2xl border-4 border-stone-700 relative space-y-3"
+          >
+            <div className="flex items-center justify-between px-3 pt-1">
+              <span className="text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                <Smartphone className="w-4 h-4" />
+                <span>Simulador Feed Móvil Completo</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalVistaPreviaMovilAmpliada(false)}
+                className="w-7 h-7 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-white rounded-[24px] text-stone-900 overflow-hidden shadow-xl border border-stone-200">
+              <div className="bg-stone-900 text-white text-[10px] px-4 py-1 flex items-center justify-between font-mono font-bold">
+                <span>12:00</span>
+                <div className="w-12 h-2.5 bg-stone-800 rounded-full mx-auto" />
+                <span>100% 🔋</span>
+              </div>
+
+              <div className="bg-[#1B4332] text-white p-3 flex items-center justify-between">
+                <span className="font-black text-xs tracking-wider flex items-center gap-1">
+                  <span>🍃</span> vuuy feed
+                </span>
+                <span className="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-200 font-bold">
+                  Lima · {comercio?.distrito || 'Miraflores'}
+                </span>
+              </div>
+
+              <div className="p-3 max-h-[70vh] overflow-y-auto space-y-3 bg-stone-50">
+                <p className="text-[11px] text-stone-500 text-center font-semibold">Vista previa exacta de tu anuncio en el feed público:</p>
+
+                <article className="bg-white rounded-[20px] overflow-hidden border border-[#EAE5D9] shadow-sm text-left">
+                  {/* Foto o Video 4:5 / 9:16 */}
+                  <div className="relative aspect-[4/5] w-full bg-stone-200 overflow-hidden rounded-t-[20px]">
+                    {vistaPreviaModo === 'video' && formOferta.videoUrl ? (
+                      <video
+                        src={formOferta.videoUrl}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover rounded-t-[20px]"
+                      />
+                    ) : (
+                      <img
+                        src={formOferta.imagenUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&h=1000&q=80'}
+                        alt="Previsualización"
+                        className="w-full h-full object-cover rounded-t-[20px]"
+                        onError={(e) => handleImgError(e, getCategoryFallbackImage(formOferta.categoria, formOferta.titulo))}
+                      />
+                    )}
+
+                    {vistaPreviaModo === 'video' && formOferta.videoUrl && (
+                      <div className="absolute top-3 left-3 z-20">
+                        <span className="bg-black/75 backdrop-blur-xs text-white text-[9px] font-black tracking-wide px-2.5 py-1 rounded-full uppercase flex items-center gap-1 border border-white/20 shadow-md">
+                          <Film className="w-3 h-3 text-emerald-400" />
+                          <span>Video Veo 9:16</span>
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="absolute top-3 left-3 flex flex-col items-start gap-1 z-10">
+                      <span className="bg-emerald-600 text-white text-[9px] font-black tracking-wide px-2.5 py-1 rounded-full uppercase flex items-center gap-1 shadow-md border border-emerald-400/80">
+                        <Sparkles className="w-2.5 h-2.5 text-emerald-200" />
+                        Nuevo
+                      </span>
+                      <span className="bg-[#B91C1C] text-white text-[9px] font-black tracking-wide px-2.5 py-1 rounded-full uppercase shadow-xs">
+                        Expira en 2h 55m
+                      </span>
+                      <span className="bg-[#E0F2FE] text-[#0369A1] text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase flex items-center gap-0.5 shadow-xs border border-[#BAE6FD]">
+                        ⚡ Boosted
+                      </span>
+                    </div>
+
+                    <div className="absolute top-3 right-3 bg-[#FF5722] text-white px-3 py-1 rounded-xl shadow-md text-right z-10 leading-none">
+                      <span className="text-[9px] text-white/80 line-through font-semibold block mb-0.5">
+                        S/ {formOferta.precioNormal || 60}
+                      </span>
+                      <span className="text-sm font-black tracking-tight block">
+                        S/ {formOferta.precioOferta || 39}
+                      </span>
+                    </div>
+
+                    <div className="absolute top-14 right-3 w-8 h-8 rounded-full bg-[#1B4332] text-white flex items-center justify-center shadow-md z-10">
+                      <Heart className="w-4 h-4 fill-white text-white" />
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-4 pt-16 text-white z-10 space-y-1.5">
+                      <h3 className="font-black text-xl text-white leading-tight uppercase tracking-tight drop-shadow-md">
+                        {formOferta.titulo || 'TÍTULO DE TU OFERTA'}
+                      </h3>
+                      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-white/20 text-xs">
+                        <span className="flex items-center gap-1.5 font-black text-white truncate max-w-[160px]">
+                          <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="truncate">{comercio?.nombreComercial || comercio?.razonSocial || 'Tu Local'}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-black/70 px-2 py-0.5 rounded-md text-amber-300 font-bold shrink-0">
+                          <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>10 km · {comercio?.distrito || 'Miraflores'}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-2.5">
+                    <div>
+                      <h4 className="font-extrabold text-base text-[#0F172A] leading-snug">
+                        {formOferta.titulo || 'Título de la Oferta'}
+                      </h4>
+                      <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                        {formOferta.descripcion || 'Descripción del producto o servicio promocionado...'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="text-xs font-black text-emerald-800 bg-[#D1FAE5] px-2.5 py-1 rounded-md">
+                        {formOferta.precioNormal > formOferta.precioOferta
+                          ? Math.round(((formOferta.precioNormal - formOferta.precioOferta) / formOferta.precioNormal) * 100)
+                          : 35}% OFF
+                      </span>
+                      <span className="text-xs text-[#64748B] font-medium flex items-center gap-1">
+                        ⏱ Solo {formOferta.stock || 20} hoy
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+                      <div className="w-full py-2 px-2.5 bg-[#15803D] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs">
+                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                        <span>Lo quiero</span>
+                      </div>
+                      <div className="w-full py-2 px-2.5 bg-white text-[#0F172A] rounded-xl text-xs font-bold border border-[#EAE5D9] flex items-center justify-center gap-1.5">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Lo comparto</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -798,6 +1518,18 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
             </button>
           </div>
         </div>
+      )}
+
+      {/* ================= TOUR DE BIENVENIDA / ASISTENTE PARA NUEVOS COMERCIOS ================= */}
+      {comercio && (
+        <OnboardingTourModal
+          comercio={comercio}
+          abierto={modalTourAbierto}
+          alCerrar={() => setModalTourAbierto(false)}
+          alAbrirNuevaOferta={() => setModalNuevaOfertaAbierto(true)}
+          alNavegarVentas={() => navegarA('/comercio/ventas')}
+          alNavegarResultados={() => navegarA('/comercio/resultados')}
+        />
       )}
 
     </div>

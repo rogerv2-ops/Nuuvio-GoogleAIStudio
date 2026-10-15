@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Gift, Search, Filter, CheckCircle2, AlertCircle, 
   Phone, Mail, MapPin, Tag, Award, ArrowUpRight, X, Plus, 
-  ExternalLink, Sparkles, RefreshCw
+  ExternalLink, Sparkles, RefreshCw, ShieldCheck, Trash2, Check
 } from 'lucide-react';
 import { usuariosModule } from '../../../modules/usuarios';
 import { puntosModule } from '../../../modules/puntos';
 import { AudienceUser } from '../../../types';
 import { DISTRITOS_LIMA } from '../../../data/seedData';
+import { RegistrationAuditLogTable } from '../components/RegistrationAuditLogTable';
 
 interface UsuariosDomainViewProps {
   subruta?: string;
@@ -20,6 +21,10 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
   const [filtroDistrito, setFiltroDistrito] = useState('todos');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activo' | 'pendiente' | 'baja'>('todos');
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<AudienceUser | null>(null);
+
+  // Modal de confirmación para purgar usuario sin dejar rastros
+  const [usuarioPurgaConfirmar, setUsuarioPurgaConfirmar] = useState<AudienceUser | null>(null);
+  const [purgando, setPurgando] = useState(false);
 
   // Modal para acreditar puntos manuales
   const [modalAcreditarPuntos, setModalAcreditarPuntos] = useState(false);
@@ -44,151 +49,155 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
 
   const esLista = subruta === '/gestion/usuarios/lista';
   const esPuntos = subruta === '/gestion/usuarios/puntos-referidos';
-  const esResumen = !esLista && !esPuntos;
+  const esAuditoria = subruta === '/gestion/usuarios/auditoria';
+  const esResumen = !esLista && !esPuntos && !esAuditoria;
 
   // Filtrado de usuarios
   const usuariosFiltrados = useMemo(() => {
     return usuarios.filter(u => {
-      const cumpleDistrito = filtroDistrito === 'todos' || u.distrito.toLowerCase() === filtroDistrito.toLowerCase();
-      const cumpleEstado = filtroEstado === 'todos' || u.estado === filtroEstado;
       const q = busqueda.toLowerCase().trim();
-      const cumpleBusqueda = !q ||
+      const cumpleBusqueda = !q || 
         u.nombre.toLowerCase().includes(q) ||
-        u.apellido.toLowerCase().includes(q) ||
+        (u.apellido && u.apellido.toLowerCase().includes(q)) ||
         u.email.toLowerCase().includes(q) ||
-        u.telefono.includes(q) ||
-        u.codigoRef.toLowerCase().includes(q);
+        (u.telefono && u.telefono.toLowerCase().includes(q)) ||
+        (u.codigoRef && u.codigoRef.toLowerCase().includes(q));
 
-      return cumpleDistrito && cumpleEstado && cumpleBusqueda;
+      const cumpleDistrito = filtroDistrito === 'todos' || u.distrito === filtroDistrito;
+      const cumpleEstado = filtroEstado === 'todos' || u.estado === filtroEstado;
+
+      return cumpleBusqueda && cumpleDistrito && cumpleEstado;
     });
-  }, [usuarios, filtroDistrito, filtroEstado, busqueda]);
+  }, [usuarios, busqueda, filtroDistrito, filtroEstado]);
 
+  // Manejador de acreditación manual de puntos
   const handleAcreditarPuntosSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formPuntos.usuarioId) return;
+    if (!formPuntos.usuarioId || formPuntos.cantidad <= 0) return;
 
     puntosModule.acreditarPuntos({
       usuarioId: formPuntos.usuarioId,
       cantidad: Number(formPuntos.cantidad),
-      motivo: formPuntos.motivo
+      motivo: 'ajuste_gestion'
     });
 
+    const user = usuarios.find(u => u.id === formPuntos.usuarioId);
+    setNotificacion(`Se acreditaron ${formPuntos.cantidad} puntos a ${user?.nombre || 'usuario'}.`);
     setModalAcreditarPuntos(false);
-    setNotificacion(`Se acreditaron ${formPuntos.cantidad} puntos al usuario.`);
-    setTimeout(() => setNotificacion(null), 3500);
+    setFormPuntos({ usuarioId: '', cantidad: 20, motivo: 'ajuste_gestion' });
+
+    setTimeout(() => setNotificacion(null), 4000);
+  };
+
+  const handleConfirmarPurga = async () => {
+    if (!usuarioPurgaConfirmar) return;
+    try {
+      setPurgando(true);
+      const res = await usuariosModule.eliminarYPurgarUsuario(
+        usuarioPurgaConfirmar.id,
+        usuarioPurgaConfirmar.email,
+        usuarioPurgaConfirmar.telefono
+      );
+      setNotificacion(`✅ ${res.mensaje}`);
+      setUsuarioSeleccionado(null);
+      setUsuarioPurgaConfirmar(null);
+      setVersion(v => v + 1);
+      setTimeout(() => setNotificacion(null), 5000);
+    } catch (err: any) {
+      setNotificacion(`❌ Error al purgar usuario: ${err.message || err}`);
+    } finally {
+      setPurgando(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Subnavegación de Sección */}
-      <div className="bg-white p-2 rounded-2xl border border-stone-200/80 shadow-2xs flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-1.5 border-b border-stone-200 pb-3 overflow-x-auto">
         <button
           onClick={() => onNavegar('/gestion/usuarios')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-            esResumen
-              ? 'bg-[#1B4332] text-white shadow-xs'
-              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
+            esResumen ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          <Users className="w-3.5 h-3.5" />
-          <span>Resumen de Usuarios</span>
+          Vista General
         </button>
-
         <button
           onClick={() => onNavegar('/gestion/usuarios/lista')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-            esLista
-              ? 'bg-[#1B4332] text-white shadow-xs'
-              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
+            esLista ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          <Search className="w-3.5 h-3.5" />
-          <span>Lista de usuarios</span>
+          Directorio de Usuarios ({usuarios.length})
         </button>
-
         <button
           onClick={() => onNavegar('/gestion/usuarios/puntos-referidos')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-            esPuntos
-              ? 'bg-[#1B4332] text-white shadow-xs'
-              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
+            esPuntos ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          <Gift className="w-3.5 h-3.5" />
-          <span>Puntos y referidos</span>
+          Programa de Puntos
+        </button>
+        <button
+          onClick={() => onNavegar('/gestion/usuarios/auditoria')}
+          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 ${
+            esAuditoria ? 'bg-[#1B4332] text-white' : 'text-stone-600 hover:bg-stone-100'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Log de Auditoría (Registros)</span>
         </button>
       </div>
 
-      {/* Notificación flotante */}
       {notificacion && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{notificacion}</span>
-          </div>
-          <button onClick={() => setNotificacion(null)} className="text-emerald-600 hover:text-emerald-800">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-2xl flex items-center gap-2 animate-in fade-in shadow-xs">
+          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{notificacion}</span>
         </div>
       )}
 
-      {/* 1. RESUMEN DE USUARIOS */}
+      {/* 1. VISTA RESUMEN KPIs */}
       {esResumen && (
-        <div className="space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base sm:text-lg font-black text-stone-900">
-                  Panel de Audiencia y Usuarios
-                </h2>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Base de usuarios en Lima, estado de verificación y programa viral de recompensas.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onNavegar('/gestion/usuarios/lista')}
-                  className="px-3.5 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Ver Lista Completa ({usuarios.length})
-                </button>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Total Usuarios</span>
+              <span className="text-2xl font-black text-stone-900 mt-1 block">{usuarios.length}</span>
+              <span className="text-[10px] text-emerald-700 font-semibold mt-1 block">Registrados en la comunidad</span>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/70">
-                <span className="text-[10px] font-bold text-stone-400 uppercase">Usuarios Totales</span>
-                <div className="text-2xl font-black text-stone-900 mt-1">{usuarios.length}</div>
-                <span className="text-[10px] text-stone-500">En base de datos</span>
-              </div>
-              <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase">Verificados</span>
-                <div className="text-2xl font-black text-emerald-900 mt-1">
-                  {usuarios.filter(u => u.emailVerificado).length}
-                </div>
-                <span className="text-[10px] text-emerald-700">Por correo de 1 clic</span>
-              </div>
-              <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100">
-                <span className="text-[10px] font-bold text-blue-700 uppercase">WhatsApp Activo</span>
-                <div className="text-2xl font-black text-blue-900 mt-1">
-                  {usuarios.filter(u => u.estado === 'activo').length}
-                </div>
-                <span className="text-[10px] text-blue-700">Canal de solicitudes</span>
-              </div>
-              <div className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-100">
-                <span className="text-[10px] font-bold text-purple-700 uppercase">Puntos Totales</span>
-                <div className="text-2xl font-black text-purple-900 mt-1">
-                  {usuarios.reduce((acc, u) => acc + (u.puntosSaldo || 0), 0)}
-                </div>
-                <span className="text-[10px] text-purple-700">En circulación</span>
-              </div>
+            <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Correos Verificados</span>
+              <span className="text-2xl font-black text-emerald-700 mt-1 block">
+                {usuarios.filter(u => u.emailVerificado).length}
+              </span>
+              <span className="text-[10px] text-stone-400 font-medium mt-1 block">
+                {usuarios.length > 0 ? Math.round((usuarios.filter(u => u.emailVerificado).length / usuarios.length) * 100) : 0}% de tasa de conversión
+              </span>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Pendientes Verificación</span>
+              <span className="text-2xl font-black text-amber-700 mt-1 block">
+                {usuarios.filter(u => !u.emailVerificado).length}
+              </span>
+              <span className="text-[10px] text-amber-700/80 font-medium mt-1 block">Con enlace enviado por correo</span>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Puntos Acumulados</span>
+              <span className="text-2xl font-black text-purple-700 mt-1 block">
+                {usuarios.reduce((acc, u) => acc + (u.puntosSaldo || 0), 0)} pts
+              </span>
+              <span className="text-[10px] text-purple-600/80 font-medium mt-1 block">Programa de referidos activo</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. LISTA DE USUARIOS (Con Ficha Individual) */}
+      {/* 2. TAB DE LOG DE AUDITORÍA */}
+      {(esAuditoria || esResumen) && (
+        <RegistrationAuditLogTable />
+      )}
+
+      {/* 3. LISTA DE USUARIOS (Con Ficha Individual) */}
       {(esLista || esResumen) && (
         <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -197,7 +206,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                 Directorio de Usuarios ({usuariosFiltrados.length})
               </h3>
               <p className="text-xs text-stone-400">
-                Haz clic en cualquier usuario para abrir su Ficha Individual
+                Haz clic en cualquier usuario para abrir su Ficha Individual o eliminarlo para pruebas
               </p>
             </div>
 
@@ -249,7 +258,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                   <th className="pb-2.5">Estado</th>
                   <th className="pb-2.5">Cód. Ref</th>
                   <th className="pb-2.5">Puntos</th>
-                  <th className="pb-2.5 text-right">Acción</th>
+                  <th className="pb-2.5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -268,15 +277,15 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                     >
                       <td className="py-3 font-semibold text-stone-900">
                         <div>
-                          <span>{user.nombre} {user.apellido}</span>
+                          <span>{user.nombre} {user.apellido || ''}</span>
                           <span className="block text-[11px] text-stone-400 font-normal truncate max-w-[150px]">{user.email}</span>
                         </div>
                       </td>
                       <td className="py-3 text-stone-600 font-mono text-[11px]">
-                        {user.telefono}
+                        {user.telefono || '—'}
                       </td>
                       <td className="py-3 text-stone-600">
-                        {user.distrito}
+                        {user.distrito || '—'}
                       </td>
                       <td className="py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -296,15 +305,28 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                         {user.puntosSaldo || 0} pts
                       </td>
                       <td className="py-3 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUsuarioSeleccionado(user);
-                          }}
-                          className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-[11px] font-semibold"
-                        >
-                          Ficha
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioSeleccionado(user);
+                            }}
+                            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-[11px] font-semibold cursor-pointer"
+                          >
+                            Ficha
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioPurgaConfirmar(user);
+                            }}
+                            title="Eliminar usuario y purgar todos sus rastros (para pruebas)"
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Borrar</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -409,7 +431,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
               </div>
               <button
                 onClick={() => setUsuarioSeleccionado(null)}
-                className="p-1.5 hover:bg-stone-100 rounded-xl text-stone-400 hover:text-stone-800"
+                className="p-1.5 hover:bg-stone-100 rounded-xl text-stone-400 hover:text-stone-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -469,12 +491,79 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex items-center justify-between pt-3 border-t border-stone-100 gap-2">
+              <button
+                type="button"
+                onClick={() => setUsuarioPurgaConfirmar(usuarioSeleccionado)}
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Borrar Usuario y Limpiar Rastros</span>
+              </button>
+
               <button
                 onClick={() => setUsuarioSeleccionado(null)}
-                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-semibold"
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-semibold cursor-pointer"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONFIRMAR PURGA COMPLETA DE USUARIO */}
+      {usuarioPurgaConfirmar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 space-y-4">
+            <div className="flex items-start gap-3 text-rose-600">
+              <div className="p-2.5 bg-rose-100 rounded-2xl shrink-0">
+                <Trash2 className="w-6 h-6 text-rose-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-stone-900">¿Borrar Usuario y Limpiar Rastros?</h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Reset total de cuenta para pruebas del flujo de registro.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/80 rounded-2xl border border-rose-200 text-xs space-y-1.5">
+              <div><span className="text-stone-500 font-semibold">Usuario:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.nombre} {usuarioPurgaConfirmar.apellido || ''}</strong></div>
+              <div><span className="text-stone-500 font-semibold">Correo:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.email}</strong></div>
+              <div><span className="text-stone-500 font-semibold">WhatsApp:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.telefono || 'Sin teléfono'}</strong></div>
+            </div>
+
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Esta función elimina la cuenta de PostgreSQL, borra el historial de correos enviados (`email_logs`), elimina los registros en la auditoría de registro (`registration_logs`) y limpia la sesión en el navegador (`localStorage`). El correo y número quedarán <strong>completamente libres</strong> para volver a probar el flujo de registro sin errores de duplicidad.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                disabled={purgando}
+                onClick={() => setUsuarioPurgaConfirmar(null)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={purgando}
+                onClick={handleConfirmarPurga}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
+              >
+                {purgando ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Purgando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Sí, Borrar sin Dejar Rastros</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -510,7 +599,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                 >
                   <option value="">Selecciona un usuario...</option>
                   {usuarios.map(u => (
-                    <option key={u.id} value={u.id}>{u.nombre} {u.apellido} ({u.codigoRef})</option>
+                    <option key={u.id} value={u.id}>{u.nombre} {u.apellido || ''} ({u.codigoRef})</option>
                   ))}
                 </select>
               </div>

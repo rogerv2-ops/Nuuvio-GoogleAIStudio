@@ -10,6 +10,8 @@ import { Offer } from '../../../types';
 import { CATEGORIAS_OFERTAS, DISTRITOS_LIMA } from '../../../data/seedData';
 import { getCategoryFallbackImage, handleImgError } from '../../../utils/imageFallbacks';
 import { esOfertaNueva } from '../../../utils/ofertaUtils';
+import { EstadisticasOfertasWhatsAppPanel } from '../EstadisticasOfertasWhatsAppPanel';
+import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from '../../common/DateRangeSelector';
 
 interface OfertasDomainViewProps {
   subruta?: string;
@@ -22,6 +24,8 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroDistrito, setFiltroDistrito] = useState('todos');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activa' | 'en_validacion' | 'pausada' | 'rechazada'>('todos');
+  const [usarFiltroFecha, setUsarFiltroFecha] = useState(false);
+  const [rangoFechaCatalogo, setRangoFechaCatalogo] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
   const [ordenCampo, setOrdenCampo] = useState<'publicacion' | 'vencimiento'>('publicacion');
   const [ordenDir, setOrdenDir] = useState<'desc' | 'asc'>('desc');
   
@@ -111,7 +115,13 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
         o.comercioNombre.toLowerCase().includes(q) ||
         o.distrito.toLowerCase().includes(q);
 
-      return cumpleCat && cumpleDistrito && cumpleEstado && cumpleBusqueda;
+      let cumpleFecha = true;
+      if (usarFiltroFecha) {
+        const fIso = (o.validadaEn || o.creadaEn || '').split('T')[0];
+        cumpleFecha = Boolean(fIso && fIso >= rangoFechaCatalogo.fechaInicio && fIso <= rangoFechaCatalogo.fechaFin);
+      }
+
+      return cumpleCat && cumpleDistrito && cumpleEstado && cumpleBusqueda && cumpleFecha;
     });
 
     return filtradas.sort((a, b) => {
@@ -125,7 +135,7 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
         return ordenDir === 'desc' ? vB - vA : vA - vB;
       }
     });
-  }, [todasOfertas, filtroCategoria, filtroDistrito, filtroEstado, busqueda, ordenCampo, ordenDir]);
+  }, [todasOfertas, filtroCategoria, filtroDistrito, filtroEstado, busqueda, ordenCampo, ordenDir, usarFiltroFecha, rangoFechaCatalogo]);
 
   const handleAprobarOferta = (ofertaId: string) => {
     ofertasModule.activarOferta(ofertaId, 'Super Admin');
@@ -135,7 +145,8 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
 
   const handleRechazarOfertaSubmit = (ofertaId: string) => {
     if (!motivoRechazo.trim()) {
-      alert('Ingresa el motivo del rechazo.');
+      setNotificacion('Por favor ingresa el motivo del rechazo.');
+      setTimeout(() => setNotificacion(null), 3500);
       return;
     }
     ofertasModule.rechazarOferta(ofertaId, motivoRechazo, 'Super Admin');
@@ -218,7 +229,7 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Categorías y banners</span>
+          <span>Categorías del Catálogo</span>
         </button>
       </div>
 
@@ -335,7 +346,7 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value as any)}
-                className="py-1.5 px-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-semibold text-stone-700"
+                className="py-1.5 px-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-semibold text-stone-700 cursor-pointer"
               >
                 <option value="todos">Todos los estados</option>
                 <option value="activa">Activas</option>
@@ -343,8 +354,32 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
                 <option value="pausada">Pausadas</option>
                 <option value="rechazada">Rechazadas</option>
               </select>
+
+              <button
+                type="button"
+                onClick={() => setUsarFiltroFecha(!usarFiltroFecha)}
+                className={`py-1.5 px-3 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
+                  usarFiltroFecha
+                    ? 'bg-emerald-800 text-white border-emerald-900 shadow-2xs'
+                    : 'bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{usarFiltroFecha ? 'Filtro Fecha Activo' : 'Filtrar por Fecha'}</span>
+              </button>
             </div>
           </div>
+
+          {usarFiltroFecha && (
+            <div className="pt-2">
+              <DateRangeSelector
+                value={rangoFechaCatalogo}
+                onChange={setRangoFechaCatalogo}
+                compact={true}
+                titulo="Rango de Fechas de Publicación"
+              />
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -599,17 +634,20 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
         </div>
       )}
 
-      {/* 4. OFERTAS CON KPIS */}
+      {/* 4. OFERTAS CON KPIS: GRÁFICOS SEMANALES Y MÉTRICAS DE ALCANCE WHATSAPP */}
       {esKpis && (
-        <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-stone-900">
-              Rendimiento y Métricas por Oferta (KPIs)
-            </h3>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Clics generados a WhatsApp, conversiones estimadas y efectividad en el feed.
-            </p>
-          </div>
+        <div className="space-y-6">
+          <EstadisticasOfertasWhatsAppPanel />
+
+          <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-stone-900">
+                Rendimiento y Métricas por Oferta (KPIs Individuales)
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Clics generados a WhatsApp, conversiones estimadas y efectividad en el feed.
+              </p>
+            </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -642,14 +680,15 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
             </table>
           </div>
         </div>
+      </div>
       )}
 
-      {/* 5. CATEGORÍAS Y BANNERS */}
+      {/* 5. TAXONOMÍA DE CATEGORÍAS */}
       {esCategorias && (
         <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
           <div>
             <h3 className="text-base font-bold text-stone-900">
-              Taxonomía de Categorías y Banners de la Red
+              Taxonomía de Categorías del Catálogo
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
               Rubros habilitados para clasificación en el asistente de WhatsApp y catálogo web.

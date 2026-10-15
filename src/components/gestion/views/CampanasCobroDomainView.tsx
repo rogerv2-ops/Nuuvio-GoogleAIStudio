@@ -9,6 +9,7 @@ import { facturacionModule } from '../../../modules/facturacion';
 import { comerciosModule } from '../../../modules/comercios';
 import { coreConfig } from '../../../core/config';
 import { ClickPack } from '../../../types';
+import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from '../../common/DateRangeSelector';
 
 interface CampanasCobroDomainViewProps {
   subruta?: string;
@@ -17,6 +18,7 @@ interface CampanasCobroDomainViewProps {
 
 export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = ({ subruta, onNavegar }) => {
   const [version, setVersion] = useState(0);
+  const [rangoFechaPagos, setRangoFechaPagos] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
 
   // Estados de Configuración Contable compartidos directamente con coreConfig
   const [precio50, setPrecio50] = useState<number>(() => Number(coreConfig.obtenerValor('precio_pack_50', 70)));
@@ -267,48 +269,62 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
 
       {/* 4. PAGOS Y COBROS */}
       {esPagos && (
-        <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-stone-900">
-              Historial de Pagos y Compras de Packs ({packs.length})
-            </h3>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Transacciones registradas por canales Yape, Plin, Transferencia o Canje por Productos.
-            </p>
-          </div>
+        <div className="space-y-6">
+          <DateRangeSelector
+            value={rangoFechaPagos}
+            onChange={setRangoFechaPagos}
+            titulo="Periodo de Auditoría de Pagos y Packs"
+          />
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-stone-200 text-stone-500 font-semibold">
-                  <th className="pb-2.5">ID Pack</th>
-                  <th className="pb-2.5">Comercio</th>
-                  <th className="pb-2.5">Clics</th>
-                  <th className="pb-2.5">Monto Pagado</th>
-                  <th className="pb-2.5">Fecha</th>
-                  <th className="pb-2.5 text-right">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {packs.map(p => {
-                  const com = comercios.find(c => c.id === p.comercioId);
-                  return (
-                    <tr key={p.id} className="hover:bg-stone-50">
-                      <td className="py-3 font-mono font-bold text-stone-700">{p.id}</td>
-                      <td className="py-3 font-semibold text-stone-900">{com?.nombreComercial || p.comercioId}</td>
-                      <td className="py-3 font-bold text-sky-800">{p.totalClics} clics</td>
-                      <td className="py-3 font-black text-emerald-800">S/. {p.montoTotal.toFixed(2)}</td>
-                      <td className="py-3 text-stone-500">{new Date(p.compradoEn).toLocaleDateString()}</td>
-                      <td className="py-3 text-right">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          {p.estado}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-4 sm:p-5 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-stone-900">
+                Historial de Pagos y Compras de Packs ({packs.filter(p => {
+                  const fIso = (p.compradoEn || '').split('T')[0];
+                  return !fIso || (fIso >= rangoFechaPagos.fechaInicio && fIso <= rangoFechaPagos.fechaFin);
+                }).length})
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Transacciones registradas en {rangoFechaPagos.etiqueta} ({rangoFechaPagos.fechaInicio} al {rangoFechaPagos.fechaFin}) por canales Yape, Plin, Transferencia o Canje por Productos.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-stone-200 text-stone-500 font-semibold">
+                    <th className="pb-2.5">ID Pack</th>
+                    <th className="pb-2.5">Comercio</th>
+                    <th className="pb-2.5">Clics</th>
+                    <th className="pb-2.5">Monto Pagado</th>
+                    <th className="pb-2.5">Fecha</th>
+                    <th className="pb-2.5 text-right">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {packs.filter(p => {
+                    const fIso = (p.compradoEn || '').split('T')[0];
+                    return !fIso || (fIso >= rangoFechaPagos.fechaInicio && fIso <= rangoFechaPagos.fechaFin);
+                  }).map(p => {
+                    const com = comercios.find(c => c.id === p.comercioId);
+                    return (
+                      <tr key={p.id} className="hover:bg-stone-50">
+                        <td className="py-3 font-mono font-bold text-stone-700">{p.id}</td>
+                        <td className="py-3 font-semibold text-stone-900">{com?.nombreComercial || p.comercioId}</td>
+                        <td className="py-3 font-bold text-sky-800">{p.totalClics} clics</td>
+                        <td className="py-3 font-black text-emerald-800">S/. {p.montoTotal.toFixed(2)}</td>
+                        <td className="py-3 text-stone-500">{new Date(p.compradoEn).toLocaleDateString()}</td>
+                        <td className="py-3 text-right">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            {p.estado}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

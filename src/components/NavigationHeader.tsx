@@ -2,7 +2,7 @@ import React from 'react';
 import { Store, LogOut, Lock, ArrowLeft, Shield } from 'lucide-react';
 import { AuthSession } from '../core/security';
 
-export type ActiveSurface = 'web' | 'comercio' | 'gestion';
+export type ActiveSurface = 'web' | 'comercio' | 'gestion' | 'bienvenida';
 
 interface NavigationHeaderProps {
   superficieActiva: ActiveSurface;

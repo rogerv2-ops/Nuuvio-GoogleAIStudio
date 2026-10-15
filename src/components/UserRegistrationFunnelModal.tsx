@@ -24,6 +24,54 @@ const DISTRITOS_LIMA = [
   'San Juan de Miraflores', 'Chorrillos', 'Ate', 'Cercado de Lima'
 ];
 
+function obtenerUrlProveedorCorreo(correo: string): string {
+  const dominio = correo.split('@')[1]?.toLowerCase() || '';
+  if (dominio.includes('gmail')) return 'https://mail.google.com';
+  if (dominio.includes('outlook') || dominio.includes('hotmail') || dominio.includes('live')) return 'https://outlook.live.com';
+  if (dominio.includes('yahoo')) return 'https://mail.yahoo.com';
+  return `mailto:${correo}`;
+}
+
+export function limpiarYNormalizarTelefono(rawPhone: string, codigoPais: string = '+51'): string {
+  if (!rawPhone) return '';
+  let digits = rawPhone.replace(/\D/g, '');
+  const countryDigits = codigoPais.replace(/\D/g, '') || '51';
+  
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  
+  // Si el usuario escribió el código de país repetido (ej: 5151987654321)
+  if (digits.startsWith(`${countryDigits}${countryDigits}`) && digits.length >= 13) {
+    digits = digits.slice(countryDigits.length);
+  }
+  
+  // Si comienza con 0 y tiene 10 dígitos (ej: 0987654321)
+  if (digits.startsWith('0') && digits.length === 10) {
+    digits = digits.slice(1);
+  }
+  
+  // Si el usuario ya incluyó el código de país (ej: 51987654321 para Perú)
+  if (digits.startsWith(countryDigits) && digits.length >= (countryDigits.length + 8)) {
+    return `+${countryDigits} ${digits.slice(countryDigits.length)}`;
+  }
+  
+  // Si es un número local (ej: 987654321)
+  if (digits.length >= 7) {
+    return `+${countryDigits} ${digits}`;
+  }
+  
+  return `+${countryDigits} ${digits}`;
+}
+
+const CODIGOS_PAIS = [
+  { codigo: '+51', pais: 'Perú', bandera: '🇵🇪' },
+  { codigo: '+57', pais: 'Colombia', bandera: '🇨🇴' },
+  { codigo: '+52', pais: 'México', bandera: '🇲🇽' },
+  { codigo: '+54', pais: 'Argentina', bandera: '🇦🇷' },
+  { codigo: '+56', pais: 'Chile', bandera: '🇨🇱' },
+  { codigo: '+34', pais: 'España', bandera: '🇪🇸' },
+  { codigo: '+1', pais: 'EE.UU.', bandera: '🇺🇸' },
+];
+
 export const UserRegistrationFunnelModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -40,6 +88,7 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
+  const [codigoPais, setCodigoPais] = useState('+51');
   const [telefono, setTelefono] = useState('');
   const [distrito, setDistrito] = useState('Miraflores');
 
@@ -69,15 +118,48 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
       return;
     }
 
+    const telefonoFinal = limpiarYNormalizarTelefono(telefono.trim(), codigoPais);
+
     try {
       setCargando(true);
       setError(null);
 
-      // Registrar usuario con atribución UTM y Referido
-      const regRes = usuariosModule.registrarUsuario({
+      // 1. Validar unicidad en servidor (base de datos Cloud SQL)
+      try {
+        const checkRes = await fetch('/api/audience/check-uniqueness', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+            telefono: telefonoFinal,
+            nombre: `${nombre.trim()} ${apellido.trim()}`
+          })
+        });
+
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.exists) {
+            if (checkData.isEmailDuplicate) {
+              setError('El correo electrónico ingresado ya se encuentra registrado. Por favor ingresa otro correo o inicia sesión.');
+              setCargando(false);
+              return;
+            }
+            if (checkData.isPhoneDuplicate) {
+              setError('El número de WhatsApp ingresado ya se encuentra registrado. Por favor ingresa otro número o inicia sesión.');
+              setCargando(false);
+              return;
+            }
+          }
+        }
+      } catch (errCheck) {
+        console.warn('Advertencia en verificación previa de unicidad:', errCheck);
+      }
+
+      // 2. Registrar usuario con atribución UTM y Referido (garantizando persistencia sincrónica en Cloud SQL)
+      const regRes = await usuariosModule.registrarUsuarioAsync({
         nombre: nombre.trim(),
         apellido: apellido.trim() || 'U.',
-        telefono: telefono.trim(),
+        telefono: telefonoFinal,
         email: email.trim().toLowerCase(),
         edad: 28,
         genero: 'No especificado',
@@ -104,8 +186,19 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
       });
 
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-      const vLink = emailRes.verificationLink || `${currentOrigin}/?verify_token=${regRes.verificationToken}`;
-      const waLink = emailRes.whatsappLink || `https://wa.me/51987654321?text=${encodeURIComponent('Oferta')}`;
+      const vLink = emailRes.verificationLink || `${currentOrigin}/bienvenida?verify_token=${regRes.verificationToken}`;
+      let waLink = emailRes.whatsappLink;
+      if (!waLink) {
+        try {
+          const cfgRes = await fetch('/api/whatsapp/config').then(r => r.json());
+          if (cfgRes.ok && cfgRes.whatsappLink) {
+            waLink = cfgRes.whatsappLink;
+          }
+        } catch (_) {}
+      }
+      if (!waLink) {
+        waLink = `whatsapp://send?text=${encodeURIComponent('Ofertas')}`;
+      }
 
       setVerificationLink(vLink);
       setWhatsappLink(waLink);
@@ -274,17 +367,33 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-700 mb-1">WhatsApp / Celular *</label>
-                <div className="relative">
-                  <MessageCircle className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+51 987 654 321"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:bg-white focus:outline-hidden focus:border-[#1B4332]"
-                  />
+                <div className="flex gap-1.5">
+                  <select
+                    value={codigoPais}
+                    onChange={(e) => setCodigoPais(e.target.value)}
+                    className="px-2 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:bg-white focus:outline-hidden focus:border-[#1B4332]"
+                  >
+                    {CODIGOS_PAIS.map((c) => (
+                      <option key={c.codigo} value={c.codigo}>
+                        {c.bandera} {c.codigo}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="relative flex-1">
+                    <MessageCircle className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="987 654 321"
+                      value={telefono}
+                      onChange={(e) => setTelefono(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:bg-white focus:outline-hidden focus:border-[#1B4332]"
+                    />
+                  </div>
                 </div>
+                <p className="text-[10px] text-stone-500 mt-1">
+                  Código de país preconfigurado: <span className="font-bold text-[#1B4332]">{codigoPais}</span> ({CODIGOS_PAIS.find(c => c.codigo === codigoPais)?.pais}).
+                </p>
               </div>
 
               <div>
@@ -348,50 +457,58 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
                   </div>
                   <div>
                     <p className="text-xs font-bold text-stone-800">Verifica tu correo con 1 solo clic</p>
-                    <p className="text-[11px] text-stone-500">
+                    <p className="text-[11px] text-stone-500 leading-snug">
                       Abre el correo que te enviamos y toca el botón <strong>"Confirmar mi correo"</strong> para activar tu cuenta de inmediato.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                     2
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-stone-800">Pide ofertas en WhatsApp con "Oferta"</p>
-                    <p className="text-[11px] text-stone-500">
-                      Escribe la palabra <strong>Oferta</strong> a nuestro bot conectado para recibir las promociones más cercanas a tu distrito.
+                    <p className="text-xs font-bold text-stone-800">Página de bienvenida y WhatsApp</p>
+                    <p className="text-[11px] text-stone-500 leading-snug">
+                      Al confirmar tu correo serás llevado a la página de bienvenida con el enlace a nuestro WhatsApp y podrás pedir las ofertas cercanas a ti con solo enviar la palabra <strong>"Ofertas"</strong>.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Botón de acceso directo a WhatsApp oficial */}
-              {whatsappLink && (
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
-                >
-                  <MessageCircle className="w-4 h-4 fill-white" />
-                  <span>Abrir WhatsApp del Bot y pedir ofertas</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
+              {/* Botón principal: Abrir o revisar su correo */}
+              <a
+                href={obtenerUrlProveedorCorreo(email)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Abrir mi correo para confirmar</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+              </a>
 
               {/* Simulador de Verificación para pruebas rápidas / modo de desarrollo */}
               <div className="pt-2 border-t border-stone-200/80 space-y-2">
-                <p className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">
+                <p className="text-[10px] text-stone-500 uppercase font-bold tracking-wider text-center">
                   Acceso directo de prueba (1 Clic)
                 </p>
                 <button
-                  onClick={handleSimularClickVerificacion}
+                  onClick={() => {
+                    if (!verificationToken) return;
+                    const verifiedUser = usuariosModule.verificarPorToken(verificationToken);
+                    if (verifiedUser) {
+                      onSuccess(verifiedUser);
+                      onClose();
+                      if (typeof window !== 'undefined') {
+                        window.location.href = `/bienvenida?verify_token=${verificationToken}`;
+                      }
+                    }
+                  }}
                   className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-[#1B4332] border border-emerald-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Simular clic en el enlace del correo y activar cuenta</span>
+                  <span>Simular clic en el enlace del correo (abrir página de bienvenida)</span>
                 </button>
 
                 {verificationLink && (

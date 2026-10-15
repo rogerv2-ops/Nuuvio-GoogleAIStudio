@@ -8,17 +8,35 @@ import { PublicWeb } from './components/PublicWeb';
 import { MerchantPanel } from './components/MerchantPanel';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginView } from './components/LoginView';
+import { BienvenidaView } from './components/BienvenidaView';
+import { UserRegistrationFunnelModal } from './components/UserRegistrationFunnelModal';
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
 import { comerciosModule } from './modules/comercios';
 import { ofertasModule } from './modules/ofertas';
 import { seoMetadataModule } from './modules/seoMetadata';
+import { sincronizarVersionConServidor } from './utils/resourceVersion';
 
-// Detección inicial de ruta /gestion, /panel o /comercio (soporta pathname y hash)
+// Detección inicial de ruta /gestion, /panel, /comercio o /bienvenida (soporta pathname, hash y query)
 function obtenerSuperficieDesdeUrl(): ActiveSurface {
   if (typeof window === 'undefined') return 'web';
   const path = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+
+  if (
+    path === '/bienvenida' ||
+    path.startsWith('/bienvenida/') ||
+    hash === '#bienvenida' ||
+    hash === '#/bienvenida' ||
+    hash.startsWith('#/bienvenida') ||
+    hash.startsWith('#bienvenida') ||
+    search.includes('verify_token=') ||
+    search.includes('token=') ||
+    search.includes('vista=bienvenida')
+  ) {
+    return 'bienvenida';
+  }
 
   if (
     path === '/panel' ||
@@ -49,6 +67,7 @@ function obtenerSuperficieDesdeUrl(): ActiveSurface {
 export default function App() {
   const [superficieActiva, setSuperficieActiva] = useState<ActiveSurface>(obtenerSuperficieDesdeUrl);
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
+  const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [, setTick] = useState(0);
 
   // Sincronizar superficie activa con la URL del navegador
@@ -62,6 +81,8 @@ export default function App() {
           window.history.pushState({ superficie: 'gestion' }, '', '/gestion');
         } else if (s === 'comercio') {
           window.history.pushState({ superficie: 'comercio' }, '', '/comercio');
+        } else if (s === 'bienvenida') {
+          window.history.pushState({ superficie: 'bienvenida' }, '', '/bienvenida');
         } else {
           window.history.pushState({ superficie: 'web' }, '', '/');
         }
@@ -70,6 +91,7 @@ export default function App() {
       // Si la URL no puede ser reescrita en el entorno de iframe, usar hash como fallback seguro
       if (s === 'gestion') window.location.hash = '#/gestion';
       else if (s === 'comercio') window.location.hash = '#comercio';
+      else if (s === 'bienvenida') window.location.hash = '#bienvenida';
       else window.location.hash = '';
     }
   }, []);
@@ -91,6 +113,7 @@ export default function App() {
 
   // Escuchar cambios reactivos en los módulos del microkernel
   useEffect(() => {
+    sincronizarVersionConServidor();
     seoMetadataModule.inicializar();
     const forzarActualizacion = () => setTick(t => t + 1);
     const unConfig = coreConfig.suscribir(forzarActualizacion);
@@ -140,6 +163,13 @@ export default function App() {
           </div>
         )}
 
+        {superficieActiva === 'bienvenida' && (
+          <BienvenidaView
+            onVolverAWeb={() => cambiarSuperficie('web')}
+            onAbrirRegistro={() => setModalRegistroAbierto(true)}
+          />
+        )}
+
         {superficieActiva === 'comercio' && (
           tieneAccesoComercio ? (
             <MerchantPanel />
@@ -166,6 +196,16 @@ export default function App() {
           )
         )}
       </main>
+
+      {/* Modal universal de registro (para aperturas desde Bienvenida restringida o accesos directos) */}
+      <UserRegistrationFunnelModal
+        isOpen={modalRegistroAbierto}
+        onClose={() => setModalRegistroAbierto(false)}
+        onSuccess={() => {
+          setModalRegistroAbierto(false);
+          cambiarSuperficie('web');
+        }}
+      />
     </div>
   );
 }

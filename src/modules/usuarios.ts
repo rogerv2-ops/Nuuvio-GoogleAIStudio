@@ -4,196 +4,11 @@
  * vinculación de WhatsApp, categorías, consentimientos y bajas.
  */
 import { AudienceUser } from '../types';
-import { SEED_USER } from '../data/seedData';
+import { SEED_USER, SEED_AUDIENCE_USERS } from '../data/seedData';
 import { coreEvents } from '../core/events';
 
 class UsuariosModule {
-  private usuarios: Map<string, AudienceUser> = new Map([
-    [SEED_USER.id, { 
-      ...SEED_USER,
-      utm: {
-        source: 'instagram',
-        medium: 'paid_social',
-        campaign: 'promo_gastronomia_lima',
-        content: 'video_reels_acai'
-      }
-    }],
-    ['usr_demo_02', {
-      id: 'usr_demo_02',
-      telefono: '+51 987 111 222',
-      nombre: 'Luciana',
-      apellido: 'Rivas',
-      email: 'luciana.rivas@gmail.com',
-      emailVerificado: false,
-      edad: 26,
-      genero: 'Femenino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'Barranco',
-      categoriasInteres: ['Gastronomía y Café', 'Moda y Calzado'],
-      puntosSaldo: 0,
-      codigoRef: 'VUUY-LR26',
-      invitadoPor: 'VUUY-CV88',
-      estado: 'pendiente',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 36).toISOString(),
-      utm: {
-        source: 'whatsapp',
-        medium: 'chat_share',
-        campaign: 'amigos_vuuy_ofertas'
-      }
-    }],
-    ['usr_demo_03', {
-      id: 'usr_demo_03',
-      telefono: '+51 987 222 333',
-      nombre: 'Mateo',
-      apellido: 'Alva',
-      email: 'mateo.alva@outlook.com',
-      emailVerificado: true,
-      edad: 31,
-      genero: 'Masculino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'Miraflores',
-      categoriasInteres: ['Gastronomía y Café', 'Tecnología y Gadgets'],
-      puntosSaldo: 30,
-      codigoRef: 'VUUY-MA73',
-      estado: 'activo',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 48).toISOString(),
-      utm: {
-        source: 'facebook',
-        medium: 'social_post',
-        campaign: 'ofertas_barranco_miraflores',
-        content: 'carrusel_cafeterias'
-      }
-    }],
-    ['usr_demo_04', {
-      id: 'usr_demo_04',
-      telefono: '+51 987 333 444',
-      nombre: 'Valeria',
-      apellido: 'Mendoza',
-      email: 'valeria.mendoza@gmail.com',
-      emailVerificado: true,
-      edad: 24,
-      genero: 'Femenino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'San Isidro',
-      categoriasInteres: ['Moda y Calzado', 'Belleza y Bienestar'],
-      puntosSaldo: 50,
-      codigoRef: 'VUUY-VM91',
-      estado: 'activo',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 20).toISOString(),
-      utm: {
-        source: 'tiktok',
-        medium: 'creator_bio',
-        campaign: 'foodies_lima_noche',
-        content: 'link_en_bio'
-      }
-    }],
-    ['usr_demo_05', {
-      id: 'usr_demo_05',
-      telefono: '+51 987 444 555',
-      nombre: 'Diego',
-      apellido: 'Paredes',
-      email: 'diego.paredes@gmail.com',
-      emailVerificado: true,
-      edad: 34,
-      genero: 'Masculino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'Surco',
-      categoriasInteres: ['Gastronomía y Café', 'Hogar y Decoración'],
-      puntosSaldo: 10,
-      codigoRef: 'VUUY-DP12',
-      estado: 'activo',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 12).toISOString(),
-      utm: {
-        source: 'google',
-        medium: 'cpc',
-        campaign: 'ofertas_restaurantes_lima',
-        term: 'descuentos cafes lima'
-      }
-    }],
-    ['usr_demo_06', {
-      id: 'usr_demo_06',
-      telefono: '+51 987 555 666',
-      nombre: 'Andrea',
-      apellido: 'Silva',
-      email: 'andrea.silva@hotmail.com',
-      emailVerificado: true,
-      edad: 28,
-      genero: 'Femenino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'Barranco',
-      categoriasInteres: ['Gastronomía y Café', 'Belleza y Bienestar'],
-      puntosSaldo: 20,
-      codigoRef: 'VUUY-AS45',
-      invitadoPor: 'VUUY-CV88',
-      estado: 'activo',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 8).toISOString(),
-      utm: {
-        source: 'whatsapp',
-        medium: 'chat_share',
-        campaign: 'amigos_vuuy_ofertas'
-      }
-    }],
-    ['usr_demo_07', {
-      id: 'usr_demo_07',
-      telefono: '+51 987 666 777',
-      nombre: 'Renzo',
-      apellido: 'Chávez',
-      email: 'renzo.chavez@gmail.com',
-      emailVerificado: false,
-      edad: 27,
-      genero: 'Masculino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'San Borja',
-      categoriasInteres: ['Tecnología y Gadgets', 'Gastronomía y Café'],
-      puntosSaldo: 0,
-      codigoRef: 'VUUY-RC60',
-      estado: 'pendiente',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 4).toISOString(),
-      utm: {
-        source: 'instagram',
-        medium: 'paid_social',
-        campaign: 'promo_gastronomia_lima',
-        content: 'story_swipe'
-      }
-    }],
-    ['usr_demo_08', {
-      id: 'usr_demo_08',
-      telefono: '+51 987 777 888',
-      nombre: 'Camila',
-      apellido: 'Torres',
-      email: 'camila.torres@gmail.com',
-      emailVerificado: true,
-      edad: 25,
-      genero: 'Femenino',
-      ciudad: 'Lima',
-      provincia: 'Lima',
-      distrito: 'Miraflores',
-      categoriasInteres: ['Moda y Calzado', 'Gastronomía y Café'],
-      puntosSaldo: 10,
-      codigoRef: 'VUUY-CT19',
-      invitadoPor: 'VUUY-LR26',
-      estado: 'activo',
-      consentimientos: { correo: true, push: true, whatsapp: true },
-      registradoEn: new Date(Date.now() - 3600000 * 2).toISOString(),
-      utm: {
-        source: 'tiktok',
-        medium: 'creator_bio',
-        campaign: 'foodies_lima_noche'
-      }
-    }]
-  ]);
+  private usuarios: Map<string, AudienceUser> = new Map(SEED_AUDIENCE_USERS.map(u => [u.id, u]));
 
   // Códigos temporales de 6 dígitos para vincular teléfono con correo (H1)
   private codigosVinculacion: Map<string, { usuarioId: string; expiraEn: number }> = new Map([
@@ -202,6 +17,133 @@ class UsuariosModule {
 
   private solicitudesDelDia: Map<string, { fecha: string; contador: number }> = new Map();
   private listeners: (() => void)[] = [];
+
+  constructor() {
+    this.cargarDesdeStorage();
+    this.cargarDesdeServidor();
+  }
+
+  private async cargarDesdeServidor() {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/audience/users');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.users)) {
+          data.users.forEach((u: any) => {
+            if (u && u.id) {
+              const existente = this.usuarios.get(u.id);
+              this.usuarios.set(u.id, {
+                ...(existente || {}),
+                id: u.id,
+                email: u.email,
+                nombre: u.nombre,
+                apellido: u.apellido || '',
+                telefono: u.telefono || '',
+                distrito: u.distrito || '',
+                provincia: u.provincia || 'Lima',
+                ciudad: u.ciudad || 'Lima',
+                emailVerificado: !!u.emailVerificado,
+                verificationToken: u.verificationToken || undefined,
+                codigoRef: u.codigoRef || `REF${Math.floor(10000 + Math.random() * 90000)}`,
+                puntosSaldo: u.puntosSaldo || 0,
+                estado: u.estado || 'pendiente',
+                categoriasInteres: Array.isArray(u.categoriasInteres) ? u.categoriasInteres : [],
+                consentimientos: u.consentimientos || { correo: true, push: true, whatsapp: true },
+                registradoEn: u.registradoEn || new Date().toISOString(),
+                edad: existente?.edad || 25,
+                genero: existente?.genero || 'No especificado'
+              });
+            }
+          });
+          this.guardarEnStorage();
+          this.notificar();
+        }
+      }
+    } catch (e) {
+      // Ignorar fallos de red silenciosamente
+    }
+  }
+
+  public async syncConServidor(user: AudienceUser): Promise<{ ok: boolean; error?: string }> {
+    if (typeof window === 'undefined') return { ok: true };
+    try {
+      const res = await fetch('/api/audience/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: data.error || `HTTP ${res.status}` };
+      }
+      return { ok: true };
+    } catch (err: any) {
+      console.warn('Error sincronizando usuario con servidor:', err);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  private cargarDesdeStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const guardados = localStorage.getItem('vuuy_registered_users_list');
+      if (guardados) {
+        const parsed: AudienceUser[] = JSON.parse(guardados);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((u) => {
+            if (u && u.id) {
+              this.usuarios.set(u.id, u);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error al cargar usuarios de localStorage:', e);
+    }
+  }
+
+  private guardarEnStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const lista = Array.from(this.usuarios.values());
+      localStorage.setItem('vuuy_registered_users_list', JSON.stringify(lista));
+    } catch (e) {
+      console.warn('Error al guardar usuarios en localStorage:', e);
+    }
+  }
+
+  public obtenerPorToken(token: string): AudienceUser | undefined {
+    if (!token) return undefined;
+    for (const u of this.usuarios.values()) {
+      if (u.verificationToken === token) {
+        return u;
+      }
+    }
+    return undefined;
+  }
+
+  public verificarDuplicadoLocal(email: string, telefono: string): { existe: boolean; mensaje?: string } {
+    const emailNorm = email.trim().toLowerCase();
+    const telLimpio = telefono.replace(/\D/g, '');
+
+    for (const u of this.usuarios.values()) {
+      if (u.email && u.email.trim().toLowerCase() === emailNorm) {
+        return {
+          existe: true,
+          mensaje: 'El correo electrónico ingresado ya se encuentra registrado en el sistema.'
+        };
+      }
+      const uTel = (u.telefono || '').replace(/\D/g, '');
+      if (telLimpio && uTel && (uTel === telLimpio || (telLimpio.length >= 9 && uTel.endsWith(telLimpio.slice(-9))))) {
+        return {
+          existe: true,
+          mensaje: 'El número de WhatsApp ingresado ya se encuentra registrado en el sistema.'
+        };
+      }
+    }
+    return { existe: false };
+  }
 
   public registrarUsuario(datos: {
     nombre: string;
@@ -223,11 +165,15 @@ class UsuariosModule {
       content?: string;
     };
   }): { usuario: AudienceUser; codigoVinculacion: string; verificationToken: string } {
+    const duplicado = this.verificarDuplicadoLocal(datos.email, datos.telefono);
+    if (duplicado.existe && duplicado.mensaje) {
+      throw new Error(duplicado.mensaje);
+    }
+
     // Normalizar teléfono
     const telLimpio = datos.telefono.replace(/\s+/g, '');
     const id = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const iniciales = (datos.nombre.charAt(0) + (datos.apellido ? datos.apellido.charAt(0) : 'U')).toUpperCase();
-    const codigoRef = `VUUY-${iniciales}${Math.floor(10 + Math.random() * 90)}`;
+    const codigoRef = `REF${Math.floor(10000 + Math.random() * 90000)}`;
     const verificationToken = `vtok_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
     const nuevoUsuario: AudienceUser = {
@@ -281,8 +227,39 @@ class UsuariosModule {
       }
     });
 
+    this.guardarEnStorage();
+    this.syncConServidor(nuevoUsuario);
     this.notificar();
     return { usuario: nuevoUsuario, codigoVinculacion, verificationToken };
+  }
+
+  public async registrarUsuarioAsync(datos: {
+    nombre: string;
+    apellido: string;
+    telefono: string;
+    email: string;
+    edad?: number;
+    genero?: string;
+    distrito: string;
+    provincia?: string;
+    ciudad?: string;
+    categoriasInteres: string[];
+    invitadoPor?: string;
+    utm?: {
+      source?: string;
+      medium?: string;
+      campaign?: string;
+      term?: string;
+      content?: string;
+    };
+  }): Promise<{ usuario: AudienceUser; codigoVinculacion: string; verificationToken: string }> {
+    const res = this.registrarUsuario({
+      ...datos,
+      edad: datos.edad || 28,
+      genero: datos.genero || 'No especificado'
+    });
+    await this.syncConServidor(res.usuario);
+    return res;
   }
 
   public verificarPorToken(token: string): AudienceUser | null {
@@ -302,11 +279,23 @@ class UsuariosModule {
           datos: { email: u.email, token }
         });
 
+        this.guardarEnStorage();
+        this.syncConServidor(u);
         this.notificar();
         return u;
       }
     }
     return null;
+  }
+
+  public agregarOActualizarUsuario(user: AudienceUser): void {
+    if (!user || !user.id) return;
+    this.usuarios.set(user.id, user);
+    if (user.emailVerificado || user.estado === 'activo') {
+      this.setUsuarioActivo(user.id);
+    }
+    this.guardarEnStorage();
+    this.notificar();
   }
 
   public getUsuarioActivo(): AudienceUser | null {
@@ -450,6 +439,54 @@ class UsuariosModule {
     });
 
     this.notificar();
+  }
+
+  public async eliminarYPurgarUsuario(usuarioId: string, email?: string, telefono?: string): Promise<{ ok: boolean; mensaje: string }> {
+    const u = this.usuarios.get(usuarioId);
+    const emailToPurge = email || u?.email;
+    const phoneToPurge = telefono || u?.telefono;
+
+    if (usuarioId) {
+      this.usuarios.delete(usuarioId);
+    }
+    
+    if (emailToPurge) {
+      for (const [id, user] of Array.from(this.usuarios.entries())) {
+        if (user.email.toLowerCase() === emailToPurge.toLowerCase()) {
+          this.usuarios.delete(id);
+        }
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      const activeId = localStorage.getItem('vuuy_active_user_id');
+      if (activeId === usuarioId) {
+        localStorage.removeItem('vuuy_active_user_id');
+      }
+      this.guardarEnStorage();
+    }
+
+    this.notificar();
+
+    try {
+      const res = await fetch('/api/audience/purge-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: usuarioId,
+          email: emailToPurge,
+          telefono: phoneToPurge
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        return { ok: true, mensaje: 'Usuario y todos sus rastros fueron purgados de la base de datos' };
+      }
+      return { ok: false, mensaje: data.error || 'No se pudo completar la purga en el servidor' };
+    } catch (err: any) {
+      console.warn('Error llamando a API de purga:', err);
+      return { ok: true, mensaje: 'Usuario eliminado localmente' };
+    }
   }
 
   public suscribir(listener: () => void) {

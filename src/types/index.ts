@@ -93,6 +93,13 @@ export interface Offer {
   clics: number;
   leadsCalificados: number;
   campaniaId?: string;
+  // Video generado con IA (Veo 9:16 o 16:9)
+  videoUrl?: string;
+  videoAspectRatio?: '9:16' | '16:9';
+  videoEstado?: 'pendiente' | 'generando' | 'completado' | 'error';
+  videoPrompt?: string;
+  planComercio?: string;
+  distanciaTexto?: string;
 }
 
 export interface ClickRecord {
