@@ -130,7 +130,7 @@ del repositorio.
 
 - [x] T035 [US3] Refinar `isAskingForOffers` en `server.ts`: normalizar (minúsculas, sin acentos) y usar coincidencia por palabra/límite (`\b`) o frases completas en lugar de `includes("oferta")` (FR-015)
 - [x] T036 [US3] Corregir el emparejamiento de teléfonos en `server.ts` (`obtenerPorTelefono`, `getOrFindAudienceUser`): normalizar a `519XXXXXXXX` y comparar por igualdad exacta, sin `.endsWith`/subcadenas (FR-016)
-- [ ] T037 [US3] Verificar regresión de FLW-01..04 (sync autoritativo en `src/db/repo.ts`, arranque por dominio aislado y no re-siembra en `server.ts`, persistencia de comercio WhatsApp y débito de packs); corregir cualquier regresión detectada (FR-011..014)
+- [x] T037 [US3] Verificar regresión de FLW-01..04 (sync autoritativo en `src/db/repo.ts`, arranque por dominio aislado y no re-siembra en `server.ts`, persistencia de comercio WhatsApp y débito de packs); corregir cualquier regresión detectada (FR-011..014)
 
 **Checkpoint**: Las tres historias funcionan de forma independiente.
 
@@ -141,7 +141,7 @@ del repositorio.
 - [x] T038 [P] Actualizar `INVENTARIO.md` con los endpoints `/api/auth/*`, el gate y las cabeceras de seguridad
 - [x] T039 [P] Actualizar `FLUJOS.md` con el flujo de login/token, verificación de webhooks y guard SSRF
 - [x] T040 Ejecutar `quickstart.md` de extremo a extremo (local y producción) y registrar resultados
-- [ ] T041 Rotar las contraseñas de admin y comercio (estuvieron expuestas en el bundle) y re-sembrar `app_settings.auth_users` con los nuevos hashes
+- [x] T041 Rotar las contraseñas de admin y comercio (estuvieron expuestas en el bundle) y re-sembrar `app_settings.auth_users` con los nuevos hashes
 - [x] T042 Validación final: `bun build server.ts --target=node --outdir /tmp/bc --external vite` + `bun run build` + `bun test` en verde, luego push y verificar post-deploy
 
 ---
