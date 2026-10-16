@@ -1,16 +1,17 @@
-import { SEED_CLICK_PACKS } from "../data/seedData.ts";
-import { coreEvents } from "../core/events.ts";
-import { coreSecurity } from "../core/security.ts";
+/**
+ * MODULO 10: campanas-facturacion (esquema: cmp)
+ * Modelo PPC por packs de clics (50, 100, 500).
+ * Nace construida completa pero con INTERRUPTOR APAGADO para pruebas libres (D12).
+ */
+import { ClickPack } from '../types';
+import { SEED_CLICK_PACKS } from '../data/seedData';
+import { coreConfig } from '../core/config';
+import { coreEvents } from '../core/events';
 
-export interface ClickPack {
-  id: string;
-  comercioId: string;
-  totalClics: number;
-  saldoClics: number;
-  precioUnitario: number;
-  montoTotal: number;
-  estado: "activo" | "agotado" | "vencido";
-  compradoEn: string;
+export interface ClickPackProductContribution {
+  productoNombre: string;
+  valorEstimado: number;
+  unidadesAportadas: number;
 }
 
 class FacturacionModule {
@@ -18,142 +19,136 @@ class FacturacionModule {
   private listeners: (() => void)[] = [];
 
   constructor() {
-    // Inicializar con semillas iniciales
-    SEED_CLICK_PACKS.forEach((p) => {
-      this.packs.set(p.id, { ...(p as ClickPack) });
-    });
-
-    if (typeof window !== "undefined") {
-      this.cargarDeAPI();
-    }
+    SEED_CLICK_PACKS.forEach(p => this.packs.set(p.id, { ...p }));
   }
 
   /**
-   * Carga los paquetes de clics desde PostgreSQL
+   * Débito atómico de 1 clic (F-AUD-06):
+   * Si el módulo está activo, descuenta del saldo del pack.
+   * Si está apagado (modo de prueba libre), no bloquea al comercio.
    */
-  async cargarDeDB(): Promise<ClickPack[]> {
-    if (typeof window === "undefined") {
-      try {
-        const { getSetting } = await import("../db/repo.ts");
-        const dbPacks = await getSetting("click_packs_list", null);
-        if (Array.isArray(dbPacks) && dbPacks.length > 0) {
-          this.packs.clear();
-          dbPacks.forEach((p: ClickPack) => this.packs.set(p.id, p));
-          this.notificar();
-          return dbPacks;
-        }
-      } catch (err) {
-        console.warn("[FacturacionModule] Error cargando packs desde PostgreSQL:", err);
+  public debitarClic(comercioId: string): { exito: boolean; saldoRestante: number; facturacionActiva: boolean } {
+    const facturacionActiva = coreConfig.moduloActivo('campanasFacturacion');
+
+    // Buscar pack activo con saldo
+    const packActivo = Array.from(this.packs.values()).find(
+      p => p.comercioId === comercioId && p.saldoClics > 0
+    );
+
+    if (!facturacionActiva) {
+      // Modo pruebas libres: si hay pack se actualiza estadísticamente sin bloquear
+      if (packActivo) {
+        packActivo.saldoClics = Math.max(0, packActivo.saldoClics - 1);
+        this.notificar();
       }
+      return { exito: true, saldoRestante: packActivo ? packActivo.saldoClics : 999, facturacionActiva: false };
     }
-    return this.listarPacks();
+
+    if (!packActivo || packActivo.saldoClics <= 0) {
+      coreEvents.emitir({
+        tipoEvento: 'pack_agotado',
+        actorTipo: 'comercio',
+        actorId: comercioId,
+        origen: 'sistema',
+        datos: { motivo: 'Saldo de clics en cero' }
+      });
+      return { exito: false, saldoRestante: 0, facturacionActiva: true };
+    }
+
+    packActivo.saldoClics -= 1;
+    if (packActivo.saldoClics === 0) {
+      packActivo.estado = 'agotado';
+      coreEvents.emitir({
+        tipoEvento: 'pack_agotado',
+        actorTipo: 'comercio',
+        actorId: comercioId,
+        origen: 'sistema',
+        datos: { packId: packActivo.id }
+      });
+    }
+
+    this.notificar();
+    return { exito: true, saldoRestante: packActivo.saldoClics, facturacionActiva: true };
   }
 
-  async cargarDeAPI(): Promise<void> {
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/facturacion/packs");
-        if (res.ok) {
-          const data = await res.json();
-          const lista = data.packs || data;
-          if (Array.isArray(lista) && lista.length > 0) {
-            this.cargarDeLista(lista);
-          }
-        }
-      } catch (e) {
-        // En frontend
-      }
-    }
-  }
+  public comprarPack(params: {
+    comercioId: string;
+    cantidadClics: 50 | 100 | 500;
+    metodoPago: 'yape_plin' | 'transferencia' | 'aporte_productos';
+    aporteProductos?: ClickPackProductContribution;
+  }): ClickPack {
+    const precios: Record<number, number> = {
+      50: Number(coreConfig.obtenerValor('precio_pack_50', 70)),
+      100: Number(coreConfig.obtenerValor('precio_pack_100', 120)),
+      500: Number(coreConfig.obtenerValor('precio_pack_500', 500))
+    };
 
-  cargarDeLista(lista: ClickPack[]): void {
-    if (Array.isArray(lista) && lista.length > 0) {
-      this.packs.clear();
-      lista.forEach((p) => this.packs.set(p.id, p));
-      this.notificar();
-    }
-  }
+    const precioBase = precios[params.cantidadClics] || 120;
+    const descuentoProductos = params.aporteProductos 
+      ? Math.min(precioBase * 0.30, params.aporteProductos.valorEstimado * params.aporteProductos.unidadesAportadas)
+      : 0;
 
-  async guardarEnDB(): Promise<void> {
-    const lista = Array.from(this.packs.values());
-    if (typeof window === "undefined") {
-      try {
-        const { saveSetting } = await import("../db/repo.ts");
-        await saveSetting("click_packs_list", lista);
-      } catch (err) {
-        console.warn("[FacturacionModule] Error guardando packs en PostgreSQL:", err);
-      }
-    }
-  }
+    const montoFinal = Math.max(0, precioBase - descuentoProductos);
 
-  /**
-   * Debita un clic facturable del saldo prepago del comercio
-   */
-  async debitarClic(comercioId: string): Promise<boolean> {
-    // Buscar el pack activo más antiguo del comercio
-    const packsComercio = Array.from(this.packs.values())
-      .filter((p) => p.comercioId === comercioId && p.estado === "activo" && p.saldoClics > 0)
-      .sort((a, b) => new Date(a.compradoEn).getTime() - new Date(b.compradoEn).getTime());
+    const id = `pack_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const nuevoPack: ClickPack = {
+      id,
+      comercioId: params.comercioId,
+      totalClics: params.cantidadClics,
+      saldoClics: params.cantidadClics,
+      precioUnitario: Number((montoFinal / params.cantidadClics).toFixed(2)),
+      montoTotal: montoFinal,
+      estado: 'activo',
+      compradoEn: new Date().toISOString()
+    };
 
-    if (packsComercio.length === 0) {
-      // Si no tiene saldo prepago, creamos un pack base con saldo o permitimos descubierto controlado
-      const nuevoPackId = `pack_auto_${Date.now()}`;
-      const autoPack: ClickPack = {
-        id: nuevoPackId,
-        comercioId,
-        totalClics: 50,
-        saldoClics: 49,
-        precioUnitario: 1.2,
-        montoTotal: 60,
-        estado: "activo",
-        compradoEn: new Date().toISOString(),
-      };
-      this.packs.set(nuevoPackId, autoPack);
-      await this.guardarEnDB();
-      this.notificar();
-      return true;
-    }
-
-    const pack = packsComercio[0];
-    pack.saldoClics -= 1;
-    if (pack.saldoClics <= 0) {
-      pack.saldoClics = 0;
-      pack.estado = "agotado";
-    }
+    this.packs.set(id, nuevoPack);
 
     coreEvents.emitir({
-      tipoEvento: "clic_debitado",
-      actorTipo: "comercio",
-      actorId: comercioId,
-      distrito: "Lima",
-      origen: "redireccion_cpc",
-      datos: { comercioId, packId: pack.id, nuevoSaldo: pack.saldoClics },
+      tipoEvento: 'pack_comprado',
+      actorTipo: 'comercio',
+      actorId: params.comercioId,
+      origen: 'panel',
+      datos: {
+        packId: id,
+        totalClics: params.cantidadClics,
+        monto: montoFinal,
+        metodo: params.metodoPago,
+        descuentoProductos
+      }
     });
 
-    await this.guardarEnDB();
     this.notificar();
-    return true;
+    return nuevoPack;
   }
 
-  obtenerSaldo(comercioId: string): number {
-    return Array.from(this.packs.values())
-      .filter((p) => p.comercioId === comercioId && p.estado === "activo")
-      .reduce((acc, p) => acc + p.saldoClics, 0);
+  public obtenerSaldoComercio(comercioId: string): number {
+    let saldoTotal = 0;
+    for (const p of this.packs.values()) {
+      if (p.comercioId === comercioId && p.estado === 'activo') {
+        saldoTotal += p.saldoClics;
+      }
+    }
+    return saldoTotal;
   }
 
-  listarPacks(): ClickPack[] {
+  public listarPacksPorComercio(comercioId: string): ClickPack[] {
+    return Array.from(this.packs.values()).filter(p => p.comercioId === comercioId);
+  }
+
+  public listarTodosLosPacks(): ClickPack[] {
     return Array.from(this.packs.values());
   }
 
-  suscribir(listener: () => void): () => void {
+  public suscribir(listener: () => void) {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter((l) => l !== listener);
+      this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
 
-  notificar(): void {
-    this.listeners.forEach((l) => l());
+  private notificar() {
+    this.listeners.forEach(l => l());
   }
 }
 
