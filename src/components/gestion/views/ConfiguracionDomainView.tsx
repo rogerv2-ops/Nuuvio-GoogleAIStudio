@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Settings, MessageCircle, Mail, Globe, Clock, 
   ToggleLeft, ToggleRight, Shield, Sparkles, CheckCircle2, 
-  ExternalLink, Save, RefreshCw, Key, Eye, EyeOff, Lock, UserPlus, Server, Images
+  ExternalLink, Save, RefreshCw, Key, Eye, EyeOff, Lock, UserPlus, Server, Images,
+  Trash2, Pencil, ShieldCheck
 } from 'lucide-react';
 import { WhatsAppConfigPanel } from '../../WhatsAppConfigPanel';
 import { EmailConfigModal } from '../../EmailConfigModal';
@@ -42,6 +43,25 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const [verPassword, setVerPassword] = useState<Record<string, boolean>>({});
   const [mensajeSeguridad, setMensajeSeguridad] = useState<{ ok: boolean; texto: string } | null>(null);
 
+  // Edición de datos de usuario (nombre/rol/descripción/merchant)
+  const [usuarioEditarDatos, setUsuarioEditarDatos] = useState<string | null>(null);
+  const [formEditarDatos, setFormEditarDatos] = useState<{
+    nombre: string;
+    rol: 'admin' | 'operador' | 'comercio';
+    descripcion: string;
+    merchantId: string;
+  }>({ nombre: '', rol: 'admin', descripcion: '', merchantId: '' });
+
+  // Logs de seguridad del servidor (tabla security_logs)
+  const [logsSeguridad, setLogsSeguridad] = useState<Array<{
+    id: string; accion: string; entidad: string; entidadId: string;
+    detalles: string; createdAt: string; operadorNombre: string;
+  }>>([]);
+
+  // Cambio de la propia contraseña (autoservicio)
+  const [miPassword, setMiPassword] = useState('');
+  const [miPasswordMsg, setMiPasswordMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
   // Estados de nueva credencial
   const [modalNuevoUsuarioAbierto, setModalNuevoUsuarioAbierto] = useState(false);
   const [nuevoUsuarioForm, setNuevoUsuarioForm] = useState({
@@ -78,6 +98,12 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const esSeguridad = subruta === '/gestion/configuracion/seguridad';
   const esAgentes = subruta === '/gestion/configuracion/agentes';
   const esResumen = !esWhatsapp && !esCorreo && !esSeo && !esBanners && !esAuditoria && !esGeneral && !esSeguridad && !esAgentes;
+
+  useEffect(() => {
+    if (esAuditoria) {
+      coreSecurity.cargarLogsSeguridad(150).then(setLogsSeguridad).catch(() => undefined);
+    }
+  }, [subruta]);
 
   const handleToggleFlag = (nombre: keyof typeof flags) => {
     coreConfig.alternarModulo(nombre, 'Super Admin');
@@ -310,6 +336,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
 
       {/* 5. AUDITORÍA Y LOGS */}
       {esAuditoria && (
+        <div className="space-y-4">
         <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -331,6 +358,32 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Eventos de Seguridad (servidor)</h3>
+              <p className="text-xs text-stone-400">Tabla security_logs · PostgreSQL</p>
+            </div>
+            <span className="text-xs font-mono bg-stone-100 px-2.5 py-1 rounded-lg text-stone-600">
+              {logsSeguridad.length} eventos
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto font-mono text-xs text-stone-600 scrollbar-thin">
+            {logsSeguridad.length === 0 ? (
+              <p className="text-stone-400">Sin eventos de seguridad registrados.</p>
+            ) : logsSeguridad.map((l) => (
+              <div key={l.id} className="p-2.5 rounded-xl bg-stone-50 border border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <div className="break-all">
+                  <span className="font-bold text-rose-700">[{l.accion}]</span> {l.entidad} · {l.entidadId} — {l.detalles}
+                </div>
+                <span className="text-[10px] text-stone-400 whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         </div>
       )}
 
@@ -481,7 +534,101 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                         >
                           {estaEditando ? 'Cancelar' : 'Cambiar Clave'}
                         </button>
+
+                        {/* Botón editar datos */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (usuarioEditarDatos === cred.email) {
+                              setUsuarioEditarDatos(null);
+                            } else {
+                              setUsuarioEditarDatos(cred.email);
+                              setFormEditarDatos({
+                                nombre: cred.nombre || '',
+                                rol: cred.rol,
+                                descripcion: cred.descripcion || '',
+                                merchantId: cred.merchantId || ''
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Editar</span>
+                        </button>
+
+                        {/* Botón eliminar */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`¿Eliminar la credencial de ${cred.nombre} (${cred.email})?`)) return;
+                            const res = await coreSecurity.eliminarCredencial(cred.usuarioId || cred.email);
+                            setMensajeSeguridad({ ok: res.ok, texto: res.mensaje });
+                            setTimeout(() => setMensajeSeguridad(null), 4000);
+                          }}
+                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
+
+                      {/* Formulario desplegable para editar datos */}
+                      {usuarioEditarDatos === cred.email && (
+                        <div className="w-full pt-2 space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                            <input
+                              type="text"
+                              value={formEditarDatos.nombre}
+                              onChange={(e) => setFormEditarDatos({ ...formEditarDatos, nombre: e.target.value })}
+                              placeholder="Nombre"
+                              className="px-3 py-1.5 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700"
+                            />
+                            <select
+                              value={formEditarDatos.rol}
+                              onChange={(e) => setFormEditarDatos({ ...formEditarDatos, rol: e.target.value as any })}
+                              className="px-3 py-1.5 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700"
+                            >
+                              <option value="admin">Administrador</option>
+                              <option value="operador">Operador</option>
+                              <option value="comercio">Comercio</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={formEditarDatos.descripcion}
+                              onChange={(e) => setFormEditarDatos({ ...formEditarDatos, descripcion: e.target.value })}
+                              placeholder="Descripción"
+                              className="px-3 py-1.5 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700"
+                            />
+                            <input
+                              type="text"
+                              value={formEditarDatos.merchantId}
+                              onChange={(e) => setFormEditarDatos({ ...formEditarDatos, merchantId: e.target.value })}
+                              placeholder="Merchant ID (opcional)"
+                              className="px-3 py-1.5 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700"
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const res = await coreSecurity.actualizarCredencial(cred.usuarioId || cred.email, {
+                                  nombre: formEditarDatos.nombre,
+                                  rol: formEditarDatos.rol,
+                                  descripcion: formEditarDatos.descripcion,
+                                  merchantId: formEditarDatos.merchantId || undefined
+                                });
+                                setMensajeSeguridad({ ok: res.ok, texto: res.mensaje });
+                                if (res.ok) setUsuarioEditarDatos(null);
+                                setTimeout(() => setMensajeSeguridad(null), 4000);
+                              }}
+                              className="px-3.5 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              <span>Guardar cambios</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Formulario desplegable para cambiar clave */}
                       {estaEditando && (
@@ -516,6 +663,50 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* Tarjeta: cambiar mi propia contraseña (autoservicio) */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-700" />
+                <span>Cambiar Mi Contraseña</span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Actualiza la contraseña de tu propia cuenta ({sesion?.email || 'sesión actual'}). No requiere permisos de administrador.
+              </p>
+            </div>
+
+            {miPasswordMsg && (
+              <div className={`p-3 rounded-xl text-xs font-semibold ${miPasswordMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                {miPasswordMsg.texto}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="password"
+                value={miPassword}
+                onChange={(e) => setMiPassword(e.target.value)}
+                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                className="flex-1 px-3 py-2 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700 font-mono"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  const email = sesion?.email || '';
+                  if (!email) { setMiPasswordMsg({ ok: false, texto: 'No hay una sesión activa.' }); return; }
+                  if (miPassword.trim().length < 6) { setMiPasswordMsg({ ok: false, texto: 'La contraseña debe tener al menos 6 caracteres.' }); return; }
+                  const res = await coreSecurity.actualizarContrasena(email, miPassword.trim());
+                  setMiPasswordMsg({ ok: res.ok, texto: res.mensaje });
+                  setMiPassword('');
+                  setTimeout(() => setMiPasswordMsg(null), 4000);
+                }}
+                className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Actualizar Contraseña
+              </button>
             </div>
           </div>
 

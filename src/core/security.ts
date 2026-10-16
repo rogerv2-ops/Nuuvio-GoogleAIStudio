@@ -36,6 +36,24 @@ export interface RegistroAuditoria {
   fecha: string;
 }
 
+export interface EventoSeguridad {
+  id: string;
+  operadorId: string;
+  operadorNombre: string;
+  accion: string;
+  entidad: string;
+  entidadId: string;
+  detalles: string;
+  createdAt: string;
+}
+
+export interface CambiosCredencial {
+  nombre?: string;
+  rol?: RolSesion;
+  merchantId?: string | null;
+  descripcion?: string;
+}
+
 interface ResultadoLogin {
   ok: boolean;
   sesion?: SesionUsuario;
@@ -49,6 +67,7 @@ const API_LOGIN = '/api/auth/login';
 const API_LOGOUT = '/api/auth/logout';
 const API_USERS = '/api/auth/users';
 const API_PASSWORD = '/api/auth/password';
+const API_SECURITY_LOGS = '/api/security/logs';
 
 class CoreSecurity {
   public sesionActual: SesionUsuario | null = null;
@@ -358,6 +377,72 @@ class CoreSecurity {
     } catch {
       return { ok: false, mensaje: 'Error de conexión con el servidor' };
     }
+  }
+
+  async actualizarCredencial(
+    identificador: string,
+    cambios: CambiosCredencial
+  ): Promise<{ ok: boolean; mensaje: string }> {
+    try {
+      const resp = await fetch(`${API_USERS}/${encodeURIComponent(identificador)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cambios)
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok) {
+        await this.cargarCredenciales();
+        this.registrarAuditoria({
+          operadorId: this.sesionActual?.usuarioId || 'admin',
+          operadorNombre: this.sesionActual?.nombre || 'Super Admin',
+          accion: 'Actualización de credencial',
+          entidad: 'usuario_seguridad',
+          entidadId: identificador,
+          detalles: `Credencial actualizada: ${JSON.stringify(cambios)}`
+        });
+        return { ok: true, mensaje: data.mensaje || 'Credencial actualizada correctamente' };
+      }
+      return { ok: false, mensaje: data?.error || 'No se pudo actualizar la credencial' };
+    } catch {
+      return { ok: false, mensaje: 'Error de conexión con el servidor' };
+    }
+  }
+
+  async eliminarCredencial(identificador: string): Promise<{ ok: boolean; mensaje: string }> {
+    try {
+      const resp = await fetch(`${API_USERS}/${encodeURIComponent(identificador)}`, {
+        method: 'DELETE'
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok) {
+        await this.cargarCredenciales();
+        this.registrarAuditoria({
+          operadorId: this.sesionActual?.usuarioId || 'admin',
+          operadorNombre: this.sesionActual?.nombre || 'Super Admin',
+          accion: 'Eliminación de credencial',
+          entidad: 'usuario_seguridad',
+          entidadId: identificador,
+          detalles: `Credencial eliminada: ${identificador}`
+        });
+        return { ok: true, mensaje: data.mensaje || 'Credencial eliminada correctamente' };
+      }
+      return { ok: false, mensaje: data?.error || 'No se pudo eliminar la credencial' };
+    } catch {
+      return { ok: false, mensaje: 'Error de conexión con el servidor' };
+    }
+  }
+
+  async cargarLogsSeguridad(limite = 100): Promise<EventoSeguridad[]> {
+    try {
+      const resp = await fetch(`${API_SECURITY_LOGS}?limit=${limite}`);
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok && Array.isArray(data.logs)) {
+        return data.logs as EventoSeguridad[];
+      }
+    } catch {
+      /* noop */
+    }
+    return [];
   }
 
   obtenerEstadoBloqueo(): { bloqueado: boolean; segundosRestantes: number; intentosRestantes: number } {

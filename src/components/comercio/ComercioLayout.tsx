@@ -65,6 +65,11 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     negocio: false
   });
 
+  // Modal cambiar contraseña (autoservicio)
+  const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false);
+  const [nuevaPass, setNuevaPass] = useState('');
+  const [passMsg, setPassMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
   // Modal nueva oferta
   const [modalNuevaOfertaAbierto, setModalNuevaOfertaAbierto] = useState(false);
   const [formOferta, setFormOferta] = useState({
@@ -624,13 +629,22 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
               </div>
 
               {!sidebarColapsadoDesktop && (
-                <button 
-                  onClick={() => coreSecurity.cerrarSesion()}
-                  className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-stone-400 transition-colors" 
-                  title="Cerrar sesión"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => { setPassMsg(null); setNuevaPass(''); setModalPasswordAbierto(true); }}
+                    className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg text-stone-400 transition-colors"
+                    title="Cambiar contraseña"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => coreSecurity.cerrarSesion()}
+                    className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-stone-400 transition-colors" 
+                    title="Cerrar sesión"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1530,6 +1544,65 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
             >
               Cerrar avisos
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL CAMBIAR CONTRASEÑA (AUTOSERVICIO) ================= */}
+      {modalPasswordAbierto && (
+        <div
+          onClick={() => setModalPasswordAbierto(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-stone-200"
+          >
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <h4 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-emerald-700" />
+                <span>Cambiar Mi Contraseña</span>
+              </h4>
+              <button
+                onClick={() => setModalPasswordAbierto(false)}
+                className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-stone-500">Cuenta: <span className="font-mono">{sesion?.email}</span></p>
+            {passMsg && (
+              <div className={`p-3 rounded-xl text-xs font-semibold ${passMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                {passMsg.texto}
+              </div>
+            )}
+            <input
+              type="password"
+              value={nuevaPass}
+              onChange={(e) => setNuevaPass(e.target.value)}
+              placeholder="Nueva contraseña (mín. 6 caracteres)"
+              className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700 font-mono"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setModalPasswordAbierto(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const email = sesion?.email || '';
+                  if (nuevaPass.trim().length < 6) { setPassMsg({ ok: false, texto: 'La contraseña debe tener al menos 6 caracteres.' }); return; }
+                  const res = await coreSecurity.actualizarContrasena(email, nuevaPass.trim());
+                  setPassMsg({ ok: res.ok, texto: res.mensaje });
+                  if (res.ok) { setNuevaPass(''); setTimeout(() => { setModalPasswordAbierto(false); setPassMsg(null); }, 1500); }
+                }}
+                className="px-4 py-2 bg-[#166534] hover:bg-[#14532d] text-white rounded-xl text-xs font-bold"
+              >
+                Actualizar
+              </button>
+            </div>
           </div>
         </div>
       )}
