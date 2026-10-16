@@ -1,15 +1,37 @@
-/**
- * MODULO 6: comercios (esquema: com)
- * Alta de comercios con RUC y aprobación MANUAL de administración.
- * Sin aprobación manual, ningún comercio puede publicar ofertas.
- * Incluye CRM Kanban de 7 etapas (F-OPS-02).
- */
-import { Merchant, MerchantKanbanItem, KanbanStage } from '../types';
-import { SEED_MERCHANTS } from '../data/seedData';
-import { coreEvents } from '../core/events';
-import { coreSecurity } from '../core/security';
+import { SEED_MERCHANTS } from "../data/seedData.ts";
+import { coreEvents } from "../core/events.ts";
+import { coreSecurity } from "../core/security.ts";
 
-export interface ValidationChecklist {
+export interface Merchant {
+  id: string;
+  ruc: string;
+  nombreComercial: string;
+  razonSocial: string;
+  contactoNombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  distrito: string;
+  provincia: string;
+  lat: number;
+  lng: number;
+  instagram: string;
+  categoria: string;
+  estado: "pendiente" | "activo" | "rechazado" | "en_riesgo";
+  registradoEn: string;
+  validadoEn?: string;
+  validadoPor?: string;
+  motivoRechazo?: string;
+}
+
+export interface KanbanItem {
+  merchantId: string;
+  etapa: "registrado" | "prospecto" | "en_validacion" | "activo" | "en_riesgo" | "perdido";
+  notas: string;
+  actualizadoEn: string;
+}
+
+export interface ChecklistValidacion {
   rucValido: boolean;
   negocioExiste: boolean;
   instagramReal: boolean;
@@ -18,40 +40,104 @@ export interface ValidationChecklist {
 }
 
 class ComerciosModule {
-  private comercios: Map<string, Merchant> = new Map();
-  private kanban: Map<string, MerchantKanbanItem> = new Map();
+  public comercios: Map<string, Merchant> = new Map<string, Merchant>();
+  public kanban: Map<string, KanbanItem> = new Map<string, KanbanItem>();
   private listeners: (() => void)[] = [];
 
   constructor() {
-    const seedEtapas: Record<string, { etapa: KanbanStage; notas: string }> = {
-      merch_06: { etapa: 'prospecto', notas: 'Lead captado en Instagram. Interesada en promocionar panes de masa madre.' },
-      merch_07: { etapa: 'contactado', notas: 'Contactado vía WhatsApp. Coordinando reunión con el gerente comercial.' },
-      merch_08: { etapa: 'registrado', notas: 'Ficha completada en la web. RUC validado en SUNAT, pendiente fotos del local.' },
-      merch_05: { etapa: 'en_validacion', notas: 'Checklist de verificación física en proceso. Visita técnica agendada.' },
-      merch_00: { etapa: 'activo', notas: 'Comercio activo con oferta Ceviche 2x1 publicada y verificada.' },
-      merch_01: { etapa: 'activo', notas: 'Comercio verificado. Oferta de bowl saludable con alta demanda.' },
-      merch_02: { etapa: 'activo', notas: 'Tostaduría activa en Barranco. Tasa de conversión óptima.' },
-      merch_03: { etapa: 'activo', notas: 'Bao Bar Nikkei activo en San Isidro.' },
-      merch_04: { etapa: 'en_riesgo', notas: 'Alerta: Sin ofertas renovadas en los últimos 15 días. Programar llamada de reactivación.' },
-      merch_09: { etapa: 'perdido', notas: 'Comercio pausó operaciones temporalmente por remodelación.' }
-    };
-
-    SEED_MERCHANTS.forEach(m => {
-      this.comercios.set(m.id, { ...m });
-      const seed = seedEtapas[m.id];
+    SEED_MERCHANTS.forEach((m: any) => {
+      this.comercios.set(m.id, { ...(m as Merchant) });
       this.kanban.set(m.id, {
         merchantId: m.id,
-        etapa: seed ? seed.etapa : (m.estado === 'activo' ? 'activo' : m.estado === 'pendiente' ? 'en_validacion' : 'perdido'),
-        notas: seed ? seed.notas : (m.estado === 'activo' ? 'Comercio validado y activo' : 'Pendiente de verificación manual'),
-        actualizadoEn: new Date().toISOString()
+        etapa: m.estado === "activo" ? "activo" : "en_validacion",
+        notas: `Semilla inicial del comercio ${m.nombreComercial}`,
+        actualizadoEn: m.registradoEn,
       });
     });
+
+    if (typeof window !== "undefined") {
+      this.cargarDeAPI();
+    }
   }
 
-  public registrarComercio(datos: {
+  async cargarDeDB(): Promise<{ comercios: Merchant[]; kanban: KanbanItem[] }> {
+    if (typeof window === "undefined") {
+      try {
+        const { getPersistedMerchants, getPersistedKanban } = await import("../db/repo.ts");
+        const dbMerchants = await getPersistedMerchants();
+        const dbKanban = await getPersistedKanban();
+        if (dbMerchants && dbMerchants.length > 0) {
+          this.cargarDeLista(dbMerchants as Merchant[], (dbKanban || []) as KanbanItem[]);
+        }
+      } catch (err) {
+        console.warn("[ComerciosModule] Error cargando desde PostgreSQL:", err);
+      }
+    } else {
+      await this.cargarDeAPI();
+    }
+    return {
+      comercios: this.listarComercios(),
+      kanban: Array.from(this.kanban.values()),
+    };
+  }
+
+  async cargarDeAPI(): Promise<void> {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/comercios");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.comercios)) {
+            this.cargarDeLista(data.comercios, data.kanban || []);
+          }
+        }
+      } catch (e) {
+        console.warn("[ComerciosModule Client] Error al consultar /api/comercios:", e);
+      }
+    }
+  }
+
+  cargarDeLista(comerciosLista: Merchant[], kanbanLista: KanbanItem[] = []): void {
+    if (Array.isArray(comerciosLista) && comerciosLista.length > 0) {
+      this.comercios.clear();
+      comerciosLista.forEach((m: Merchant) => this.comercios.set(m.id, m));
+    }
+    if (Array.isArray(kanbanLista) && kanbanLista.length > 0) {
+      this.kanban.clear();
+      kanbanLista.forEach((k: KanbanItem) => this.kanban.set(k.merchantId, k));
+    }
+    this.notificar();
+  }
+
+  async guardarEnDB(): Promise<void> {
+    const merchantsList: Merchant[] = Array.from(this.comercios.values());
+    const kanbanList: KanbanItem[] = Array.from(this.kanban.values());
+
+    if (typeof window === "undefined") {
+      try {
+        const { savePersistedMerchants, savePersistedKanban } = await import("../db/repo.ts");
+        await savePersistedMerchants(merchantsList);
+        await savePersistedKanban(kanbanList);
+      } catch (e) {
+        console.warn("[ComerciosModule] Error guardando en Cloud SQL PostgreSQL:", e);
+      }
+    } else {
+      try {
+        await fetch("/api/comercios/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comercios: merchantsList, kanban: kanbanList }),
+        });
+      } catch (e) {
+        console.warn("[ComerciosModule Client] Error sincronizando comercios:", e);
+      }
+    }
+  }
+
+  registrarComercio(datos: {
     ruc: string;
     nombreComercial: string;
-    razonSocial: string;
+    razonSocial?: string;
     contactoNombre: string;
     telefono: string;
     email: string;
@@ -63,13 +149,12 @@ class ComerciosModule {
   }): { ok: boolean; comercio?: Merchant; error?: string } {
     const rucLimpio = datos.ruc.trim();
     if (rucLimpio.length !== 11 || !/^\d+$/.test(rucLimpio)) {
-      return { ok: false, error: 'El RUC debe tener exactamente 11 dígitos numéricos.' };
+      return { ok: false, error: "El RUC debe tener exactamente 11 dígitos numéricos." };
     }
 
-    // Verificar RUC duplicado
-    for (const m of this.comercios.values()) {
+    for (const m of Array.from(this.comercios.values())) {
       if (m.ruc === rucLimpio) {
-        return { ok: false, error: 'Ya existe un comercio registrado con este número de RUC.' };
+        return { ok: false, error: "Ya existe un comercio registrado con este número de RUC." };
       }
     }
 
@@ -84,54 +169,56 @@ class ComerciosModule {
       email: datos.email,
       direccion: datos.direccion,
       distrito: datos.distrito,
-      provincia: datos.provincia || 'Lima',
+      provincia: datos.provincia || "Lima",
       lat: -12.12 + (Math.random() - 0.5) * 0.05,
       lng: -77.03 + (Math.random() - 0.5) * 0.05,
-      instagram: datos.instagram || '',
+      instagram: datos.instagram || "",
       categoria: datos.categoria,
-      estado: 'pendiente', // Siempre entra pendiente de aprobación manual
-      registradoEn: new Date().toISOString()
+      estado: "pendiente",
+      registradoEn: new Date().toISOString(),
     };
 
     this.comercios.set(id, nuevoComercio);
     this.kanban.set(id, {
       merchantId: id,
-      etapa: 'en_validacion',
-      notas: 'Nuevo registro desde web. Requiere checklist.',
-      actualizadoEn: new Date().toISOString()
+      etapa: "en_validacion",
+      notas: "Nuevo registro desde web. Requiere checklist.",
+      actualizadoEn: new Date().toISOString(),
     });
 
     coreEvents.emitir({
-      tipoEvento: 'comercio_registrado',
-      actorTipo: 'comercio',
+      tipoEvento: "comercio_registrado",
+      actorTipo: "comercio",
       actorId: id,
       distrito: datos.distrito,
-      origen: 'web',
+      origen: "web",
       datos: {
         ruc: rucLimpio,
         nombreComercial: datos.nombreComercial,
-        categoria: datos.categoria
-      }
+        categoria: datos.categoria,
+      },
     });
 
     coreSecurity.registrarAuditoria({
-      operadorId: 'sistema',
-      operadorNombre: 'Sistema',
-      accion: 'Nuevo registro de comercio',
-      entidad: 'comercio',
+      operadorId: "sistema",
+      operadorNombre: "Sistema",
+      accion: "Nuevo registro de comercio",
+      entidad: "comercio",
       entidadId: id,
-      detalles: `Comercio ${datos.nombreComercial} (RUC: ${rucLimpio}) en cola de validación.`
+      detalles: `Comercio ${datos.nombreComercial} (RUC: ${rucLimpio}) en cola de validación.`,
     });
 
+    this.guardarEnDB().catch(() => {});
     this.notificar();
+
     return { ok: true, comercio: nuevoComercio };
   }
 
-  public validarManualmente(comercioId: string, checklist: ValidationChecklist, operadorNombre: string = 'Super Admin'): boolean {
+  validarManualmente(comercioId: string, checklist: ChecklistValidacion, operadorNombre = "Super Admin"): boolean {
     const comercio = this.comercios.get(comercioId);
     if (!comercio) return false;
 
-    const checklistAprobado = 
+    const checklistAprobado =
       checklist.rucValido &&
       checklist.negocioExiste &&
       checklist.instagramReal &&
@@ -140,198 +227,209 @@ class ComerciosModule {
 
     if (!checklistAprobado) return false;
 
-    comercio.estado = 'activo';
+    comercio.estado = "activo";
     comercio.validadoEn = new Date().toISOString();
     comercio.validadoPor = operadorNombre;
 
-    // Actualizar Kanban
-    this.actualizarEtapaKanban(comercioId, 'activo', 'Aprobado con checklist manual completo.');
+    this.actualizarEtapaKanban(comercioId, "activo", "Aprobado con checklist manual completo.");
 
     coreEvents.emitir({
-      tipoEvento: 'comercio_validado',
-      actorTipo: 'gestion',
-      actorId: 'admin_master_01',
+      tipoEvento: "comercio_validado",
+      actorTipo: "gestion",
+      actorId: "admin_master_01",
       distrito: comercio.distrito,
-      origen: 'panel',
-      datos: {
-        comercioId,
-        nombreComercial: comercio.nombreComercial,
-        checklist
-      }
+      origen: "panel",
+      datos: { comercioId, nombreComercial: comercio.nombreComercial, checklist },
     });
 
     coreSecurity.registrarAuditoria({
-      operadorId: 'admin_master_01',
+      operadorId: "admin_master_01",
       operadorNombre,
-      accion: 'Aprobar comercio',
-      entidad: 'comercio',
+      accion: "Aprobar comercio",
+      entidad: "comercio",
       entidadId: comercioId,
-      detalles: `Checklist manual verificado: RUC ${comercio.ruc}, WhatsApp verificado, local existente.`
+      detalles: `Checklist manual verificado: RUC ${comercio.ruc}, WhatsApp verificado, local existente.`,
     });
 
+    this.guardarEnDB().catch(() => {});
     this.notificar();
     return true;
   }
 
-  public rechazarComercio(comercioId: string, motivo: string, operadorNombre: string = 'Super Admin'): boolean {
+  rechazarComercio(comercioId: string, motivo: string, operadorNombre = "Super Admin"): boolean {
     const comercio = this.comercios.get(comercioId);
     if (!comercio) return false;
 
-    comercio.estado = 'rechazado';
+    comercio.estado = "rechazado";
     comercio.motivoRechazo = motivo;
 
-    this.actualizarEtapaKanban(comercioId, 'perdido', `Rechazado: ${motivo}`);
+    this.actualizarEtapaKanban(comercioId, "perdido", `Rechazado: ${motivo}`);
 
     coreEvents.emitir({
-      tipoEvento: 'comercio_rechazado',
-      actorTipo: 'gestion',
-      actorId: 'admin_master_01',
+      tipoEvento: "comercio_rechazado",
+      actorTipo: "gestion",
+      actorId: "admin_master_01",
       distrito: comercio.distrito,
-      origen: 'panel',
-      datos: { comercioId, motivo }
+      origen: "panel",
+      datos: { comercioId, motivo },
     });
 
     coreSecurity.registrarAuditoria({
-      operadorId: 'admin_master_01',
+      operadorId: "admin_master_01",
       operadorNombre,
-      accion: 'Rechazar comercio',
-      entidad: 'comercio',
+      accion: "Rechazar comercio",
+      entidad: "comercio",
       entidadId: comercioId,
-      detalles: `Rechazado con motivo: ${motivo}`
+      detalles: `Rechazado con motivo: ${motivo}`,
     });
 
+    this.guardarEnDB().catch(() => {});
     this.notificar();
     return true;
   }
 
-  public actualizarEtapaKanban(merchantId: string, etapa: KanbanStage, notas: string = '') {
+  actualizarEtapaKanban(merchantId: string, etapa: KanbanItem["etapa"], notas = ""): void {
     const item = this.kanban.get(merchantId) || {
       merchantId,
       etapa,
       notas,
-      actualizadoEn: new Date().toISOString()
+      actualizadoEn: new Date().toISOString(),
     };
+
     const etapaAnterior = item.etapa;
     item.etapa = etapa;
     if (notas) item.notas = notas;
     item.actualizadoEn = new Date().toISOString();
     this.kanban.set(merchantId, item);
 
-    // Sincronizar estado operativo del comercio según etapa
     const comercio = this.comercios.get(merchantId);
     if (comercio) {
-      if (etapa === 'activo' && comercio.estado !== 'activo') {
-        comercio.estado = 'activo';
+      if (etapa === "activo" && comercio.estado !== "activo") {
+        comercio.estado = "activo";
         comercio.validadoEn = new Date().toISOString();
-        comercio.validadoPor = 'Super Admin';
-      } else if (etapa === 'en_riesgo') {
-        comercio.estado = 'en_riesgo';
-      } else if (etapa === 'perdido') {
-        comercio.estado = 'rechazado';
-      } else if ((etapa === 'en_validacion' || etapa === 'registrado') && comercio.estado === 'rechazado') {
-        comercio.estado = 'pendiente';
+        comercio.validadoPor = "Super Admin";
+      } else if (etapa === "en_riesgo") {
+        comercio.estado = "en_riesgo";
+      } else if (etapa === "perdido") {
+        comercio.estado = "rechazado";
+      } else if ((etapa === "en_validacion" || etapa === "registrado") && comercio.estado === "rechazado") {
+        comercio.estado = "pendiente";
       }
     }
 
     coreEvents.emitir({
-      tipoEvento: 'etapa_kanban_cambiada',
-      actorTipo: 'gestion',
-      actorId: 'admin_master_01',
-      origen: 'panel',
-      datos: { merchantId, etapaAnterior, etapaNueva: etapa, notas: item.notas }
+      tipoEvento: "etapa_kanban_cambiada",
+      actorTipo: "gestion",
+      actorId: "admin_master_01",
+      origen: "panel",
+      datos: { merchantId, etapaAnterior, etapaNueva: etapa, notas: item.notas },
     });
 
     coreSecurity.registrarAuditoria({
-      operadorId: 'admin_master_01',
-      operadorNombre: 'Super Admin',
-      accion: 'Cambio etapa CRM Kanban',
-      entidad: 'comercio',
+      operadorId: "admin_master_01",
+      operadorNombre: "Super Admin",
+      accion: "Cambio etapa CRM Kanban",
+      entidad: "comercio",
       entidadId: merchantId,
-      detalles: `Comercio ${comercio?.nombreComercial || merchantId} movido de '${etapaAnterior}' a '${etapa}'`
+      detalles: `Comercio ${comercio?.nombreComercial || merchantId} movido de '${etapaAnterior}' a '${etapa}'`,
     });
 
+    this.guardarEnDB().catch(() => {});
     this.notificar();
   }
 
-  public actualizarNotasKanban(merchantId: string, notas: string) {
+  actualizarNotasKanban(merchantId: string, notas: string): void {
     const item = this.kanban.get(merchantId);
     if (item) {
       item.notas = notas;
       item.actualizadoEn = new Date().toISOString();
+      this.guardarEnDB().catch(() => {});
       this.notificar();
     }
   }
 
-  public registrarProspecto(datos: {
+  registrarProspecto(datos: {
     nombreComercial: string;
-    contactoNombre?: string;
-    telefono?: string;
-    distrito?: string;
-    categoria?: string;
-    etapa?: KanbanStage;
-    notas?: string;
-    email?: string;
     ruc?: string;
+    distrito?: string;
+    telefono?: string;
+    email?: string;
+    contactoNombre?: string;
+    categoria?: string;
+    etapa?: KanbanItem["etapa"];
+    notas?: string;
   }): Merchant {
     const nuevoId = `merch_${Date.now().toString().slice(-6)}`;
     const nuevoComercio: Merchant = {
       id: nuevoId,
       ruc: datos.ruc || `10${Math.floor(100000000 + Math.random() * 900000000)}`,
       nombreComercial: datos.nombreComercial.trim(),
-      razonSocial: datos.nombreComercial.toUpperCase() + ' S.A.C.',
-      contactoNombre: datos.contactoNombre?.trim() || 'Por asignar',
-      telefono: datos.telefono?.trim() || '+51 900 000 000',
+      razonSocial: datos.nombreComercial.toUpperCase() + " S.A.C.",
+      contactoNombre: datos.contactoNombre?.trim() || "Por asignar",
+      telefono: datos.telefono?.trim() || "+51 900 000 000",
       email: datos.email?.trim() || `contacto@${nuevoId}.pe`,
-      direccion: `Lima, ${datos.distrito || 'Miraflores'}`,
-      distrito: datos.distrito || 'Miraflores',
-      provincia: 'Lima',
+      direccion: `Lima, ${datos.distrito || "Miraflores"}`,
+      distrito: datos.distrito || "Miraflores",
+      provincia: "Lima",
       lat: -12.1215,
       lng: -77.0289,
-      instagram: `@${datos.nombreComercial.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-      categoria: datos.categoria || 'Gastronomía y Café',
-      estado: datos.etapa === 'activo' ? 'activo' : datos.etapa === 'en_riesgo' ? 'en_riesgo' : datos.etapa === 'perdido' ? 'rechazado' : 'pendiente',
-      registradoEn: new Date().toISOString()
+      instagram: `@${datos.nombreComercial.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+      categoria: datos.categoria || "Gastronomía y Café",
+      estado:
+        datos.etapa === "activo"
+          ? "activo"
+          : datos.etapa === "en_riesgo"
+          ? "en_riesgo"
+          : datos.etapa === "perdido"
+          ? "rechazado"
+          : "pendiente",
+      registradoEn: new Date().toISOString(),
     };
 
     this.comercios.set(nuevoId, nuevoComercio);
-    const etapaInicial = datos.etapa || 'prospecto';
+    const etapaInicial = datos.etapa || "prospecto";
     this.kanban.set(nuevoId, {
       merchantId: nuevoId,
       etapa: etapaInicial,
-      notas: datos.notas || 'Nuevo comercio ingresado al pipeline CRM',
-      actualizadoEn: new Date().toISOString()
+      notas: datos.notas || "Nuevo comercio ingresado al pipeline CRM",
+      actualizadoEn: new Date().toISOString(),
     });
 
     coreEvents.emitir({
-      tipoEvento: 'comercio_registrado',
-      actorTipo: 'gestion',
-      actorId: 'admin_master_01',
-      origen: 'panel',
+      tipoEvento: "comercio_registrado",
+      actorTipo: "gestion",
+      actorId: "admin_master_01",
+      origen: "panel",
       distrito: nuevoComercio.distrito,
-      datos: { comercioId: nuevoId, nombreComercial: nuevoComercio.nombreComercial, etapa: etapaInicial }
+      datos: {
+        comercioId: nuevoId,
+        nombreComercial: nuevoComercio.nombreComercial,
+        etapa: etapaInicial,
+      },
     });
 
     coreSecurity.registrarAuditoria({
-      operadorId: 'admin_master_01',
-      operadorNombre: 'Super Admin',
-      accion: 'Crear Lead / Prospecto Kanban',
-      entidad: 'comercio',
+      operadorId: "admin_master_01",
+      operadorNombre: "Super Admin",
+      accion: "Crear Lead / Prospecto Kanban",
+      entidad: "comercio",
       entidadId: nuevoId,
-      detalles: `Lead '${nuevoComercio.nombreComercial}' creado en etapa '${etapaInicial}'`
+      detalles: `Lead '${nuevoComercio.nombreComercial}' creado en etapa '${etapaInicial}'`,
     });
 
+    this.guardarEnDB().catch(() => {});
     this.notificar();
     return nuevoComercio;
   }
 
-  public obtenerComercio(id: string): Merchant | undefined {
+  obtenerComercio(id: string): Merchant | undefined {
     return this.comercios.get(id);
   }
 
-  public obtenerPorTelefono(telefono: string): Merchant | undefined {
-    const telLimpio = telefono.replace(/[\s+-]/g, '');
-    for (const m of this.comercios.values()) {
-      const mTelLimpio = m.telefono.replace(/[\s+-]/g, '');
+  obtenerPorTelefono(telefono: string): Merchant | undefined {
+    const telLimpio = telefono.replace(/[\s+-]/g, "");
+    for (const m of Array.from(this.comercios.values())) {
+      const mTelLimpio = m.telefono.replace(/[\s+-]/g, "");
       if (mTelLimpio === telLimpio || mTelLimpio.endsWith(telLimpio) || telLimpio.endsWith(mTelLimpio)) {
         return m;
       }
@@ -339,35 +437,35 @@ class ComerciosModule {
     return undefined;
   }
 
-  public listarComercios(): Merchant[] {
+  listarComercios(): Merchant[] {
     return Array.from(this.comercios.values());
   }
 
-  public listarPendientes(): Merchant[] {
-    return this.listarComercios().filter(m => m.estado === 'pendiente');
+  listarPendientes(): Merchant[] {
+    return this.listarComercios().filter((m: Merchant) => m.estado === "pendiente");
   }
 
-  public getKanbanItems(): { comercio: Merchant; kanban: MerchantKanbanItem }[] {
-    return this.listarComercios().map(m => ({
+  getKanbanItems(): { comercio: Merchant; kanban: KanbanItem }[] {
+    return this.listarComercios().map((m: Merchant) => ({
       comercio: m,
       kanban: this.kanban.get(m.id) || {
         merchantId: m.id,
-        etapa: 'registrado',
-        notas: '',
-        actualizadoEn: m.registradoEn
-      }
+        etapa: "registrado",
+        notas: "",
+        actualizadoEn: m.registradoEn,
+      },
     }));
   }
 
-  public suscribir(listener: () => void) {
+  suscribir(listener: () => void): () => void {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
-  private notificar() {
-    this.listeners.forEach(l => l());
+  notificar(): void {
+    this.listeners.forEach((l) => l());
   }
 }
 
