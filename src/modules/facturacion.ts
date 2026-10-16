@@ -22,6 +22,14 @@ class FacturacionModule {
     SEED_CLICK_PACKS.forEach(p => this.packs.set(p.id, { ...p }));
   }
 
+  public cargarDeLista(lista: ClickPack[]): void {
+    if (Array.isArray(lista) && lista.length > 0) {
+      this.packs.clear();
+      lista.forEach(p => this.packs.set(p.id, p));
+      this.notificar();
+    }
+  }
+
   /**
    * Débito atómico de 1 clic (F-AUD-06):
    * Si el módulo está activo, descuenta del saldo del pack.

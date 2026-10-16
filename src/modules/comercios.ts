@@ -324,6 +324,18 @@ class ComerciosModule {
     return nuevoComercio;
   }
 
+  public cargarDeLista(comerciosLista: Merchant[], kanbanLista: MerchantKanbanItem[] = []): void {
+    if (Array.isArray(comerciosLista) && comerciosLista.length > 0) {
+      this.comercios.clear();
+      comerciosLista.forEach(m => this.comercios.set(m.id, m));
+    }
+    if (Array.isArray(kanbanLista) && kanbanLista.length > 0) {
+      this.kanban.clear();
+      kanbanLista.forEach(k => this.kanban.set(k.merchantId, k));
+    }
+    this.notificar();
+  }
+
   public obtenerComercio(id: string): Merchant | undefined {
     return this.comercios.get(id);
   }

@@ -45,6 +45,14 @@ class OfertasModule {
     }
   }
 
+  public cargarDeLista(lista: Offer[]): void {
+    if (Array.isArray(lista) && lista.length > 0) {
+      this.ofertas.clear();
+      lista.forEach(o => this.ofertas.set(o.id, o));
+      this.notificar();
+    }
+  }
+
   private guardarEnLocalStorage() {
     if (typeof window !== 'undefined') {
       try {
