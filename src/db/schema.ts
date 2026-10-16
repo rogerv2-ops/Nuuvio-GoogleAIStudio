@@ -7,4 +7,5 @@ import{boolean,integer,jsonb,numeric,pgTable,serial,text,timestamp}from"drizzle-
   facturable: boolean("facturable").default(true),
   creadoEn: timestamp("creado_en").defaultNow()
 });
-export{clickLogs,appSettings,audienceUsers,banners,emailLogs,offers,registrationLogs,users};
+const chatLogs=pgTable("chat_logs",{id:text("id").primaryKey(),canal:text("canal").notNull(),direccion:text("direccion").notNull(),telefono:text("telefono").notNull(),contenido:text("contenido").notNull(),estado:text("estado").notNull(),detalles:text("detalles"),timestamp:text("timestamp").notNull(),createdAt:timestamp("created_at").defaultNow()});
+export{chatLogs,clickLogs,appSettings,audienceUsers,banners,emailLogs,offers,registrationLogs,users};

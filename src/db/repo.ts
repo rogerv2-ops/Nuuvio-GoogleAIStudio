@@ -126,3 +126,9 @@ async function savePersistedKanban(kanbanList) {
 }
 __name(savePersistedKanban, "savePersistedKanban");
 export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,saveSetting,seedAudienceUsersIfEmpty,syncBanners,syncOffers,upsertAudienceUser};
+import{chatLogs}from"./schema.ts";
+async function insertChatLog(e){try{await db.insert(chatLogs).values({id:e.id||`clog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,canal:e.canal||"waha",direccion:e.direccion||"entrante",telefono:String(e.telefono||""),contenido:String(e.contenido||"").slice(0,4000),estado:e.estado||"recibido",detalles:String(e.detalles||"").slice(0,2000),timestamp:e.timestamp||new Date().toISOString()})}catch(err){console.error("[DB Repo] Error guardando chat log:",err)}}
+__name(insertChatLog,"insertChatLog");
+async function getRecentChatLogs(l){try{const rows=await db.select().from(chatLogs).orderBy(desc(chatLogs.createdAt)).limit(l||200);if(rows.length>0)return rows.map(r=>({id:r.id,canal:r.canal,direccion:r.direccion,telefono:r.telefono,contenido:r.contenido,estado:r.estado,detalles:r.detalles||"",timestamp:r.timestamp}));return[]}catch(err){console.error("[DB Repo] Error obteniendo chat logs:",err);return[]}}
+__name(getRecentChatLogs,"getRecentChatLogs");
+export{insertChatLog,getRecentChatLogs};
