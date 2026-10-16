@@ -8,6 +8,17 @@ Nada persistsolo en memoria sobrevive un deploy: al arrancar, todo se carga
 desde DB y solo se siembra si la tabla está vacía. Prohibido guardar estado
 operativo únicamente en variables en memoria, archivos efímeros o contenedor.
 
+**Alcance (qué NO es data sujeta a este mandato)**: este principio aplica a
+**data de dominio y de actores** (identidades, credenciales, comercios,
+ofertas, banners, audiencia, packs, configuraciones y eventos de auditoría
+persistibles), que SIEMPRE vive en Postgres. Queda **fuera de su alcance** el
+estado efímero que por diseño no representa data de ningún actor y cuya pérdida
+es funcionalmente inofensiva: contadores y ventanas de *rate limiting*, cachés
+de corta vida en proceso y similares. Dicho estado PUEDE vivir solo en memoria,
+siempre que (a) su pérdida en un arranque/deploy no altere ni corrompa data de
+actores, y (b) no afecte la corrección funcional. Cuando exista duda sobre si
+un dato es de dominio, se trata como de dominio (se persiste).
+
 ### II. Imágenes a disco, jamás dataURLs (NON-NEGOTIABLE)
 Toda imagen (ofertas, banners, logos, configs) se sube vía
 `POST /api/media/upload`, que la compacta a WebP (máx 1600px, q80) y la guarda
@@ -45,4 +56,11 @@ sesión en disco Y respaldo en DB (`whatsapp_auth_files`), evitando loops
 Esta constitución prevalece sobre atajos. Toda excepción requiere justificación
 y plan de migración. Cambios a este archivo con commit explícito.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
+**Version**: 1.1.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
+
+**Changelog**:
+- 1.1.0 (2026-10-16): aclara el alcance del Principio I — el estado efímero de
+  seguridad/rendimiento (p. ej. contadores de rate limiting) no es data de
+  actores y queda fuera del mandato de persistencia. Resuelve el conflicto
+  detectado en el análisis del feature `001-security-hardening` (C1).
+- 1.0.0 (2026-10-16): ratificación inicial.

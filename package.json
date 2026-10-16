@@ -6,6 +6,7 @@
     "dev": "tsx server.ts",
     "build": "vite build || true",
     "start": "tsx server.ts",
+    "test": "bun test tests/security",
     "lint": "tsc --noEmit || true"
   },
   "dependencies": {

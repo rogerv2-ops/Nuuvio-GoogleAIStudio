@@ -8,4 +8,4 @@ import{boolean,integer,jsonb,numeric,pgTable,serial,text,timestamp}from"drizzle-
   creadoEn: timestamp("creado_en").defaultNow()
 });
 const chatLogs=pgTable("chat_logs",{id:text("id").primaryKey(),canal:text("canal").notNull(),direccion:text("direccion").notNull(),telefono:text("telefono").notNull(),contenido:text("contenido").notNull(),estado:text("estado").notNull(),detalles:text("detalles"),timestamp:text("timestamp").notNull(),createdAt:timestamp("created_at").defaultNow()});
-export{chatLogs,clickLogs,appSettings,audienceUsers,banners,emailLogs,offers,registrationLogs,users};
+const securityLogs=pgTable("security_logs",{id:text("id").primaryKey(),operadorId:text("operador_id").notNull(),operadorNombre:text("operador_nombre").notNull(),accion:text("accion").notNull(),entidad:text("entidad").notNull(),entidadId:text("entidad_id").notNull(),detalles:text("detalles").notNull(),createdAt:timestamp("created_at").defaultNow()});export{chatLogs,clickLogs,appSettings,audienceUsers,banners,emailLogs,offers,registrationLogs,users,securityLogs};

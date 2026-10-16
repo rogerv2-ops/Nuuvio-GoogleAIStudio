@@ -341,10 +341,15 @@ class ComerciosModule {
   }
 
   public obtenerPorTelefono(telefono: string): Merchant | undefined {
-    const telLimpio = telefono.replace(/[\s+-]/g, '');
+    const canon = (t: string): string => {
+      let d = String(t || '').replace(/\D/g, '');
+      if (d.length === 11 && d.startsWith('51')) d = d.slice(2);
+      return d;
+    };
+    const telLimpio = canon(telefono);
+    if (!telLimpio) return undefined;
     for (const m of this.comercios.values()) {
-      const mTelLimpio = m.telefono.replace(/[\s+-]/g, '');
-      if (mTelLimpio === telLimpio || mTelLimpio.endsWith(telLimpio) || telLimpio.endsWith(mTelLimpio)) {
+      if (canon(m.telefono) === telLimpio) {
         return m;
       }
     }
