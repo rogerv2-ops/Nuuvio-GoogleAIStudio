@@ -1,62 +1,69 @@
-# FLUJOS nuuvio — qué hace cada endpoint y quién lo llama
+# FLUJOS DETALLADOS nuuvio
+Cada flujo: actor → pasos con request/response → tablas → cómo verificarlo.
 
-Leyenda: 🟢 verificado 200 · 🟡 existe, sin probar E2E · 🔴 pendiente
+## F1. Vinculación WhatsApp (canal waha, Baileys 7.0.0-rc14)
+**Actor:** admin en `WhatsAppConfigPanel` / `WahaQrModal`.
+**Estado interno:** `wahaSession {status, phone, name, qrDataUrl, qrExpiresAt(45s), pairingCode, startedAt}` (memoria).
 
-## F1. Vinculación WhatsApp (Baileys, canal `waha`)
-Actor: admin en `WhatsAppConfigPanel` / `WahaQrModal`.
-1. `POST /api/waha/session/start` → arranca motor (o reutiliza), espera QR hasta 2.5s → `{status, qrDataUrl, expiresAt}` (QR vive 45s). 🟢
-2. `GET /api/waha/session/status` → polling de estado (`STOPPED/STARTING/SCAN_QR_CODE/WORKING`). 🟢
-3. `GET /api/waha/session/qr?force=true` → fuerza QR nuevo (borra credenciales). 🟡
-4. `POST /api/waha/session/pairing-code {telefono}` → código de 8 dígitos para vincular sin QR. 🟡
-5. Teléfono escanea → evento `open` → `wahaSession=WORKING`, guarda `whatsapp_config` (número) + respalda auth a DB. 🟡 (último intento: loop `loggedOut`, fixeado)
-6. `POST /api/waha/session/logout` → cierra socket, borra disco Y DB. 🟡
-7. `GET /api/whatsapp/config` → config + sesión actual (lo que ve el panel). 🟢
-8. `POST /api/whatsapp/config` → guarda modo (`meta|waha`), meta, waha, número en `app_settings`. 🟡
+1. `POST /api/waha/session/start` `{}` → `iniciarMotorWhatsApp(false)`:
+   - Si hay socket WORKING, reutiliza. Si no, `useMultiFileAuthState(/app/auth_info_baileys)` + `fetchLatestBaileysVersion` + `makeWASocket(browser: vuuy Asistente/Chrome)`.
+   - Espera máx 2.5s el QR. Responde `{ok, status: SCAN_QR_CODE, qrDataUrl: data:image/png..., expiresAt, phone: null}`.
+2. Frontend hace polling `GET /api/waha/session/status` y muestra el QR.
+3. Admin escanea con el teléfono (WhatsApp → Dispositivos vinculados) en <45s.
+4. Evento `connection.update=open` → `status=WORKING`, `phone=+51...`, `name`, limpia QR; guarda `whatsapp_config` (número) y respalda auth a DB (`whatsapp_auth_files`).
+5. Alternativa sin cámara: `POST /api/waha/session/pairing-code {telefono: "519..."}` → `{pairingCode: "XXXX-XXXX"}` → ingresarlo en el teléfono.
+6. `POST /api/waha/session/logout` → `sock.logout()`, borra disco Y DB, `status=STOPPED`.
+7. Si el usuario desvincula **desde el teléfono**: evento `close/loggedOut` → limpia disco+DB (fix df36d33), próximo `start` genera QR fresco.
+**Tablas:** `app_settings(whatsapp_config, whatsapp_auth_files)`. **Disco:** `/app/auth_info_baileys` (volumen).
+**Verificar:** `curl -X POST .../start` → `SCAN_QR_CODE`; tras escanear, `status` → `WORKING` + `phone`.
 
-## F2. Mensaje entrante real (usuario → bot)
-1. Baileys `messages.upsert` (o `POST /api/waha/webhook` externo, o Meta `POST /api/whatsapp/webhook`) → `procesarMensajeEntrante({from, body, senderPhone, canal})`.
-2. Valida/distrito (Lima), registra o actualiza usuario en `audience_users`, despacha 5 ofertas (`dispatchFiveOffers`), responde por el mismo socket.
-3. Cada mensaje → `messageLogs` (memoria) + `chat_logs` (DB, nuevo). 🟡 E2E real pendiente de probar con sesión vinculada.
-4. `POST /api/whatsapp/simulate-incoming` → mismo flujo sin WhatsApp (testing). 🟡
-5. `GET /api/whatsapp/logs` → historial del panel (desde `chat_logs`). 🟡
-6. `POST /api/whatsapp/test-message` → envío manual de prueba. 🟡
+## F2. Mensaje entrante → respuesta del bot
+**Actor:** usuario final por WhatsApp. **Entradas:** socket Baileys `messages.upsert`, `POST /api/waha/webhook {event: message, payload}`, o Meta `POST /api/whatsapp/webhook`.
+1. Extrae texto (`conversation/extendedText/caption`), ignora grupos (`@g.us`), resuelve LID→teléfono.
+2. `procesarMensajeEntrante({from, body, senderPhone, pushName, canal})`:
+   - Flujo comercio (pedir oferta, registrar negocio) o audiencia.
+   - Detecta distrito Lima (`detectLimaDistrict`); si es primer mensaje sin zona, la pide.
+   - `dispatchFiveOffers`: filtra ofertas por distrito, arma tarjetas (imagen vía `renderOfferCardImage`) y las envía por el socket (`sendMessage`).
+   - Registra/actualiza `audience_users` (nombre pushName, teléfono, distrito, etapa).
+3. Cada mensaje (entra/sale) → `messageLogs` + `insertChatLog` → `chat_logs`.
+4. Testing sin WhatsApp: `POST /api/whatsapp/simulate-incoming {telefono, texto, pushName?, hasImage?, imageUrl?}` → ejecuta el mismo pipeline con `replySender` simulado → `{respuestasGeneradas, respuestas[]}`.
+5. `GET /api/whatsapp/logs` → historial (DB). `POST /api/whatsapp/test-message` → envío manual.
+**Tablas:** `audience_users`, `offers` (vistas/clics), `chat_logs`. **Probar:** simulate-incoming con `{"telefono":"519...","texto":"ofertas en Miraflores"}`.
 
-## F3. Ofertas (comercio propone → admin aprueba → público ve)
-- Comercio crea en `MisOfertasComercioView` (imagen obligatoria vía `/api/media/upload`) → `ofertasModule.crearOferta` → estado revisión.
-- `POST /api/ofertas/sync` / `activar` / admin `OfertasDomainView` aprueba→publica (`syncOffers` → Postgres). 🟡
-- Público: `GET /api/ofertas` (DB) → `PublicWeb`. 🟢
-- `POST /api/ofertas/:id/like` → suma like y persiste. 🟡
-- Compartir: `/c/:ofertaId`, `/api/go/pedir?ofertaId=`, `/go/pedir` → redirect a `api.whatsapp.com/send` con texto. 🟡
+## F3. Ofertas: comercio → revisión → público
+1. Comercio (`MisOfertasComercioView` o `ComercioLayout` modal): formulario con foto obligatoria → archivo sube a `/api/media/upload` (WebP 1600px) → `imagenUrl=/uploads/...` → `ofertasModule.crearOferta({...imagenes:[url]})` estado revisión. Sin subida OK no deja publicar (fail-hard).
+2. Admin (`OfertasDomainView`): ve pendientes, aprueba (`POST /api/ofertas/activar`) o rechaza con motivo → `syncOffers` → Postgres.
+3. Público (`PublicWeb`): `GET /api/ofertas` → tarjetas con imagen, precio, comercio, botón pedir.
+4. `POST /api/ofertas/:id/like` → `likes+1` persistido. `POST /api/ofertas/sync` → bulk admin.
+5. Pedir: `/c/:ofertaId` o `/api/go/pedir?ofertaId=` → 302 a `api.whatsapp.com/send?phone=BOT&text=Hola, quiero la oferta: ...`.
+**Tablas:** `offers`, `click_logs` (canjes). **Probar:** crear oferta, aprobarla, verla en `GET /api/ofertas`.
 
-## F4. Banners (admin)
-- `BannersConfigView`: URL o archivo → `/api/media/upload` → `POST /api/banners/sync` (`syncBanners`). `GET /api/banners` alimenta web. 🟢 (upload y lectura verificados; sync UI pendiente de clic)
+## F4. Banners
+`BannersConfigView`: pestaña URL o archivo → upload a disco (`banners/`) → preview → Guardar → `POST /api/banners/sync {banners[]}` → `syncBanners` (upsert por id). `GET /api/banners` → `PublicWeb` header. Regla server: URLs sustrae/banner.webp se normalizan al banner local. **Probar:** subir imagen, `GET /api/banners` trae `/uploads/banners/...`.
 
-## F5. Comercios (admin + panel comercio)
-- `GET /api/comercios` (DB, 10) 🟢 · `POST /api/comercios/sync` persiste lista+kanban (`merchants_list`, `merchants_kanban`). 🟡
-- Vistas: `MiNegocio`, `MisOfertas`, `Resultados`, `Ventas`, `Historial`, `Campañas` (leen/escriben vía estos + módulos locales). 🟡 sin probar una por una.
+## F5. Comercios y panel comercio
+- `GET /api/comercios` → 10 comercios DB. `POST /api/comercios/sync {comercios, kanban}` → `merchants_list` + `merchants_kanban` (settings).
+- Vistas comercio: Inicio (resumen), MisOfertas (CRUD propio), MiNegocio (datos), Resultados/Ventas (de `click_logs`+clics), Historial, Campañas. Todo vía estos endpoints + `facturacionModule.cargarDeDB` (click packs).
+**Probar:** `GET /api/comercios` 🟢 ya verificado.
 
-## F6. Usuarios / audiencia (registro público)
-- Funnel `UserRegistrationFunnelModal` → `POST /api/audience/sync-user` (upsert + log) → `GET /api/audience/users` (8 en DB 🟢).
-- `check-uniqueness` (email/tel duplicados), `purge-user`, `clear-all-registration-logs`, `registration-logs` (+DELETE) → auditoría. 🟡
-- Email verify: `POST /api/email/send-verification` → `GET /api/verify-email?token` → redirect `/bienvenida`; `GET /api/audience/verify-token`. 🟡 (requiere email_config)
+## F6. Usuarios y registro
+- `UserRegistrationFunnelModal` (+ `/bienvenida?verify_token=`): `POST /api/audience/sync-user {id, email, telefono, nombre...}` → upsert + `registration_logs(success)`.
+- `POST /api/audience/check-uniqueness {email, telefono}` → bloquea duplicados.
+- Auditoría: `GET /api/audience/registration-logs`, `DELETE .../:id`, `POST clear-all`, `POST /api/audience/purge-user {id|email}` (borra usuario + sus logs).
+- Email: `POST /api/email/send-verification` → `GET /api/verify-email?token` → activa (`emailVerificado`, `estado=activo`) → redirect bienvenida. `GET /api/audience/verify-token` valida.
+**Tablas:** `audience_users`, `registration_logs`, `email_logs`.
 
-## F7. Email (admin `EmailConfigModal`)
-- `GET/POST /api/email/config` (Resend o SMTP → `app_settings`), `POST /api/email/test`, `GET /api/email/logs`. 🔴 `email_config` vacía: sin probar.
+## F7. Email (Resend/SMTP)
+`EmailConfigModal` → `GET/POST /api/email/config` → `app_settings(email_config)` (apiKey, from, provider). `POST /api/email/test {destinatario}` → envía prueba real. `GET /api/email/logs`. 🔴 Sin credenciales: pendiente configurar.
 
-## F8. Media e IA
-- `POST /api/media/upload {dataUrl, folder}` → sharp WebP 1600px q80 → `/uploads/...` (disco persistente). 🟢 verificado.
-- `GET /uploads/*` estático; `GET /api/media/video/:id` streaming con rangos. 🟡
-- `POST /api/gemini/generate-video {imageBase64|imageUrl, prompt, aspectRatio}` → Veo o fallback ffmpeg → `/videos/*.mp4` (volumen nuevo). 🟡
-- `POST /api/gemini/video-status` → polling del job. 🟡
-- `POST /api/ai/test|generate` (gemini/openai/anthropic/openrouter). 🟡
+## F8. Media, video e IA
+- Upload: `POST /api/media/upload {dataUrl: "data:image/...;base64,...", folder}` → valida tipo/peso (15MB) → sharp rotate/resize/WebP80 → `/app/data/uploads/<folder>/img_<ts>_<rnd>.webp` → `{url, bytes, originalBytes}`. Servido en `GET /uploads/*`. 🟢
+- Video: `POST /api/gemini/generate-video {imageBase64|imageUrl, prompt, aspectRatio 9:16|16:9}` → Veo 3.1 (con GEMINI_API_KEY) o fallback ffmpeg Ken-Burns → `/videos/*.mp4` (volumen) → `POST /api/gemini/video-status {videoId}` polling. Rango-streaming en `GET /api/media/video/:id`.
+- `POST /api/ai/test|generate {providerId: gemini|openai|anthropic|openrouter|custom, modelId, prompt}` → prueba/genera texto (usado por agentes y ⁠campañas).
 
-## F9. Sistema
-- `GET /api/version` (timestamp deploy, rompe caché) 🟢 · `POST /api/cache/purge` 🟡.
-- Meta verify: `GET /api/whatsapp/webhook?hub.mode=subscribe` (modo `meta`, sin usar hoy).
+## F9. Sistema y Meta
+- `GET /api/version` → `{version: deployTimestamp}` (el frontend invalida caché con esto). `POST /api/cache/purge` → bump manual.
+- Meta Cloud API (inactivo, modo=waha): `GET /api/whatsapp/webhook` verifica `hub.verify_token`; POST procesa `whatsapp_business_account` → mismo `procesarMensajeEntrante(canal: meta)`. Para activarlo algún día: `POST /api/whatsapp/config {modoActivo: meta, metaConfig:{...}}`.
 
-## Mapa de llamadas (quién→qué)
-- `PublicWeb` → banners, ofertas, audience/sync, go/pedir, verify.
-- `AdminPanel`/gestión → banners/sync, ofertas/sync+activar, comercios/sync, audience/*, email/*, whatsapp/config+test, cache/purge.
-- `MerchantPanel` → ofertas (crear vía módulo), comercios, gemini/video, audience.
-- `WhatsAppConfigPanel/WahaQrModal` → waha/session/*, whatsapp/config.
-- WhatsApp red → webhooks entrantes → procesarMensajeEntrante → Baileys send + chat_logs.
+## Orden sugerido de pruebas E2E
+1. Vincular QR (F1) → 2. simulate-incoming "ofertas en Miraflores" (F2) → 3. crear+aprobar oferta con imagen (F3+F8) → 4. registro usuario (F6) → 5. vistas comercio/admin una por una (F5) → 6. email (F7).
