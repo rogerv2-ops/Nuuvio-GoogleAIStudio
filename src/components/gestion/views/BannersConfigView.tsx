@@ -51,12 +51,16 @@ export const BannersConfigView: React.FC = () => {
     reader.onload = async (event) => {
       if (event.target?.result) {
         const local = event.target.result as string;
+        const anterior = formImagenUrl;
         setFormImagenUrl(local);
         try {
           const { subirImagenAlServidor } = await import('../../../utils/uploadMedia');
           const url = await subirImagenAlServidor(local, 'banners');
           setFormImagenUrl(url);
-        } catch { /* conserva dataURL local */ }
+        } catch (err) {
+          setFormImagenUrl(anterior);
+          alert('No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err));
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -67,6 +71,10 @@ export const BannersConfigView: React.FC = () => {
 
     if (!formImagenUrl.trim()) {
       alert('Por favor ingresa la URL de la imagen o sube un archivo.');
+      return;
+    }
+    if (formImagenUrl.startsWith('data:')) {
+      alert('La imagen aún se está subiendo al servidor. Espera a que termine.');
       return;
     }
 

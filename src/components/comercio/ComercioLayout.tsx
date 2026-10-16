@@ -124,6 +124,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     reader.onload = async (event) => {
       if (event.target?.result) {
         const local = event.target!.result as string;
+        const anterior = formOferta.imagenUrl;
         setFormOferta(prev => ({
           ...prev,
           imagenUrl: local,
@@ -134,7 +135,10 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
           const { subirImagenAlServidor } = await import('../../utils/uploadMedia');
           const url = await subirImagenAlServidor(local, 'ofertas');
           setFormOferta(prev => ({ ...prev, imagenUrl: url }));
-        } catch { /* conserva dataURL local */ }
+        } catch (err) {
+          setFormOferta(prev => ({ ...prev, imagenUrl: anterior }));
+          alert('No se pudo subir la imagen al servidor, no se guardó: ' + (err instanceof Error ? err.message : err));
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -292,6 +296,10 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
 
     if (errorImagen) {
       alert(`Error en la imagen: ${errorImagen}`);
+      return;
+    }
+    if (!formOferta.imagenUrl || formOferta.imagenUrl.startsWith('data:')) {
+      alert('La imagen aún se está subiendo al servidor. Espera a que termine antes de publicar.');
       return;
     }
 
