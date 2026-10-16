@@ -97,7 +97,8 @@ class BannersModule {
       const resp = await fetch('/api/banners');
       if (resp.ok) {
         const data = await resp.json();
-        if (data && data.ok && Array.isArray(data.banners) && data.banners.length > 0) {
+        if (data && data.ok && Array.isArray(data.banners)) {
+          // El servidor es la fuente de verdad: reflejamos su lista, incluso si está vacía.
           const bannersServidor = this.migrarBannerUrls(data.banners);
           this.banners = bannersServidor;
           this.sincronizadoConServidor = true;
@@ -107,10 +108,6 @@ class BannersModule {
           this.notificar();
           return;
         }
-      }
-      // Si el servidor no tiene banners pero nosotros tenemos banners personalizados en localStorage, enviarlos al servidor
-      if (this.banners.length > 0) {
-        this.guardarEnServidor();
       }
     } catch (e) {
       console.warn('[Banners] Error al sincronizar con /api/banners:', e);
