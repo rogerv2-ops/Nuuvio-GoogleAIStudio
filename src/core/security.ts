@@ -1,1 +1,371 @@
-var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});const CREDENCIALES_SISTEMA=[{email:"rogerv2@gmail.com",contrasena:"Pasion2271**//",nombre:"Super Administrador",rol:"admin",usuarioId:"admin_master_01",descripcion:"Acceso total al Panel de Administraci\xF3n, auditor\xEDa y moderaci\xF3n"},{email:"rogerv707@gmail.com",contrasena:"Pasion2271**//",nombre:"Comercio Aliado",rol:"comercio",usuarioId:"comercio_user_01",merchantId:"merch_01",descripcion:"Acceso al Panel de Comercio, cat\xE1logo y recargas PPC"}];const STORAGE_KEY="vuuy_auth_session_v3";const SECURITY_RATE_LIMIT_KEY="vuuy_sec_ratelimit_v1";const SECURITY_CREDENTIALS_STORAGE_KEY="vuuy_sec_credentials_v1";const MAX_INTENTOS_FALLIDOS=5;const TIEMPO_BLOQUEO_MS=5*60*1e3;class CoreSecurity{sesionActual: any; listeners: any; credenciales: any; rateLimit: any; auditLogs: any; constructor(){this.auditLogs=[{id:"aud_01",operadorId:"admin_master_01",operadorNombre:"Super Admin",accion:"Aprobar comercio",entidad:"comercio",entidadId:"merch_01",detalles:"Checklist completado: RUC 20518923412 v\xE1lido, Instagram verificado, WhatsApp verificado",fecha:"2026-09-15T14:30:00Z"},{id:"aud_02",operadorId:"admin_master_01",operadorNombre:"Super Admin",accion:"Validar oferta",entidad:"oferta",entidadId:"ofr_01",detalles:"Aprobaci\xF3n de Bowl Acai Org\xE1nico tras revisi\xF3n de im\xE1genes y precios",fecha:"2026-10-06T12:00:00Z"}];this.listeners=[];this.sesionActual=null;this.credenciales=[...CREDENCIALES_SISTEMA];this.rateLimit={intentosFallidos:0,bloqueadoHasta:null,ultimoIntento:0};this.cargarCredenciales();this.cargarSesionAlmacenada();this.cargarRateLimit()}static{__name(this,"CoreSecurity")}cargarCredenciales(){try{if(typeof window!=="undefined"&&window.localStorage){const stored=localStorage.getItem(SECURITY_CREDENTIALS_STORAGE_KEY);if(stored){const parsed=JSON.parse(stored);if(Array.isArray(parsed)&&parsed.length>0){this.credenciales=parsed}}}}catch{}}guardarCredenciales(){try{if(typeof window!=="undefined"&&window.localStorage){localStorage.setItem(SECURITY_CREDENTIALS_STORAGE_KEY,JSON.stringify(this.credenciales))}}catch{}}listarCredenciales(){return[...this.credenciales]}actualizarContrasena(email,nuevaContrasena){const idx=this.credenciales.findIndex(c=>c.email.toLowerCase()===email.toLowerCase());if(idx===-1){return{ok:false,mensaje:"Usuario no encontrado"}}if(!nuevaContrasena||nuevaContrasena.trim().length<6){return{ok:false,mensaje:"La nueva contrase\xF1a debe tener al menos 6 caracteres"}}this.credenciales[idx]={...this.credenciales[idx],contrasena:nuevaContrasena.trim()};this.guardarCredenciales();this.registrarAuditoria({operadorId:this.sesionActual?.usuarioId||"admin",operadorNombre:this.sesionActual?.nombre||"Super Admin",accion:"Cambio de contrase\xF1a",entidad:"usuario_seguridad",entidadId:email,detalles:`Actualizaci\xF3n de contrase\xF1a para el usuario ${email}`});this.notificar();return{ok:true,mensaje:"Contrase\xF1a actualizada correctamente"}}agregarCredencial(nueva){const existe=this.credenciales.some(c=>c.email.toLowerCase()===nueva.email.toLowerCase());if(existe){return{ok:false,mensaje:"Ya existe un usuario con este correo"}}this.credenciales.push(nueva);this.guardarCredenciales();this.registrarAuditoria({operadorId:this.sesionActual?.usuarioId||"admin",operadorNombre:this.sesionActual?.nombre||"Super Admin",accion:"Alta de credencial de acceso",entidad:"usuario_seguridad",entidadId:nueva.email,detalles:`Nuevo usuario creado: ${nueva.nombre} (${nueva.rol})`});this.notificar();return{ok:true,mensaje:"Usuario registrado exitosamente"}}cargarRateLimit(){try{if(typeof window!=="undefined"&&window.localStorage){const data=localStorage.getItem(SECURITY_RATE_LIMIT_KEY);if(data){this.rateLimit=JSON.parse(data)}}}catch{}}guardarRateLimit(){try{if(typeof window!=="undefined"&&window.localStorage){localStorage.setItem(SECURITY_RATE_LIMIT_KEY,JSON.stringify(this.rateLimit))}}catch{}}obtenerEstadoBloqueo(){const ahora=Date.now();if(this.rateLimit.bloqueadoHasta&&this.rateLimit.bloqueadoHasta>ahora){const segundosRestantes=Math.ceil((this.rateLimit.bloqueadoHasta-ahora)/1e3);return{bloqueado:true,segundosRestantes,intentosRestantes:0}}if(this.rateLimit.bloqueadoHasta&&this.rateLimit.bloqueadoHasta<=ahora){this.rateLimit={intentosFallidos:0,bloqueadoHasta:null,ultimoIntento:ahora};this.guardarRateLimit()}const intentosRestantes=Math.max(0,MAX_INTENTOS_FALLIDOS-this.rateLimit.intentosFallidos);return{bloqueado:false,segundosRestantes:0,intentosRestantes}}registrarIntentoFallido(email){const ahora=Date.now();this.rateLimit.intentosFallidos+=1;this.rateLimit.ultimoIntento=ahora;if(this.rateLimit.intentosFallidos>=MAX_INTENTOS_FALLIDOS){this.rateLimit.bloqueadoHasta=ahora+TIEMPO_BLOQUEO_MS}this.guardarRateLimit();this.registrarAuditoria({operadorId:"sistema_seguridad",operadorNombre:"Filtro Seguridad",accion:"Intento de acceso fallido",entidad:"autenticacion",entidadId:email.substring(0,3)+"***",detalles:`Fallo de autenticaci\xF3n. Intentos acumulados: ${this.rateLimit.intentosFallidos}/${MAX_INTENTOS_FALLIDOS}`})}resetearIntentosFallidos(){this.rateLimit={intentosFallidos:0,bloqueadoHasta:null,ultimoIntento:Date.now()};this.guardarRateLimit()}cargarSesionAlmacenada(){try{if(typeof window!=="undefined"&&window.localStorage){const guardada=localStorage.getItem(STORAGE_KEY);if(guardada){const parsed=JSON.parse(guardada);if(new Date(parsed.expiraEn).getTime()>Date.now()){this.sesionActual=parsed}else{localStorage.removeItem(STORAGE_KEY)}}}}catch{}}iniciarSesion(email,contrasena){const estadoBloqueo=this.obtenerEstadoBloqueo();if(estadoBloqueo.bloqueado){return{ok:false,error:`Acceso temporalmente restringido por motivos de seguridad tras m\xFAltiples intentos err\xF3neos. Reintente en ${estadoBloqueo.segundosRestantes} segundos.`,bloqueado:true,segundosRestantes:estadoBloqueo.segundosRestantes}}const emailNormalizado=email.trim().toLowerCase();const contrasenaLimpia=contrasena.trim();if(!emailNormalizado||!contrasenaLimpia){return{ok:false,error:"Debe ingresar correo y contrase\xF1a."}}const usuarioValido=this.credenciales.find(u=>u.email.toLowerCase()===emailNormalizado&&u.contrasena===contrasenaLimpia);if(!usuarioValido){this.registrarIntentoFallido(emailNormalizado);const nuevoEstado=this.obtenerEstadoBloqueo();if(nuevoEstado.bloqueado){return{ok:false,error:`Acceso restringido por seguridad. Ha alcanzado el l\xEDmite de intentos permitidos (${MAX_INTENTOS_FALLIDOS}). Espere 5 minutos.`,bloqueado:true,segundosRestantes:nuevoEstado.segundosRestantes}}return{ok:false,error:`Credenciales de acceso incorrectas. Le restan ${nuevoEstado.intentosRestantes} intentos antes del bloqueo de seguridad.`}}this.resetearIntentosFallidos();const nuevaSesion={token:`tok_${Math.random().toString(36).substring(2,9)}_${Date.now()}`,usuarioId:usuarioValido.usuarioId,nombre:usuarioValido.nombre,email:usuarioValido.email,rol:usuarioValido.rol,merchantId:usuarioValido.merchantId,expiraEn:new Date(Date.now()+30*24*60*60*1e3).toISOString()};this.sesionActual=nuevaSesion;try{if(typeof window!=="undefined"&&window.localStorage){localStorage.setItem(STORAGE_KEY,JSON.stringify(nuevaSesion))}}catch{}this.registrarAuditoria({operadorId:usuarioValido.usuarioId,operadorNombre:usuarioValido.nombre,accion:"Inicio de sesi\xF3n",entidad:"sesion",entidadId:usuarioValido.usuarioId,detalles:`Inicio de sesi\xF3n exitoso con rol ${usuarioValido.rol} (${usuarioValido.email})`});this.notificar();return{ok:true,sesion:nuevaSesion}}cerrarSesion(){if(this.sesionActual){this.registrarAuditoria({operadorId:this.sesionActual.usuarioId,operadorNombre:this.sesionActual.nombre,accion:"Cierre de sesi\xF3n",entidad:"sesion",entidadId:this.sesionActual.usuarioId,detalles:`Cierre de sesi\xF3n seguro de ${this.sesionActual.email}`})}this.sesionActual=null;try{if(typeof window!=="undefined"&&window.localStorage){localStorage.removeItem(STORAGE_KEY)}}catch{}this.notificar()}getSesionActual(){return this.sesionActual?{...this.sesionActual}:null}estaAutenticado(){return this.sesionActual!==null}tieneAcceso(superficie){if(superficie==="web")return true;if(!this.sesionActual)return false;if(superficie==="gestion"){return this.sesionActual.rol==="admin"}if(superficie==="comercio"){return this.sesionActual.rol==="comercio"||this.sesionActual.rol==="admin"}return false}cambiarSesion(sesion){if(!sesion){this.cerrarSesion();return}if(this.sesionActual){this.sesionActual={...this.sesionActual,...sesion};try{if(typeof window!=="undefined"&&window.localStorage){localStorage.setItem(STORAGE_KEY,JSON.stringify(this.sesionActual))}}catch{}this.notificar()}}registrarAuditoria(log){const item={id:`aud_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,...log,fecha:new Date().toISOString()};this.auditLogs.unshift(item);this.notificar()}getAuditLogs(){return[...this.auditLogs]}tienePermiso(accion){if(!this.sesionActual)return false;if(this.sesionActual.rol==="admin")return true;if(this.sesionActual.rol==="operador"){return accion==="aprobar_comercio"||accion==="moderar_oferta"}return false}suscribir(listener){this.listeners.push(listener);return()=>{this.listeners=this.listeners.filter(l=>l!==listener)}}notificar(){this.listeners.forEach(l=>l())}}const coreSecurity=new CoreSecurity;export{CREDENCIALES_SISTEMA,coreSecurity};
+/**
+ * MODULO: seguridad / autenticacion.
+ * La verificacion de credenciales vive 100% en el servidor (/api/auth/*).
+ * El navegador solo conserva la sesion firmada (token HMAC) y adjunta el
+ * encabezado Authorization a cada llamada /api/*.
+ */
+export type RolSesion = 'admin' | 'operador' | 'comercio';
+
+export interface SesionUsuario {
+  token: string;
+  usuarioId: string;
+  nombre: string;
+  email: string;
+  rol: RolSesion;
+  merchantId?: string | null;
+  expiraEn: string;
+}
+
+export interface Credencial {
+  email: string;
+  nombre: string;
+  rol: RolSesion;
+  usuarioId?: string;
+  merchantId?: string | null;
+  descripcion?: string;
+}
+
+export interface RegistroAuditoria {
+  id: string;
+  operadorId: string;
+  operadorNombre: string;
+  accion: string;
+  entidad: string;
+  entidadId: string;
+  detalles: string;
+  fecha: string;
+}
+
+interface ResultadoLogin {
+  ok: boolean;
+  sesion?: SesionUsuario;
+  error?: string;
+  bloqueado?: boolean;
+  segundosRestantes?: number;
+}
+
+const STORAGE_KEY = 'vuuy_auth_session_v3';
+const API_LOGIN = '/api/auth/login';
+const API_LOGOUT = '/api/auth/logout';
+const API_USERS = '/api/auth/users';
+const API_PASSWORD = '/api/auth/password';
+
+class CoreSecurity {
+  public sesionActual: SesionUsuario | null = null;
+  private listeners: (() => void)[] = [];
+  private credenciales: Credencial[] = [];
+  private auditLogs: RegistroAuditoria[] = [];
+  private fetchPatched = false;
+
+  constructor() {
+    this.auditLogs = [
+      {
+        id: 'aud_01',
+        operadorId: 'admin_master_01',
+        operadorNombre: 'Super Admin',
+        accion: 'Aprobar comercio',
+        entidad: 'comercio',
+        entidadId: 'merch_01',
+        detalles: 'Checklist completado: RUC 20518923412 válido, Instagram verificado, WhatsApp verificado',
+        fecha: '2026-09-15T14:30:00Z'
+      },
+      {
+        id: 'aud_02',
+        operadorId: 'admin_master_01',
+        operadorNombre: 'Super Admin',
+        accion: 'Validar oferta',
+        entidad: 'oferta',
+        entidadId: 'ofr_01',
+        detalles: 'Aprobación de Bowl Acai Orgánico tras revisión de imágenes y precios',
+        fecha: '2026-10-06T12:00:00Z'
+      }
+    ];
+    this.instalarInterceptorFetch();
+    this.cargarSesionAlmacenada();
+  }
+
+  /** Adjunta el token de sesión a toda llamada interna a /api/*. */
+  private instalarInterceptorFetch(): void {
+    if (typeof window === 'undefined' || this.fetchPatched || typeof window.fetch !== 'function') return;
+    const fetchOriginal = window.fetch.bind(window);
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      try {
+        const token = this.sesionActual?.token;
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : (input as Request).url;
+        if (token && url && url.indexOf('/api/') !== -1) {
+          const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+          if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+          init = { ...(init || {}), headers };
+        }
+      } catch {
+        /* noop */
+      }
+      return fetchOriginal(input as any, init);
+    };
+    this.fetchPatched = true;
+  }
+
+  private cargarSesionAlmacenada(): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const guardada = localStorage.getItem(STORAGE_KEY);
+        if (guardada) {
+          const parsed = JSON.parse(guardada) as SesionUsuario;
+          if (parsed && parsed.token && new Date(parsed.expiraEn).getTime() > Date.now()) {
+            this.sesionActual = parsed;
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        }
+      }
+    } catch {
+      /* noop */
+    }
+  }
+
+  async iniciarSesion(email: string, contrasena: string): Promise<ResultadoLogin> {
+    const emailNormalizado = String(email || '').trim().toLowerCase();
+    const contrasenaLimpia = String(contrasena || '').trim();
+    if (!emailNormalizado || !contrasenaLimpia) {
+      return { ok: false, error: 'Debe ingresar correo y contraseña.' };
+    }
+    try {
+      const resp = await fetch(API_LOGIN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailNormalizado, password: contrasenaLimpia })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok || !data?.sesion || !data?.token) {
+        const error = data?.error || 'Credenciales de acceso incorrectas.';
+        this.registrarAuditoria({
+          operadorId: 'sistema_seguridad',
+          operadorNombre: 'Filtro Seguridad',
+          accion: 'Intento de acceso fallido',
+          entidad: 'autenticacion',
+          entidadId: emailNormalizado.substring(0, 3) + '***',
+          detalles: `Fallo de autenticación para ${emailNormalizado}`
+        });
+        return { ok: false, error };
+      }
+      const sesion: SesionUsuario = { ...data.sesion, token: data.token };
+      this.sesionActual = sesion;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sesion));
+      } catch {
+        /* noop */
+      }
+      this.registrarAuditoria({
+        operadorId: sesion.usuarioId,
+        operadorNombre: sesion.nombre,
+        accion: 'Inicio de sesión',
+        entidad: 'sesion',
+        entidadId: sesion.usuarioId,
+        detalles: `Inicio de sesión exitoso con rol ${sesion.rol} (${sesion.email})`
+      });
+      this.notificar();
+      return { ok: true, sesion };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor de autenticación.' };
+    }
+  }
+
+  cerrarSesion(): void {
+    if (this.sesionActual) {
+      this.registrarAuditoria({
+        operadorId: this.sesionActual.usuarioId,
+        operadorNombre: this.sesionActual.nombre,
+        accion: 'Cierre de sesión',
+        entidad: 'sesion',
+        entidadId: this.sesionActual.usuarioId,
+        detalles: `Cierre de sesión seguro de ${this.sesionActual.email}`
+      });
+      try {
+        fetch(API_LOGOUT, { method: 'POST' }).catch(() => undefined);
+      } catch {
+        /* noop */
+      }
+    }
+    this.sesionActual = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* noop */
+    }
+    this.notificar();
+  }
+
+  getSesionActual(): SesionUsuario | null {
+    return this.sesionActual ? { ...this.sesionActual } : null;
+  }
+
+  getToken(): string | null {
+    return this.sesionActual?.token || null;
+  }
+
+  estaAutenticado(): boolean {
+    return !!this.sesionActual && new Date(this.sesionActual.expiraEn).getTime() > Date.now();
+  }
+
+  tieneAcceso(superficie: string): boolean {
+    if (superficie === 'web') return true;
+    if (!this.sesionActual) return false;
+    if (superficie === 'gestion') return this.sesionActual.rol === 'admin';
+    if (superficie === 'comercio') return this.sesionActual.rol === 'comercio' || this.sesionActual.rol === 'admin';
+    return false;
+  }
+
+  cambiarSesion(sesion: Partial<SesionUsuario> | null): void {
+    if (!sesion) {
+      this.cerrarSesion();
+      return;
+    }
+    if (this.sesionActual) {
+      this.sesionActual = { ...this.sesionActual, ...sesion };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sesionActual));
+      } catch {
+        /* noop */
+      }
+      this.notificar();
+    }
+  }
+
+  registrarAuditoria(log: Omit<RegistroAuditoria, 'id' | 'fecha'>): void {
+    const item: RegistroAuditoria = {
+      id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...log,
+      fecha: new Date().toISOString()
+    };
+    this.auditLogs.unshift(item);
+    this.notificar();
+  }
+
+  getAuditLogs(): RegistroAuditoria[] {
+    return [...this.auditLogs];
+  }
+
+  tienePermiso(accion: string): boolean {
+    if (!this.sesionActual) return false;
+    if (this.sesionActual.rol === 'admin') return true;
+    if (this.sesionActual.rol === 'operador') {
+      return accion === 'aprobar_comercio' || accion === 'moderar_oferta';
+    }
+    return false;
+  }
+
+  suscribir(listener: () => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  notificar(): void {
+    this.listeners.forEach((l) => l());
+  }
+
+  // --- Gestion de credenciales (delegada al servidor) ---
+  listarCredenciales(): Credencial[] {
+    return [...this.credenciales];
+  }
+
+  async cargarCredenciales(): Promise<Credencial[]> {
+    try {
+      const resp = await fetch(API_USERS);
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok && Array.isArray(data.users)) {
+        this.credenciales = data.users as Credencial[];
+        this.notificar();
+      }
+    } catch {
+      /* noop */
+    }
+    return this.listarCredenciales();
+  }
+
+  async actualizarContrasena(email: string, nuevaContrasena: string): Promise<{ ok: boolean; mensaje: string }> {
+    const limpia = String(nuevaContrasena || '').trim();
+    if (limpia.length < 6) {
+      return { ok: false, mensaje: 'La nueva contraseña debe tener al menos 6 caracteres' };
+    }
+    try {
+      const resp = await fetch(API_PASSWORD, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: limpia })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok) {
+        this.registrarAuditoria({
+          operadorId: this.sesionActual?.usuarioId || 'admin',
+          operadorNombre: this.sesionActual?.nombre || 'Super Admin',
+          accion: 'Cambio de contraseña',
+          entidad: 'usuario_seguridad',
+          entidadId: email,
+          detalles: `Actualización de contraseña para el usuario ${email}`
+        });
+        return { ok: true, mensaje: data.mensaje || 'Contraseña actualizada correctamente' };
+      }
+      return { ok: false, mensaje: data?.error || 'No se pudo actualizar la contraseña' };
+    } catch {
+      return { ok: false, mensaje: 'Error de conexión con el servidor' };
+    }
+  }
+
+  async agregarCredencial(nueva: {
+    email: string;
+    contrasena: string;
+    nombre: string;
+    rol: RolSesion;
+    usuarioId?: string;
+    merchantId?: string;
+    descripcion?: string;
+  }): Promise<{ ok: boolean; mensaje: string }> {
+    try {
+      const resp = await fetch(API_USERS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: nueva.email,
+          password: nueva.contrasena,
+          nombre: nueva.nombre,
+          rol: nueva.rol,
+          usuarioId: nueva.usuarioId,
+          merchantId: nueva.merchantId,
+          descripcion: nueva.descripcion
+        })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok) {
+        await this.cargarCredenciales();
+        this.registrarAuditoria({
+          operadorId: this.sesionActual?.usuarioId || 'admin',
+          operadorNombre: this.sesionActual?.nombre || 'Super Admin',
+          accion: 'Alta de credencial de acceso',
+          entidad: 'usuario_seguridad',
+          entidadId: nueva.email,
+          detalles: `Nuevo usuario creado: ${nueva.nombre} (${nueva.rol})`
+        });
+        return { ok: true, mensaje: data.mensaje || 'Usuario registrado exitosamente' };
+      }
+      return { ok: false, mensaje: data?.error || 'No se pudo crear la credencial' };
+    } catch {
+      return { ok: false, mensaje: 'Error de conexión con el servidor' };
+    }
+  }
+
+  obtenerEstadoBloqueo(): { bloqueado: boolean; segundosRestantes: number; intentosRestantes: number } {
+    return { bloqueado: false, segundosRestantes: 0, intentosRestantes: 5 };
+  }
+}
+
+export const coreSecurity = new CoreSecurity();
+
+/** @deprecated Las credenciales ahora viven y se validan en el servidor. */
+export const CREDENCIALES_SISTEMA: Credencial[] = [];

@@ -42,36 +42,34 @@ export const LoginView: React.FC<LoginViewProps> = ({
     return () => clearInterval(intervalo);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (segundosBloqueo > 0) return;
 
     setError(null);
     setCargando(true);
 
-    setTimeout(() => {
-      const resultado = coreSecurity.iniciarSesion(email, password);
-      setCargando(false);
+    const resultado = await coreSecurity.iniciarSesion(email, password);
+    setCargando(false);
 
-      if (!resultado.ok) {
-        setError(resultado.error || 'Credenciales de acceso incorrectas.');
-        if (resultado.bloqueado && resultado.segundosRestantes) {
-          setSegundosBloqueo(resultado.segundosRestantes);
-        }
-        return;
+    if (!resultado.ok) {
+      setError(resultado.error || 'Credenciales de acceso incorrectas.');
+      if (resultado.bloqueado && resultado.segundosRestantes) {
+        setSegundosBloqueo(resultado.segundosRestantes);
       }
+      return;
+    }
 
-      // Validar si la cuenta posee los permisos necesarios
-      if (esGestion && resultado.sesion?.rol !== 'admin') {
-        setError('Esta cuenta no cuenta con permisos de Administrador para acceder a esta consola.');
-        coreSecurity.cerrarSesion();
-        return;
-      }
+    // Validar si la cuenta posee los permisos necesarios
+    if (esGestion && resultado.sesion?.rol !== 'admin') {
+      setError('Esta cuenta no cuenta con permisos de Administrador para acceder a esta consola.');
+      coreSecurity.cerrarSesion();
+      return;
+    }
 
-      if (resultado.sesion) {
-        onLoginExitoso(resultado.sesion);
-      }
-    }, 350);
+    if (resultado.sesion) {
+      onLoginExitoso(resultado.sesion);
+    }
   };
 
   return (

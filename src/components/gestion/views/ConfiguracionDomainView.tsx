@@ -64,6 +64,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
     const unsubSec = coreSecurity.suscribir(() => {
       setCredenciales(coreSecurity.listarCredenciales());
     });
+    coreSecurity.cargarCredenciales().then(setCredenciales).catch(() => undefined);
     return () => unsubSec();
   }, []);
 
@@ -458,20 +459,10 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                       </div>
 
                       <div className="flex items-center gap-2 self-start md:self-auto">
-                        {/* Visualizador de Contraseña */}
-                        <div className="flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200/70 text-xs font-mono">
-                          <Lock className="w-3.5 h-3.5 text-stone-400" />
-                          <span className="tracking-wider">
-                            {mostrarPass ? cred.contrasena : '••••••••••••'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setVerPassword(prev => ({ ...prev, [cred.email]: !prev[cred.email] }))}
-                            className="ml-1 text-stone-400 hover:text-stone-700"
-                            title={mostrarPass ? 'Ocultar contraseña' : 'Ver contraseña'}
-                          >
-                            {mostrarPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
+                        {/* Contraseñas protegidas: nunca se exponen en el navegador */}
+                        <div className="flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200/70 text-xs font-mono text-stone-400">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span className="tracking-wider">••••••••••••</span>
                         </div>
 
                         {/* Botón cambiar clave */}
@@ -504,9 +495,9 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                           />
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               if (nuevaPasswordInput.trim().length >= 6) {
-                                const res = coreSecurity.actualizarContrasena(cred.email, nuevaPasswordInput);
+                                const res = await coreSecurity.actualizarContrasena(cred.email, nuevaPasswordInput);
                                 setMensajeSeguridad({ ok: res.ok, texto: res.mensaje });
                                 setUsuarioEditarEmail(null);
                                 setNuevaPasswordInput('');
@@ -645,9 +636,9 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                 </div>
 
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    const res = coreSecurity.agregarCredencial({
+                    const res = await coreSecurity.agregarCredencial({
                       email: nuevoUsuarioForm.email.trim(),
                       contrasena: nuevoUsuarioForm.contrasena.trim(),
                       nombre: nuevoUsuarioForm.nombre.trim(),
