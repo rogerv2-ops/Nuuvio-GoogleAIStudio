@@ -404,13 +404,13 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     key={oferta.id}
                     className="bg-white rounded-[20px] overflow-hidden border border-[#EAE5D9] shadow-sm hover:shadow-md transition-all group"
                   >
-                    {/* FOTO EN FORMATO ESTÁNDAR 4:5 VERTICAL (NUNCA HORIZONTAL) */}
+                    {/* FOTO EN FORMATO 1:1 CUADRADO (igual que la tarjeta generada 800x800) */}
                     <div 
                       onClick={() => {
                         setFichaOferta(oferta);
                         setFotoActivaIndex(0);
                       }}
-                      className="relative aspect-[4/5] w-full bg-stone-200 cursor-pointer overflow-hidden rounded-t-[20px]"
+                      className="relative aspect-square w-full bg-stone-200 cursor-pointer overflow-hidden rounded-t-[20px]"
                     >
                       {oferta.videoUrl ? (
                         <div className="relative w-full h-full">
@@ -596,8 +596,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-[20px] max-w-md w-full overflow-hidden shadow-2xl border border-[#EAE5D9] space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150 cursor-default"
           >
-            {/* Carousel Header EN FORMATO ESTÁNDAR 4:5 VERTICAL (NUNCA HORIZONTAL) */}
-            <div className="relative aspect-[4/5] w-full bg-stone-200 overflow-hidden rounded-t-[20px]">
+            {/* Carousel Header EN FORMATO 1:1 CUADRADO (igual que la tarjeta generada 800x800) */}
+            <div className="relative aspect-square w-full bg-stone-200 overflow-hidden rounded-t-[20px]">
               <img
                 src={fichaOferta.imagenes[fotoActivaIndex] || fichaOferta.imagenes[0]}
                 alt={fichaOferta.titulo}
