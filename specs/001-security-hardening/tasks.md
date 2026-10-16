@@ -138,11 +138,11 @@ del repositorio.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T038 [P] Actualizar `INVENTARIO.md` con los endpoints `/api/auth/*`, el gate y las cabeceras de seguridad
-- [ ] T039 [P] Actualizar `FLUJOS.md` con el flujo de login/token, verificación de webhooks y guard SSRF
-- [ ] T040 Ejecutar `quickstart.md` de extremo a extremo (local y producción) y registrar resultados
+- [x] T038 [P] Actualizar `INVENTARIO.md` con los endpoints `/api/auth/*`, el gate y las cabeceras de seguridad
+- [x] T039 [P] Actualizar `FLUJOS.md` con el flujo de login/token, verificación de webhooks y guard SSRF
+- [x] T040 Ejecutar `quickstart.md` de extremo a extremo (local y producción) y registrar resultados
 - [ ] T041 Rotar las contraseñas de admin y comercio (estuvieron expuestas en el bundle) y re-sembrar `app_settings.auth_users` con los nuevos hashes
-- [ ] T042 Validación final: `bun build server.ts --target=node --outdir /tmp/bc --external vite` + `bun run build` + `bun test` en verde, luego push y verificar post-deploy
+- [x] T042 Validación final: `bun build server.ts --target=node --outdir /tmp/bc --external vite` + `bun run build` + `bun test` en verde, luego push y verificar post-deploy
 
 ---
 

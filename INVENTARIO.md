@@ -24,10 +24,31 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 - Panel admin raíz, login, bienvenida, registro, WhatsAppConfigPanel, WahaQrModal
 - ⚠️ Sin probar vista por vista en browser (solo bundle contiene los endpoints)
 
-## 3. Postgres `nuuviopsg` (9 tablas, con datos)
-`app_settings(merchants_list, merchants_kanban, whatsapp_config)`, `offers(6)`,
-`banners(3)`, `audience_users(8)`, `chat_logs(nueva, vacía)`, `click_logs`,
-`email_logs`, `registration_logs`, `users`. Patrón: carga-si-existe, siembra-si-vacío.
+## 3. Postgres `nuuviopsg` (10 tablas, con datos)
+`app_settings(merchants_list, merchants_kanban, whatsapp_config, auth_secret, auth_users)`, `offers(6)`,
+`banners(3)`, `audience_users(8)`, `chat_logs`, `click_logs`,
+`email_logs`, `registration_logs`, `users`, `security_logs`. Patrón: carga-si-existe, siembra-si-vacío.
+
+## 3.b Seguridad (implementado 2026-10-16, commit a313d0d)
+- **Auth de servidor**: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`,
+  `GET/POST /api/auth/users`, `POST /api/auth/password`. Token HMAC-SHA256; secreto en
+  `app_settings.auth_secret`; credenciales (scrypt) en `app_settings.auth_users`.
+  Gate global `/api` con allowlist pública (`/api/version`, `/api/banners`, `/api/ofertas`, webhooks).
+- **Roles**: `requireAdmin` en endpoints destructivos/config (audience users/purge/logs,
+  whatsapp config, email config/test, cache/purge, waha/session start·logout·pairing·qr,
+  banners/sync, comercios/sync, simulate-incoming). Comercio conserva ofertas/sync,
+  media/upload, gemini/ai, test-message.
+- **Rate limit** en memoria por bucket: login 10/5min, messaging 30/min, ai 30/min, global 300/min → 429 + `Retry-After`.
+- **Cabeceras**: `X-Content-Type-Options`, `X-Frame-Options`, CSP (`frame-ancestors 'self'`),
+  `Referrer-Policy`, `HSTS` (https), `Permissions-Policy`; CORS por `APP_ALLOWED_ORIGINS`.
+- **SSRF**: allowlist de host por proveedor IA (gemini/openai/anthropic/openrouter) y
+  `validarUrlExternaPermitida` (DNS + bloqueo de rangos privados/loopback/link-local) en `imageUrl`.
+- **Webhooks**: Meta firma `X-Hub-Signature-256` (HMAC sobre rawBody, `WHATSAPP_APP_SECRET`);
+  WAHA secreto compartido (`WAHA_WEBHOOK_SECRET`); fail-closed en producción.
+- **Media**: `resolverRutaSegura` (anti-traversal, 400) y `validarRangeCabecera` (416).
+- **Auditoría**: tabla `security_logs` + `logEventoSeguridad` (login ok/fallido, denegado 401/403,
+  rate limit, credenciales, webhooks rechazados).
+- **Tests**: `bun test tests/security` (unit + contrato black-box) y `scripts/security-smoke.sh`.
 
 ## 4. Infra
 - App `pnpsnjshl9...` (Dockerfile, bun start :3000) + entrypoint auto-migrate

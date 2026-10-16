@@ -65,5 +65,25 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 - `GET /api/version` → `{version: deployTimestamp}` (el frontend invalida caché con esto). `POST /api/cache/purge` → bump manual.
 - Meta Cloud API (inactivo, modo=waha): `GET /api/whatsapp/webhook` verifica `hub.verify_token`; POST procesa `whatsapp_business_account` → mismo `procesarMensajeEntrante(canal: meta)`. Para activarlo algún día: `POST /api/whatsapp/config {modoActivo: meta, metaConfig:{...}}`.
 
+## F10. Login / sesión (auth de servidor)
+**Actor:** admin o comercio en `LoginView`.
+1. `POST /api/auth/login {email, password}` → servidor valida scrypt contra `app_settings.auth_users`
+   → responde `{ok, token (HMAC-SHA256), sesion:{usuarioId, rol, merchantId, expiraEn}}`.
+2. `src/core/security.ts` guarda el token e instala un interceptor `fetch` que añade
+   `Authorization: Bearer <token>` a todo `/api/`.
+3. `GET /api/auth/me` valida el token; el gate global `/api` responde `401` sin token válido.
+4. `requireAdmin` responde `403` si el rol no es `admin`. `POST /api/auth/logout` es stateless en cliente.
+5. Cada intento se registra en `security_logs` (login ok/fallido, acceso denegado, rate limit).
+**Verificar:** `scripts/security-smoke.sh` (12 checks) o `bun test tests/security` con `TEST_BASE_URL`.
+
+## F11. Webhooks y guardas (SSRF / media)
+- **Meta** `POST /api/whatsapp/webhook`: exige `X-Hub-Signature-256` = HMAC-SHA256(rawBody, `WHATSAPP_APP_SECRET`);
+  sin firma válida → `403` (fail-closed en producción). `GET` valida `hub.verify_token` (`WHATSAPP_VERIFY_TOKEN` o DB).
+- **WAHA** `POST /api/waha/webhook`: exige secreto `WAHA_WEBHOOK_SECRET` (`x-api-key`/`x-webhook-secret`/Bearer) → `403` si falta.
+- **SSRF IA**: `baseUrl` en `/api/ai/test|generate` limitado a allowlist por proveedor; `imageUrl` en
+  `/api/gemini/generate-video` pasa por DNS + bloqueo de rangos privados → `400`.
+- **Media** `GET /api/media/video/:id`: `resolverRutaSegura` bloquea traversal (`400`); `Range` inválido → `416`.
+- **Rate limit**: buckets login/messaging/ai/global → `429` + `Retry-After`.
+
 ## Orden sugerido de pruebas E2E
-1. Vincular QR (F1) → 2. simulate-incoming "ofertas en Miraflores" (F2) → 3. crear+aprobar oferta con imagen (F3+F8) → 4. registro usuario (F6) → 5. vistas comercio/admin una por una (F5) → 6. email (F7).
+1. Vincular QR (F1) → 2. simulate-incoming "ofertas en Miraflores" (F2) → 3. crear+aprobar oferta con imagen (F3+F8) → 4. registro usuario (F6) → 5. vistas comercio/admin una por una (F5) → 6. email (F7). Login/sesión (F10) precede a todo lo de gestión.
