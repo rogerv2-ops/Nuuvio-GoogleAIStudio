@@ -42,15 +42,21 @@ export const BannersConfigView: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('La imagen no debe superar los 3 MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen no debe superar los 10 MB.');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       if (event.target?.result) {
-        setFormImagenUrl(event.target.result as string);
+        const local = event.target.result as string;
+        setFormImagenUrl(local);
+        try {
+          const { subirImagenAlServidor } = await import('../../../utils/uploadMedia');
+          const url = await subirImagenAlServidor(local, 'banners');
+          setFormImagenUrl(url);
+        } catch { /* conserva dataURL local */ }
       }
     };
     reader.readAsDataURL(file);

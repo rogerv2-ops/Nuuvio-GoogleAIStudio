@@ -107,10 +107,10 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     }
 
     // 2. Verificación de tamaño máximo (no mayor a 2 MB = 2 * 1024 * 1024 bytes)
-    const MAX_BYTES = 2 * 1024 * 1024;
+    const MAX_BYTES = 10 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
       const tamanoMb = (file.size / (1024 * 1024)).toFixed(2);
-      setErrorImagen(`La imagen pesa ${tamanoMb} MB. El tamaño máximo permitido es 2.00 MB.`);
+      setErrorImagen(`La imagen pesa ${tamanoMb} MB. El tamaño máximo permitido es 10.00 MB.`);
       return;
     }
 
@@ -121,14 +121,20 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     });
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       if (event.target?.result) {
-        setFormOferta(prev => ({ 
-          ...prev, 
-          imagenUrl: event.target!.result as string,
+        const local = event.target!.result as string;
+        setFormOferta(prev => ({
+          ...prev,
+          imagenUrl: local,
           videoUrl: '' // Resetear video si sube una imagen nueva
         }));
         setVistaPreviaModo('foto');
+        try {
+          const { subirImagenAlServidor } = await import('../../utils/uploadMedia');
+          const url = await subirImagenAlServidor(local, 'ofertas');
+          setFormOferta(prev => ({ ...prev, imagenUrl: url }));
+        } catch { /* conserva dataURL local */ }
       }
     };
     reader.readAsDataURL(file);
