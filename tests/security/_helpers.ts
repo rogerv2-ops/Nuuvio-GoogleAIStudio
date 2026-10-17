@@ -18,21 +18,30 @@ export async function login(email: string, password: string): Promise<string | n
     });
     if (!r.ok) return null;
     const j: any = await r.json();
-    return j && j.token ? String(j.token) : null;
+    if (j && j.token) return String(j.token);
+    const setCookie = r.headers.get("set-cookie");
+    const cookie = setCookie ? setCookie.split(";")[0].trim() : "";
+    return cookie || null;
   } catch {
     return null;
   }
 }
 
-export async function get(path: string, token?: string | null) {
+function authHeaders(token?: string | null): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (token) headers.Authorization = "Bearer " + token;
-  return fetch(BASE + path, { headers });
+  if (token) {
+    if (token.startsWith("vuuy_sesion=")) headers.Cookie = token;
+    else headers.Authorization = "Bearer " + token;
+  }
+  return headers;
+}
+
+export async function get(path: string, token?: string | null) {
+  return fetch(BASE + path, { headers: authHeaders(token) });
 }
 
 export async function post(path: string, body: any, token?: string | null) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = "Bearer " + token;
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...authHeaders(token) };
   return fetch(BASE + path, { method: "POST", headers, body: JSON.stringify(body) });
 }
 

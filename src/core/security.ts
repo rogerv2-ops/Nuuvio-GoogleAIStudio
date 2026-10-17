@@ -189,7 +189,7 @@ class CoreSecurity {
       if (event.newValue) {
         try {
           const parsed = JSON.parse(event.newValue) as SesionUsuario;
-          if (parsed && parsed.token) this.sesionActual = parsed;
+          if (parsed && parsed.usuarioId) this.sesionActual = parsed;
         } catch {
           /* noop */
         }
@@ -287,8 +287,8 @@ class CoreSecurity {
     try {
       const resp = await fetch(API_REFRESH, { method: 'POST' });
       const data: any = await resp.json().catch(() => ({}));
-      if (resp.ok && data?.ok && data?.token && data?.sesion) {
-        this.sesionActual = { ...data.sesion, token: data.token };
+      if (resp.ok && data?.ok && data?.sesion) {
+        this.sesionActual = { ...data.sesion, token: '' };
         this.ultimaActividad = Date.now();
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sesionActual));
@@ -331,7 +331,7 @@ class CoreSecurity {
         }
         if (guardada) {
           const parsed = JSON.parse(guardada) as SesionUsuario;
-          if (parsed && parsed.token && new Date(parsed.expiraEn).getTime() > Date.now()) {
+          if (parsed && parsed.usuarioId && new Date(parsed.expiraEn).getTime() > Date.now()) {
             this.sesionActual = parsed;
           } else {
             localStorage.removeItem(STORAGE_KEY);
@@ -356,7 +356,7 @@ class CoreSecurity {
         body: JSON.stringify({ email: emailNormalizado, password: contrasenaLimpia })
       });
       const data: any = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data?.ok || !data?.sesion || !data?.token) {
+      if (!resp.ok || !data?.ok || !data?.sesion) {
         const error = data?.error || 'Credenciales de acceso incorrectas.';
         const bloqueado = resp.status === 423 || data?.bloqueado === true;
         const segundosRestantes = Number(data?.segundosRestantes) || 0;
@@ -373,7 +373,7 @@ class CoreSecurity {
         });
         return { ok: false, error, bloqueado, segundosRestantes };
       }
-      const sesion: SesionUsuario = { ...data.sesion, token: data.token };
+      const sesion: SesionUsuario = { ...data.sesion, token: '' };
       this.sesionActual = sesion;
       this.ultimaActividad = Date.now();
       try {
