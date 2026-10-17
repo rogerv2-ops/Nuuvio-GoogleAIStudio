@@ -3,7 +3,7 @@ import {
   Menu, X, ChevronRight, ChevronDown, ChevronLeft, 
   Search, Shield, Bell, Calendar, ArrowLeft, Store, 
   CheckCircle2, AlertCircle, ExternalLink, Building2,
-  RotateCw, Check, Sparkles
+  RotateCw, Check, Sparkles, LogOut
 } from 'lucide-react';
 import { GESTION_MENU, resolverRutaCanonica } from './gestionMenuConfig';
 import { GestionMenuItem, GestionSubItem, GestionBreadcrumb } from './types';
@@ -342,26 +342,44 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
                   <span className="text-[11px] font-bold text-white block truncate">{sesion?.email || 'admin@vuuy.pe'}</span>
                   <span className="text-[10px] text-emerald-400 font-medium">{sesion?.rol || 'Super Administrador'}</span>
                 </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {onVolverAWeb && (
+                    <button
+                      onClick={onVolverAWeb}
+                      title="Volver a la web pública"
+                      className="p-1 text-stone-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => coreSecurity.cerrarSesion()}
+                    title="Cerrar sesión"
+                    className="p-1 text-stone-400 hover:text-rose-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
                 {onVolverAWeb && (
                   <button
                     onClick={onVolverAWeb}
                     title="Volver a la web pública"
-                    className="p-1 text-stone-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                    className="w-full flex justify-center p-2 text-stone-400 hover:text-white rounded-xl hover:bg-white/10"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                 )}
-              </div>
-            ) : (
-              onVolverAWeb && (
                 <button
-                  onClick={onVolverAWeb}
-                  title="Volver a la web pública"
-                  className="w-full flex justify-center p-2 text-stone-400 hover:text-white rounded-xl hover:bg-white/10"
+                  onClick={() => coreSecurity.cerrarSesion()}
+                  title="Cerrar sesión"
+                  className="w-full flex justify-center p-2 text-stone-400 hover:text-rose-400 rounded-xl hover:bg-white/10"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <LogOut className="w-4 h-4" />
                 </button>
-              )
+              </div>
             )}
           </div>
         </aside>
@@ -473,6 +491,16 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
                   <span className="hidden sm:inline">Web Pública</span>
                 </button>
               )}
+
+              {/* Botón Cerrar Sesión */}
+              <button
+                onClick={() => coreSecurity.cerrarSesion()}
+                title="Cerrar sesión"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cerrar sesión</span>
+              </button>
             </div>
           </header>
 
