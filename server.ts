@@ -185,7 +185,7 @@ var dispatchOffersMosaic = async function dispatchOffersMosaic(user, distrito, d
     }
   } else if (busquedaSinResultados) {
     await doSend({
-      text: `No encontramos ofertas relacionadas con *${searchQuery}* en *${distritoObjetivo}*. Prueba con otro producto o servicio, o responde *ofertas* para ver las promociones disponibles en tu zona.`
+      text: `😕 *No encontramos ofertas* para *${searchQuery}* en *${distritoObjetivo}*.\n\n🔎 Prueba con otro producto o servicio.\n🛍️ O responde *ofertas* para ver las promociones disponibles en tu zona.`
     });
   } else {
     await doSend({
