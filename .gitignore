@@ -36,3 +36,7 @@ Thumbs.db
 
 __pycache__/
 *.pyc
+
+# Archivos de credenciales en claro (no deben existir: la clave va hasheada en la DB)
+*credentials*.txt
+*.secret

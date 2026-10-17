@@ -58,6 +58,7 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 - **Auditoría**: tabla `security_logs` + `logEventoSeguridad` (login ok/fallido, denegado 401/403,
   rate limit, credenciales, webhooks rechazados).
 - **Tests**: `bun test tests/security` (unit + contrato black-box) y `scripts/security-smoke.sh`.
+- **Credenciales**: las contrasenas viven **solo hasheadas** (scrypt + salt) en `app_settings.auth_users`; no se guardan en archivos ni variables de entorno (las `VUUV_*_PASSWORD` solo siembran en el primer arranque y no estan definidas en prod). Para rotar una clave sin escribirla a disco: `./scripts/set-admin-password.sh` (lee con `read -s`, viaja por HTTPS con `--data @-`). Si se filtra, rotar de inmediato.
 
 ## 3.c Ofertas: mosaico 1:1, clics CPC y "Me Gusta" (2026-10-17, commit 1eb2bfa)
 - **Mosaico**: `dispatchOffersMosaic` envía hasta **3** ofertas en **un solo mensaje** (imagen vertical de segmentos **1:1** numerados + caption con título/precio/enlace). Excluye ofertas de comercios **sin saldo** (`comercioTieneSaldo`).
