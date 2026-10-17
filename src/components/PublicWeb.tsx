@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, MapPin, Share2, MessageCircle, Heart, ChevronRight,
+  Search, MapPin, Share2, MessageCircle, ThumbsUp, ChevronRight,
   Sparkles, CheckCircle2, Copy, Check, Filter, Info, Shield, 
   Store, UserCheck, X, ExternalLink, Lock, LogOut
 } from 'lucide-react';
@@ -44,6 +44,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [modalTerminosAbierto, setModalTerminosAbierto] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [botPhone, setBotPhone] = useState<string>('51987654321');
+  // Conteo local optimista de "Me Gusta" (informativo, no facturable)
+  const [likesLocal, setLikesLocal] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetch('/api/whatsapp/config')
@@ -207,7 +209,22 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
 
     // En móviles Android/iOS invoca whatsapp://send para abrir el selector nativo del sistema ("Abrir con: WhatsApp / WhatsApp Business")
     // En escritorio detecta la permanencia del foco tras 1200ms y redirige automáticamente a la web oficial (https://api.whatsapp.com/send)
-    abrirWhatsAppNativo(targetPhone, 'Ofertas');
+    abrirWhatsAppNativo(targetPhone, oferta ? `Quiero la oferta: ${oferta.titulo}` : 'Ofertas');
+  };
+
+  // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.
+  const handleMeGusta = async (oferta: Offer) => {
+    const actual = likesLocal[oferta.id] ?? oferta.likes ?? 0;
+    setLikesLocal(prev => ({ ...prev, [oferta.id]: actual + 1 }));
+    try {
+      const res = await fetch(`/api/ofertas/${oferta.id}/like`, { method: 'POST' });
+      const data = await res.json();
+      if (data?.ok && typeof data.likes === 'number') {
+        setLikesLocal(prev => ({ ...prev, [oferta.id]: data.likes }));
+      }
+    } catch {
+      setLikesLocal(prev => ({ ...prev, [oferta.id]: actual }));
+    }
   };
 
   const handleCompartirOferta = (oferta: Offer) => {
@@ -466,16 +483,17 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                         </span>
                       </div>
 
-                      {/* Top Right Bookmark Button */}
+                      {/* Me Gusta (informativo): cada toque suma 1, no factura */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          alert(`Oferta "${oferta.titulo}" guardada en favoritos.`);
+                          handleMeGusta(oferta);
                         }}
-                        className="absolute top-16 right-3.5 w-9 h-9 rounded-full bg-[#1B4332] text-white flex items-center justify-center shadow-md hover:bg-[#2D6A4F] transition-colors z-10"
-                        title="Guardar oferta"
+                        className="absolute top-16 right-3.5 flex items-center gap-1.5 rounded-full bg-[#1B4332] text-white px-3 h-9 shadow-md hover:bg-[#2D6A4F] transition-colors z-10"
+                        title="Me Gusta"
                       >
-                        <Heart className="w-4 h-4 fill-white text-white" />
+                        <ThumbsUp className="w-4 h-4" />
+                        <span className="text-xs font-extrabold">{likesLocal[oferta.id] ?? oferta.likes ?? 0}</span>
                       </button>
 
                       {/* Dark Scrim Overlay at the bottom of the 4:5 photo */}
@@ -498,21 +516,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
 
                     {/* Card Content Below Photo */}
                     <div className="p-4 sm:p-5 space-y-3">
-                      <div>
-                        <h4 
-                          onClick={() => {
-                            setFichaOferta(oferta);
-                            setFotoActivaIndex(0);
-                          }}
-                          className="font-extrabold text-xl sm:text-2xl text-[#0F172A] hover:text-[#1B4332] cursor-pointer leading-snug tracking-tight"
-                        >
-                          {oferta.titulo}
-                        </h4>
-                        <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                          {oferta.descripcion}
-                        </p>
-                      </div>
-
                       {/* Badges: Discount % OFF & Urgency Indicator */}
                       <div className="flex items-center gap-2 pt-0.5">
                         <span className="text-xs font-black text-emerald-800 bg-[#D1FAE5] px-2.5 py-1 rounded-lg">

@@ -2,6 +2,27 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 import fs from "fs";
 import path from "path";
 
+/**
+ * DTO de entrada para el render de tarjetas y mosaicos.
+ * Deriva de Offer; solo los campos usados por el arte generado.
+ */
+export interface OfferCardData {
+  id?: string;
+  titulo: string;
+  precioNormal: number;
+  precioOferta: number;
+  comercioNombre?: string;
+  distrito?: string;
+  imagen?: string;
+  imagenes?: string[];
+  imagenUrl?: string;
+  categoria?: string;
+  creadaEn?: string;
+  venceEn?: string;
+  descuentoPct?: number;
+  etiqueta?: string;
+}
+
 export function formatLimaExpirationDate(venceEn?: string): string {
   if (!venceEn) return "⏰ Válida por tiempo limitado";
   const d = new Date(venceEn);

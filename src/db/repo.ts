@@ -1,4 +1,4 @@
-var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs}from"./schema.ts";import{eq,desc,and,gte,notInArray}from"drizzle-orm";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio vuuy",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");async function upsertAudienceUser(user){try{
+var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs}from"./schema.ts";import{eq,desc,and,gte,notInArray,sql}from"drizzle-orm";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio vuuy",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");async function upsertAudienceUser(user){try{
   const safeEmail = (user.email && user.email.trim()) ? user.email.trim() : `${user.id}@whatsapp.vuuy.pe`;
   const insertVals: any = {
     id: user.id,
@@ -50,10 +50,12 @@ var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,
   let comercioId = "";
   let telefono = "";
 
+  let saldoDisponible = true;
   if (typeof arg1 === "object" && arg1 !== null) {
     ofertaId = arg1.ofertaId || "";
     comercioId = arg1.comercioId || "merch_01";
     telefono = arg1.usuarioTelefono || arg1.telefono || "anonimo";
+    saldoDisponible = arg1.saldoDisponible !== false;
   } else {
     ofertaId = String(arg1 || "");
     comercioId = String(arg2 || "merch_01");
@@ -74,6 +76,7 @@ var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,
         and(
           eq(clickLogs.ofertaId, ofertaId),
           eq(clickLogs.usuarioTelefono, cleanPhone),
+          eq(clickLogs.facturable, true),
           gte(clickLogs.creadoEn, hace24Horas)
         )
       );
@@ -84,8 +87,9 @@ var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,
     console.warn("[DB Repo] Error consultando clickLogs en PostgreSQL:", err);
   }
 
-  // Si no existe, facturable = true; si existe, facturable = false
-  const facturable = !existeClicEn24h;
+  // Facturable solo si no hubo clic facturable en 24h y el comercio tiene saldo.
+  // La ventana se ancla al último clic facturable; los no facturables no la reinician.
+  const facturable = !existeClicEn24h && saldoDisponible;
   const random4 = Math.floor(1000 + Math.random() * 9000);
   const codigoCanje = `NV-${random4}`;
   const id = `clk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -106,6 +110,22 @@ var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,
 
   return { facturable, codigoCanje };
 }__name(registerOfferClick,"registerOfferClick");
+async function incrementOfferLikes(ofertaId) {
+  try {
+    const rows = await db
+      .update(offers)
+      .set({ likes: sql`coalesce(${offers.likes}, 0) + 1` })
+      .where(eq(offers.id, ofertaId))
+      .returning({ likes: offers.likes });
+    if (rows && rows.length > 0) {
+      return Number(rows[0].likes || 0);
+    }
+  } catch (error) {
+    console.error("[DB Repo] Error incrementando likes:", error);
+  }
+  return null;
+}
+__name(incrementOfferLikes, "incrementOfferLikes");
 async function getPersistedMerchants() {
   return await getSetting("merchants_list", null);
 }
@@ -125,7 +145,7 @@ async function savePersistedKanban(kanbanList) {
   await saveSetting("merchants_kanban", kanbanList);
 }
 __name(savePersistedKanban, "savePersistedKanban");
-export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser};
+export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,incrementOfferLikes,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser};
 import{chatLogs}from"./schema.ts";
 async function insertChatLog(e){try{await db.insert(chatLogs).values({id:e.id||`clog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,canal:e.canal||"waha",direccion:e.direccion||"entrante",telefono:String(e.telefono||""),contenido:String(e.contenido||"").slice(0,4000),estado:e.estado||"recibido",detalles:String(e.detalles||"").slice(0,2000),timestamp:e.timestamp||new Date().toISOString()})}catch(err){console.error("[DB Repo] Error guardando chat log:",err)}}
 __name(insertChatLog,"insertChatLog");

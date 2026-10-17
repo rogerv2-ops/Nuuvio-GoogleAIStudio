@@ -92,6 +92,7 @@ export interface Offer {
   vistas: number;
   clics: number;
   leadsCalificados: number;
+  likes?: number; // "Me Gusta" (informativo, no facturable)
   campaniaId?: string;
   // Video generado con IA (Veo 9:16 o 16:9)
   videoUrl?: string;
