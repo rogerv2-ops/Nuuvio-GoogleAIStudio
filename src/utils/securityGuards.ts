@@ -129,7 +129,6 @@ const FRASES_INTENCION_OFERTAS = [
   "ofertas cerca",
   "ofertas cercanas",
   "ofertas",
-  "oferta",
   "una oferta",
   "dame una oferta",
   "promociones",
