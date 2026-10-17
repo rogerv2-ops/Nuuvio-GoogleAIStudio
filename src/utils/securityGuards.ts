@@ -147,6 +147,7 @@ export function esIntencionOfertas(text: string | undefined | null): boolean {
     .replace(/\s+/g, " ")
     .trim();
   if (!t) return false;
+  if (t === "oferta") return true;
   return FRASES_INTENCION_OFERTAS.some((f) => {
     const escaped = f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp("(?:^|[^a-z0-9])" + escaped + "(?:[^a-z0-9]|$)").test(t);

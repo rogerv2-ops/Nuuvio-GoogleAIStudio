@@ -120,7 +120,7 @@ describe("normalizarTelefono", () => {
 
 describe("esIntencionOfertas", () => {
   test("detecta pedidos explicitos de ofertas", () => {
-    for (const t of ["ofertas", "OFERTAS", "quiero ofertas", "hay ofertas", "más ofertas", "ver ofertas", "promociones", "descuentos"]) {
+    for (const t of ["oferta", "ofertas", "OFERTA", "OFERTAS", "quiero ofertas", "hay ofertas", "más ofertas", "ver ofertas", "promociones", "descuentos"]) {
       expect(esIntencionOfertas(t)).toBe(true);
     }
   });
