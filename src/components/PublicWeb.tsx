@@ -44,6 +44,15 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [copiado, setCopiado] = useState(false);
   // Conteo local optimista de "Me Gusta" (informativo, no facturable)
   const [likesLocal, setLikesLocal] = useState<Record<string, number>>({});
+  // Catálogo público servido por el backend: solo ofertas activas con saldo (las más recientes)
+  const [ofertasPublicas, setOfertasPublicas] = useState<Offer[] | null>(null);
+
+  useEffect(() => {
+    fetch('/api/ofertas/publicas')
+      .then(r => r.json())
+      .then(d => { if (d?.ok && Array.isArray(d.ofertas)) setOfertasPublicas(d.ofertas); })
+      .catch(() => {});
+  }, []);
 
   // Formulario de registro de usuario legacy (para fallback de modal general)
   const [formUser, setFormUser] = useState({
@@ -157,7 +166,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   }, [fichaOferta, modalFunnelAbierto, modalRegistroAbierto, modalRegistroComercioAbierto, modalQuienesSomosAbierto, modalTerminosAbierto]);
 
   // Listar ofertas activas aprobadas ordenadas por fecha de aprobación / creación más reciente
-  const ofertas = ofertasModule.listarOfertasActivas();
+  const ofertas = ofertasPublicas ?? ofertasModule.listarOfertasActivas();
 
   // Filtrado exclusivamente a través del buscador ancho completo
   const ofertasFiltradas = ofertas.filter(o => {
@@ -193,7 +202,23 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       }
     });
 
-    // Redirección del lado del servidor: el número del sistema nunca se expone en el cliente.
+    // Inicio del embudo: si el usuario no está registrado/verificado, pasa al flujo de registro.
+    if (!estaVerificado) {
+      coreEvents.emitir({
+        tipoEvento: 'click_bloqueado_sin_registro',
+        actorTipo: 'usuario',
+        actorId: 'anonimo',
+        distrito: oferta?.distrito || 'Lima',
+        origen: 'web',
+        datos: { accion: 'lo_quiero', ofertaId: oferta?.id, comercioNombre: oferta?.comercioNombre }
+      });
+      setOfertaObjetivoFunnel(oferta || null);
+      setMotivoFunnel('whatsapp');
+      setModalFunnelAbierto(true);
+      return;
+    }
+
+    // Usuario registrado: el servidor arma el enlace a WhatsApp (el número nunca se expone en el cliente).
     const destino = oferta?.id ? `/go/oferta/${encodeURIComponent(oferta.id)}` : '/go/whatsapp';
     window.location.href = destino;
   };
