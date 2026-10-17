@@ -70,6 +70,23 @@ const API_PASSWORD = '/api/auth/password';
 const API_SECURITY_LOGS = '/api/security/logs';
 const API_FORGOT = '/api/auth/forgot-password';
 const API_RESET = '/api/auth/reset-password';
+const API_REFRESH = '/api/auth/refresh';
+
+const ACTIVITY_KEY = 'vuuy_auth_activity_v1';
+const IDLE_MS = 5 * 60 * 1000;
+const REFRESH_LEAD_MS = 2 * 60 * 1000;
+const VIGILANCIA_INTERVALO_MS = 15000;
+const ACTIVITY_EVENTS = [
+  'mousemove',
+  'mousedown',
+  'keydown',
+  'wheel',
+  'scroll',
+  'touchstart',
+  'touchmove',
+  'click',
+  'pointerdown'
+] as const;
 
 class CoreSecurity {
   public sesionActual: SesionUsuario | null = null;
@@ -79,6 +96,10 @@ class CoreSecurity {
   private fetchPatched = false;
   private bloqueoHasta = 0;
   private cerrandoPorNoAutorizado = false;
+  private ultimaActividad = Date.now();
+  private ultimaEscrituraActividad = 0;
+  private vigilanciaInstalada = false;
+  private renovando = false;
 
   constructor() {
     this.auditLogs = [
@@ -106,6 +127,7 @@ class CoreSecurity {
     this.instalarInterceptorFetch();
     this.instalarSincronizacionEntrePestanas();
     this.cargarSesionAlmacenada();
+    this.instalarVigilanciaInactividad();
   }
 
   /**
@@ -157,7 +179,13 @@ class CoreSecurity {
   private instalarSincronizacionEntrePestanas(): void {
     if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
     window.addEventListener('storage', (event) => {
-      if (!event || event.key !== STORAGE_KEY) return;
+      if (!event) return;
+      if (event.key === ACTIVITY_KEY) {
+        const ts = Number(event.newValue);
+        if (Number.isFinite(ts) && ts > 0) this.ultimaActividad = Math.max(this.ultimaActividad, ts);
+        return;
+      }
+      if (event.key !== STORAGE_KEY) return;
       if (event.newValue) {
         try {
           const parsed = JSON.parse(event.newValue) as SesionUsuario;
@@ -187,6 +215,97 @@ class CoreSecurity {
     this.cerrandoPorNoAutorizado = false;
   }
 
+  /** ¿La sesión actual debe expirar por inactividad? (admin y comercio). */
+  private sesionSujetaAInactividad(): boolean {
+    const rol = this.sesionActual?.rol;
+    return rol === 'admin' || rol === 'comercio';
+  }
+
+  /** Registra actividad del usuario y la comparte entre pestañas (para el timeout conjunto). */
+  private marcarActividad(): void {
+    const ahora = Date.now();
+    this.ultimaActividad = ahora;
+    if (ahora - this.ultimaEscrituraActividad > 1000) {
+      this.ultimaEscrituraActividad = ahora;
+      try {
+        localStorage.setItem(ACTIVITY_KEY, String(ahora));
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
+  /** Vigila la actividad real y cierra/renueva la sesión de admin y comercio. */
+  private instalarVigilanciaInactividad(): void {
+    if (typeof window === 'undefined' || this.vigilanciaInstalada) return;
+    const marcar = () => this.marcarActividad();
+    for (const evento of ACTIVITY_EVENTS) {
+      window.addEventListener(evento, marcar, { passive: true });
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', marcar, { passive: true });
+    }
+    window.setInterval(() => {
+      void this.revisarSesion();
+    }, VIGILANCIA_INTERVALO_MS);
+    this.vigilanciaInstalada = true;
+  }
+
+  private async revisarSesion(): Promise<void> {
+    if (!this.sesionActual) return;
+    if (this.sesionSujetaAInactividad() && Date.now() - this.ultimaActividad > IDLE_MS) {
+      this.cerrarPorInactividad();
+      return;
+    }
+    await this.renovarSesionSiNecesario();
+  }
+
+  private cerrarPorInactividad(): void {
+    if (!this.sesionActual) return;
+    this.registrarAuditoria({
+      operadorId: this.sesionActual.usuarioId,
+      operadorNombre: this.sesionActual.nombre,
+      accion: 'Cierre por inactividad',
+      entidad: 'sesion',
+      entidadId: this.sesionActual.usuarioId,
+      detalles: 'Sesión cerrada automáticamente tras 5 minutos sin actividad'
+    });
+    this.cerrarSesion();
+  }
+
+  /** Renueva el token mientras el usuario sigue activo (sesiones admin/comercio). */
+  private async renovarSesionSiNecesario(): Promise<void> {
+    const s = this.sesionActual;
+    if (!s || this.renovando || !this.sesionSujetaAInactividad()) return;
+    const restante = new Date(s.expiraEn).getTime() - Date.now();
+    if (restante > REFRESH_LEAD_MS) return;
+    if (restante <= 0) {
+      this.invalidarSesionLocal();
+      return;
+    }
+    this.renovando = true;
+    try {
+      const resp = await fetch(API_REFRESH, { method: 'POST' });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok && data?.token && data?.sesion) {
+        this.sesionActual = { ...data.sesion, token: data.token };
+        this.ultimaActividad = Date.now();
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sesionActual));
+        } catch {
+          /* noop */
+        }
+        this.notificar();
+      } else if (resp.status === 401) {
+        this.invalidarSesionLocal();
+      }
+    } catch {
+      /* noop */
+    } finally {
+      this.renovando = false;
+    }
+  }
+
   /** Valida contra el servidor la sesión almacenada (por si el token ya no sirve). */
   async validarSesionConServidor(): Promise<boolean> {
     if (!this.sesionActual) return false;
@@ -206,6 +325,10 @@ class CoreSecurity {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const guardada = localStorage.getItem(STORAGE_KEY);
+        const actividadGuardada = Number(localStorage.getItem(ACTIVITY_KEY));
+        if (Number.isFinite(actividadGuardada) && actividadGuardada > 0) {
+          this.ultimaActividad = Math.min(Date.now(), actividadGuardada);
+        }
         if (guardada) {
           const parsed = JSON.parse(guardada) as SesionUsuario;
           if (parsed && parsed.token && new Date(parsed.expiraEn).getTime() > Date.now()) {
@@ -252,6 +375,7 @@ class CoreSecurity {
       }
       const sesion: SesionUsuario = { ...data.sesion, token: data.token };
       this.sesionActual = sesion;
+      this.ultimaActividad = Date.now();
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sesion));
       } catch {

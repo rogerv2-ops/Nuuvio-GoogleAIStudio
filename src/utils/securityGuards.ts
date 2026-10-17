@@ -155,9 +155,10 @@ export function esIntencionOfertas(text: string | undefined | null): boolean {
 }
 
 export const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-export const AUTH_TOKEN_TTL_ADMIN_MS = 8 * 60 * 60 * 1000;
+export const AUTH_IDLE_TTL_MS = 5 * 60 * 1000;
 
-/** TTL de sesión según rol: admin usa ventana corta; el resto mantiene la ventana larga. */
+/** TTL de sesión según rol: admin y comercio expiran a los 5 min sin actividad (renovables); el resto usa la ventana larga. */
 export function ttlMsParaRol(rol: string | undefined | null): number {
-  return String(rol) === "admin" ? AUTH_TOKEN_TTL_ADMIN_MS : AUTH_TOKEN_TTL_MS;
+  const r = String(rol);
+  return r === "admin" || r === "comercio" ? AUTH_IDLE_TTL_MS : AUTH_TOKEN_TTL_MS;
 }
