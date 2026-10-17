@@ -25,13 +25,13 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
 
   useEffect(() => {
     // Cargar número dinámico de WhatsApp del servidor (código QR o respaldo)
-    fetch('/api/whatsapp/config')
+    fetch('/api/whatsapp/public')
       .then(res => res.json())
       .then(data => {
         if (data.ok && data.botPhone) {
           setActiveBotPhone(data.botPhone);
-        } else if (data.ok && data.wahaSession?.phone) {
-          setActiveBotPhone(data.wahaSession.phone);
+        } else if (data.ok && data.numeroConectado) {
+          setActiveBotPhone(data.numeroConectado);
         }
       })
       .catch(err => console.warn('Error al obtener botPhone:', err));

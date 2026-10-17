@@ -56,8 +56,7 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
         aplicarEstado(estado);
         return;
       }
-      const necesitaForzar = estado.status !== 'STARTING' && estado.status !== 'SCAN_QR_CODE';
-      const res = await fetch(necesitaForzar ? '/api/waha/session/qr?force=true' : '/api/waha/session/qr');
+      const res = await fetch('/api/waha/session/qr');
       const data = await res.json();
       if (data.ok) aplicarEstado(data);
     } catch (e) {
@@ -72,8 +71,7 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
   const refrescarQr = async () => {
     setCargando(true);
     try {
-      const necesitaForzar = status !== 'STARTING' && status !== 'SCAN_QR_CODE';
-      const res = await fetch(`/api/waha/session/qr${necesitaForzar ? '?force=true' : ''}`);
+      const res = await fetch('/api/waha/session/qr');
       const data = await res.json();
       if (data.ok) aplicarEstado(data);
     } catch (e) {

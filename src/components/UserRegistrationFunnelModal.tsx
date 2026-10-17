@@ -190,7 +190,7 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
       let waLink = emailRes.whatsappLink;
       if (!waLink) {
         try {
-          const cfgRes = await fetch('/api/whatsapp/config').then(r => r.json());
+          const cfgRes = await fetch('/api/whatsapp/public').then(r => r.json());
           if (cfgRes.ok && cfgRes.whatsappLink) {
             waLink = cfgRes.whatsappLink;
           }

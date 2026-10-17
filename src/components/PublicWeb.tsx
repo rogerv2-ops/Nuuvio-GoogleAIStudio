@@ -48,7 +48,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [likesLocal, setLikesLocal] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetch('/api/whatsapp/config')
+    fetch('/api/whatsapp/public')
       .then(res => res.json())
       .then(data => {
         if (data?.ok && data.botPhone) {
