@@ -31,9 +31,18 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 
 ## 3.b Seguridad (implementado 2026-10-16, commit a313d0d)
 - **Auth de servidor**: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`,
-  `GET/POST /api/auth/users`, `POST /api/auth/password`. Token HMAC-SHA256; secreto en
-  `app_settings.auth_secret`; credenciales (scrypt) en `app_settings.auth_users`.
-  Gate global `/api` con allowlist pública (`/api/version`, `/api/banners`, `/api/ofertas`, webhooks).
+  `GET/POST /api/auth/users`, `PUT/DELETE /api/auth/users/:id`, `POST /api/auth/password`
+  (autoservicio o admin). Token HMAC-SHA256; secreto en `app_settings.auth_secret`;
+  credenciales (scrypt) en `app_settings.auth_users`.
+  Gate global `/api` con allowlist pública (`/api/version`, `/api/banners`, `/api/ofertas`,
+  webhooks, `POST /api/auth/forgot-password` y `POST /api/auth/reset-password`).
+- **Recuperación de contraseña**: `POST /api/auth/forgot-password` (público, rate-limit `reset` 5/15min,
+  respuesta genérica sin enumerar cuentas) genera código temporal (15 min) con hash en
+  `app_settings.auth_reset_tokens` y lo despacha por Resend/SMTP (`enviarCorreo`). Si no hay proveedor
+  configurado, el código queda solo en logs del servidor. `POST /api/auth/reset-password` valida
+  código+expiry (un solo uso) y reemplaza el hash scrypt.
+- **Bloqueo por fuerza bruta**: tras 5 intentos fallidos de login por correo, cuenta bloqueada 15 min
+  (HTTP 423 + `bloqueado`/`segundosRestantes`); se limpia en login/reset exitoso. Estado en memoria.
 - **Roles**: `requireAdmin` en endpoints destructivos/config (audience users/purge/logs,
   whatsapp config, email config/test, cache/purge, waha/session start·logout·pairing·qr,
   banners/sync, comercios/sync, simulate-incoming). Comercio conserva ofertas/sync,

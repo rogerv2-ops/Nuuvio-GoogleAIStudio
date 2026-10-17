@@ -74,7 +74,20 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 3. `GET /api/auth/me` valida el token; el gate global `/api` responde `401` sin token válido.
 4. `requireAdmin` responde `403` si el rol no es `admin`. `POST /api/auth/logout` es stateless en cliente.
 5. Cada intento se registra en `security_logs` (login ok/fallido, acceso denegado, rate limit).
+6. **Bloqueo**: tras 5 fallos para un correo → 15 min de bloqueo (`423 {bloqueado, segundosRestantes}`);
+   `security.ts` mantiene el countdown y `LoginView` lo muestra. Se limpia al autenticar o restablecer.
 **Verificar:** `scripts/security-smoke.sh` (12 checks) o `bun test tests/security` con `TEST_BASE_URL`.
+
+## F10.b Recuperación de contraseña por correo
+**Actor:** cualquiera en `LoginView` ("¿Olvidaste tu contraseña?").
+1. `POST /api/auth/forgot-password {email}` (público, bucket `reset` 5/15min) → responde mensaje genérico
+   (sin enumerar cuentas). Si la cuenta existe: código de 8 hex (15 min) con hash SHA-256 en
+   `app_settings.auth_reset_tokens`; se envía por Resend/SMTP con `enviarCorreo`. Sin proveedor, el código
+   queda en logs del servidor (`[Auth] ... Codigo temporal: XXXXXXXX`).
+2. `POST /api/auth/reset-password {email, codigo, password}` (público) valida hash+expiry, reemplaza scrypt,
+   invalida el código (un solo uso) y limpia el bloqueo → `200`.
+3. UI en 2 pasos (solicitar código → código + nueva clave); `security.ts` expone
+   `solicitarResetContrasena` / `confirmarResetContrasena`.
 
 ## F11. Webhooks y guardas (SSRF / media)
 - **Meta** `POST /api/whatsapp/webhook`: exige `X-Hub-Signature-256` = HMAC-SHA256(rawBody, `WHATSAPP_APP_SECRET`);
