@@ -18,6 +18,8 @@ describe("M1 - verify token de Meta sin fallback hardcodeado", () => {
     const handler = SERVER.slice(i, i + 900);
     expect(handler).toContain("META_WA_VERIFY_TOKEN no configurada");
     expect(handler).toContain("status(403)");
+    expect(handler).toContain("process.env.META_WA_VERIFY_TOKEN");
+    expect(handler).not.toContain("waConfig.metaConfig.verifyToken");
     expect(handler).not.toContain('||"vuuy_verify_secret_2026"');
   });
 });
