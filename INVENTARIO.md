@@ -25,7 +25,7 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 - ⚠️ Sin probar vista por vista en browser (solo bundle contiene los endpoints)
 
 ## 3. Postgres `nuuviopsg` (10 tablas, con datos)
-`app_settings(merchants_list, merchants_kanban, whatsapp_config, auth_secret, auth_users)`, `offers(6)`,
+`app_settings(merchants_list, merchants_kanban, whatsapp_config, auth_secret, auth_users, auth_reset_tokens, click_packs_list)`, `offers(6)`,
 `banners(3)`, `audience_users(8)`, `chat_logs`, `click_logs`,
 `email_logs`, `registration_logs`, `users`, `security_logs`. Patrón: carga-si-existe, siembra-si-vacío.
 
@@ -58,6 +58,14 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 - **Auditoría**: tabla `security_logs` + `logEventoSeguridad` (login ok/fallido, denegado 401/403,
   rate limit, credenciales, webhooks rechazados).
 - **Tests**: `bun test tests/security` (unit + contrato black-box) y `scripts/security-smoke.sh`.
+
+## 3.c Ofertas: mosaico 1:1, clics CPC y "Me Gusta" (2026-10-17, commit 1eb2bfa)
+- **Mosaico**: `dispatchOffersMosaic` envía hasta **3** ofertas en **un solo mensaje** (imagen vertical de segmentos **1:1** numerados + caption con título/precio/enlace). Excluye ofertas de comercios **sin saldo** (`comercioTieneSaldo`).
+- **Tarjeta**: `renderOfferCardImage` **800×800** sin corazón; landing `aspect-square` sin título/descripción duplicados.
+- **CPC** `GET /c/:ofertaId` (rate limit `clicks` 20/60 s): `registerOfferClick` → `click_logs`; **1 clic facturable por ventana de 24 h** anclada al último clic facturable; debita `click_packs_list` (`debitarClic`, nunca < 0) e incrementa `leadsCalificados`; sin saldo ⇒ no facturable; `302` a WhatsApp del comercio con `NV-####`.
+- **Me Gusta** `POST /api/ofertas/:id/like` (rate limit `likes` 30/60 s): **informativo, no factura**; `incrementOfferLikes` atómico sobre `offers.likes`.
+- **Spec-Kit**: `specs/002-ofertas-mosaico-cpc/`.
+- **Verificado en prod**: 302+código, dedup 24 h, pack 80→78 en 2 facturables, rate limits (20/30→429), like persiste; datos de prueba limpiados.
 
 ## 4. Infra
 - App `pnpsnjshl9...` (Dockerfile, bun start :3000) + entrypoint auto-migrate

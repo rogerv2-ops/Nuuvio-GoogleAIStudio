@@ -98,5 +98,13 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 - **Media** `GET /api/media/video/:id`: `resolverRutaSegura` bloquea traversal (`400`); `Range` inválido → `416`.
 - **Rate limit**: buckets login/messaging/ai/global → `429` + `Retry-After`.
 
+## F12. Mosaico de ofertas (1:1), clics CPC y "Me Gusta" (2026-10-17)
+- **Mosaico (bot)**: `dispatchOffersMosaic` en `server.ts`. Filtra ofertas `activa`, no vencidas, con WhatsApp válido y **saldo de clics > 0** (`comercioTieneSaldo`); ordena por plan → `likes` → fecha; toma **máximo 3**; genera `renderMosaicImage` (segmentos **1:1** numerados) y envía **un solo mensaje** (imagen + caption con título/precio/enlace `/c/:id?u=<telefono>`).
+- **Tarjeta 1:1**: `renderOfferCardImage` es **800×800** y sin corazón; la landing usa `aspect-square` y ya no repite título/descripción.
+- **Redirección CPC** `GET /c/:ofertaId?u=<telefono>` (rate limit `clicks` 20/60 s): registra el clic en `click_logs` (`registerOfferClick`), decide facturabilidad y redirige `302` a WhatsApp del comercio con título + código `NV-####`.
+- **Ventana de facturabilidad**: solo el **1.er clic facturable cada 24 h** por `(oferta, teléfono)`; la ventana se ancla al **último clic facturable** (los no facturables no la reinician). Un clic facturable debita **1** de `click_packs_list` (`debitarClic`, nunca < 0) e incrementa `leadsCalificados`; sin saldo ⇒ no facturable, sin débito, igual redirige.
+- **"Me Gusta"** `POST /api/ofertas/:id/like` (rate limit `likes` 30/60 s): **informativo, no factura**; `incrementOfferLikes` (SQL atómico) persiste en `offers.likes`. La landing muestra el conteo en vivo.
+- **Tablas:** `click_logs`. **Probar:** `GET /c/<oferta>?u=519...` (302 + código), repetir <24 h (no facturable), `POST /api/ofertas/<id>/like`.
+
 ## Orden sugerido de pruebas E2E
 1. Vincular QR (F1) → 2. simulate-incoming "ofertas en Miraflores" (F2) → 3. crear+aprobar oferta con imagen (F3+F8) → 4. registro usuario (F6) → 5. vistas comercio/admin una por una (F5) → 6. email (F7). Login/sesión (F10) precede a todo lo de gestión.

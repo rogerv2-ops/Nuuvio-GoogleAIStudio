@@ -97,7 +97,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 - [x] T021 [US2] Construir la redirección `302` a `https://api.whatsapp.com/send?phone={comercioWhatsapp}&text={titulo + " " + codigoCanje}` incluyendo título y código, en `server.ts`. (FR-012/SC-005)
 - [x] T022 [US2] Manejar oferta inexistente → `404` sin clic corrupto ni redirección inválida; doble toque idempotente (sin doble débito ni códigos contradictorios), en `server.ts`. (edge cases)
 - [x] T023 [US2] Aplicar el bucket `clicks` de rate limit (20/60 s) a `GET /c/:ofertaId` en `server.ts`. (FR-023)
-- [ ] T024 [US2] Validar US2 con los Escenarios 4–5 y 8 de `specs/002-ofertas-mosaico-cpc/quickstart.md`.
+- [x] T024 [US2] Validar US2 con los Escenarios 4–5 y 8 de `specs/002-ofertas-mosaico-cpc/quickstart.md`.
 
 **Checkpoint**: US1 y US2 funcionan de forma independiente.
 
@@ -120,7 +120,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 - [x] T028 [US3] En `src/components/PublicWeb.tsx`: eliminar el botón Heart/favoritos actual (líneas ~470-479, con `alert("guardada en favoritos")`) y reemplazarlo por el botón "Me Gusta" (👍) que llame a `POST /api/ofertas/{id}/like`, actualice el conteo optimista y luego con el valor del servidor. (FR-015, informativo)
 - [x] T029 [US3] Conectar el like a `incrementOfferLikes` vía `POST /api/ofertas/:id/like` en `server.ts`, con persistencia atómica, bucket `likes` (30/60 s) de rate limit y ruta pública en `esRutaPublica`; garantizar que el like **no** toca `clics`, `leadsCalificados` ni saldos (no factura). (FR-016/FR-019/FR-023)
 - [x] T030 [US3] Cambiar el manejador "Lo quiero" en `src/components/PublicWeb.tsx` a `abrirWhatsAppNativo(botPhone, "Quiero la oferta: " + oferta.titulo)`. (FR-017)
-- [ ] T031 [US3] Validar US3 con los Escenarios 6–7 de `specs/002-ofertas-mosaico-cpc/quickstart.md`.
+- [x] T031 [US3] Validar US3 con los Escenarios 6–7 de `specs/002-ofertas-mosaico-cpc/quickstart.md`.
 
 **Checkpoint**: Las tres historias funcionan de forma independiente.
 
@@ -132,10 +132,10 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 
 - [x] T032 [P] Ejecutar `bun build server.ts --target=node --outdir /tmp/bc --external vite` y `bun run build`; corregir errores. (raíz del repo)
 - [x] T033 [P] Ejecutar `bun test` (extender si se añadieron tests) y `scripts/security-smoke.sh`; confirmar cero regresiones.
-- [ ] T034 Actualizar `INVENTARIO.md`/`FLUJOS.md` (F10/F10.b/F11) y marcar el Gap Analysis de `specs/002-ofertas-mosaico-cpc/plan.md` como completado.
+- [x] T034 Actualizar `INVENTARIO.md`/`FLUJOS.md` (F10/F10.b/F11) y marcar el Gap Analysis de `specs/002-ofertas-mosaico-cpc/plan.md` como completado.
 - [ ] T035 [P] Ejecutar los 8 Escenarios del `specs/002-ofertas-mosaico-cpc/quickstart.md` de punta a punta.
-- [ ] T036 Commit de `specs/002-ofertas-mosaico-cpc/` + cambios de fuente, push a `main`, esperar auto-deploy de Coolify y verificar en producción (mosaico, `/c/`, ventana 24 h, persistencia de likes, rate limits).
-- [ ] T037 Validación final de la constitución (Principios I–V): `click_logs` persistido, sin dataURLs, migración aditiva, Me Gusta informativo fuera del cómputo de cobro.
+- [x] T036 Commit de `specs/002-ofertas-mosaico-cpc/` + cambios de fuente, push a `main`, esperar auto-deploy de Coolify y verificar en producción (mosaico, `/c/`, ventana 24 h, persistencia de likes, rate limits).
+- [x] T037 Validación final de la constitución (Principios I–V): `click_logs` persistido, sin dataURLs, migración aditiva, Me Gusta informativo fuera del cómputo de cobro.
 
 ---
 
