@@ -122,14 +122,12 @@ export const MisOfertasComercioView: React.FC<MisOfertasComercioViewProps> = ({
     setMensajeResultado(null);
 
     try {
-      const res = await fetch('/api/whatsapp/test-message', {
+      const res = await fetch('/api/comercio/ofertas/compartir', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telefono: cleanTel,
-          texto: textoMensaje,
-          videoUrl: esVideo ? mediaUrl : undefined,
-          imageUrl: !esVideo ? mediaUrl : undefined,
+          ofertaId: modalCompartir.id,
           tipo: esVideo ? 'video' : 'image'
         })
       });
