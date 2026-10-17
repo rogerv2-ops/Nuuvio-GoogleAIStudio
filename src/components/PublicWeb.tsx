@@ -16,7 +16,6 @@ import { capturarAtribucionDeUrl } from '../utils/attribution';
 import { coreEvents } from '../core/events';
 import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
 import { esOfertaNueva } from '../utils/ofertaUtils';
-import { abrirWhatsAppNativo } from '../utils/whatsappNative';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -43,20 +42,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [modalQuienesSomosAbierto, setModalQuienesSomosAbierto] = useState(false);
   const [modalTerminosAbierto, setModalTerminosAbierto] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const [botPhone, setBotPhone] = useState<string>('51987654321');
   // Conteo local optimista de "Me Gusta" (informativo, no facturable)
   const [likesLocal, setLikesLocal] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    fetch('/api/whatsapp/public')
-      .then(res => res.json())
-      .then(data => {
-        if (data?.ok && data.botPhone) {
-          setBotPhone(data.botPhone);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // Formulario de registro de usuario legacy (para fallback de modal general)
   const [formUser, setFormUser] = useState({
@@ -193,7 +180,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
 
   const handleContactarOferta = (oferta?: Offer | null) => {
-    const targetPhone = botPhone || '51987654321';
     coreEvents.emitir({
       tipoEvento: 'click_lo_quiero_directo',
       actorTipo: 'usuario',
@@ -207,9 +193,9 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       }
     });
 
-    // En móviles Android/iOS invoca whatsapp://send para abrir el selector nativo del sistema ("Abrir con: WhatsApp / WhatsApp Business")
-    // En escritorio detecta la permanencia del foco tras 1200ms y redirige automáticamente a la web oficial (https://api.whatsapp.com/send)
-    abrirWhatsAppNativo(targetPhone, oferta ? `Quiero la oferta: ${oferta.titulo}` : 'Ofertas');
+    // Redirección del lado del servidor: el número del sistema nunca se expone en el cliente.
+    const destino = oferta?.id ? `/go/oferta/${encodeURIComponent(oferta.id)}` : '/go/whatsapp';
+    window.location.href = destino;
   };
 
   // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.

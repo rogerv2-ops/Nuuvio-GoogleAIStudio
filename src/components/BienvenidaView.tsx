@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { AudienceUser } from '../types';
 import { usuariosModule } from '../modules/usuarios';
-import { abrirWhatsAppNativo } from '../utils/whatsappNative';
 
 interface BienvenidaViewProps {
   onVolverAWeb: () => void;
@@ -21,20 +20,16 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
   const [token, setToken] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<AudienceUser | null>(null);
   const [estadoVerificacion, setEstadoVerificacion] = useState<'verificando' | 'valido' | 'invalido'>('verificando');
-  const [activeBotPhone, setActiveBotPhone] = useState<string>(botPhone);
+  const [whatsappConectado, setWhatsappConectado] = useState<boolean>(Boolean(botPhone));
 
   useEffect(() => {
-    // Cargar número dinámico de WhatsApp del servidor (código QR o respaldo)
+    // El número del sistema nunca se expone al cliente; solo el estado de conexión.
     fetch('/api/whatsapp/public')
       .then(res => res.json())
       .then(data => {
-        if (data.ok && data.botPhone) {
-          setActiveBotPhone(data.botPhone);
-        } else if (data.ok && data.numeroConectado) {
-          setActiveBotPhone(data.numeroConectado);
-        }
+        if (data.ok) setWhatsappConectado(Boolean(data.conectado));
       })
-      .catch(err => console.warn('Error al obtener botPhone:', err));
+      .catch(err => console.warn('Error al obtener estado de WhatsApp:', err));
   }, []);
 
   useEffect(() => {
@@ -85,16 +80,8 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
     }
   }, []);
 
-  // Construir el enlace oficial a WhatsApp con la palabra exacta "Ofertas"
-  const cleanPhone = (activeBotPhone || botPhone || '').replace(/\D/g, '');
-  const nativeWhatsappUrl = cleanPhone ? `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent('Ofertas')}` : '#';
-  const webWhatsappUrl = cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent('Ofertas')}` : '#';
-
-  const handleAbrirWhatsapp = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!cleanPhone) return;
-    e.preventDefault();
-    abrirWhatsAppNativo(cleanPhone, 'Ofertas');
-  };
+  // Enlace público que redirige en el servidor a WhatsApp (el número nunca se expone en el cliente)
+  const whatsappRedirectUrl = '/go/whatsapp';
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6">
@@ -185,10 +172,9 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
                 </p>
 
                 {/* BOTÓN OFICIAL A WHATSAPP CON MENSAJE PREESCRITO "Ofertas" */}
-                {cleanPhone ? (
+                {whatsappConectado ? (
                   <a
-                    href={nativeWhatsappUrl}
-                    onClick={handleAbrirWhatsapp}
+                    href={whatsappRedirectUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all"

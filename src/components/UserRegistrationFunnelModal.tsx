@@ -187,18 +187,8 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
 
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
       const vLink = emailRes.verificationLink || `${currentOrigin}/bienvenida?verify_token=${regRes.verificationToken}`;
-      let waLink = emailRes.whatsappLink;
-      if (!waLink) {
-        try {
-          const cfgRes = await fetch('/api/whatsapp/public').then(r => r.json());
-          if (cfgRes.ok && cfgRes.whatsappLink) {
-            waLink = cfgRes.whatsappLink;
-          }
-        } catch (_) {}
-      }
-      if (!waLink) {
-        waLink = `whatsapp://send?text=${encodeURIComponent('Ofertas')}`;
-      }
+      // El número del sistema nunca se expone: el enlace apunta al redirect público del servidor.
+      const waLink = emailRes.whatsappLink || '/go/whatsapp';
 
       setVerificationLink(vLink);
       setWhatsappLink(waLink);
