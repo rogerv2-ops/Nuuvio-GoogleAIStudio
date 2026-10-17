@@ -68,6 +68,8 @@ const API_LOGOUT = '/api/auth/logout';
 const API_USERS = '/api/auth/users';
 const API_PASSWORD = '/api/auth/password';
 const API_SECURITY_LOGS = '/api/security/logs';
+const API_FORGOT = '/api/auth/forgot-password';
+const API_RESET = '/api/auth/reset-password';
 
 class CoreSecurity {
   public sesionActual: SesionUsuario | null = null;
@@ -75,6 +77,7 @@ class CoreSecurity {
   private credenciales: Credencial[] = [];
   private auditLogs: RegistroAuditoria[] = [];
   private fetchPatched = false;
+  private bloqueoHasta = 0;
 
   constructor() {
     this.auditLogs = [
@@ -162,15 +165,20 @@ class CoreSecurity {
       const data: any = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok || !data?.sesion || !data?.token) {
         const error = data?.error || 'Credenciales de acceso incorrectas.';
+        const bloqueado = resp.status === 423 || data?.bloqueado === true;
+        const segundosRestantes = Number(data?.segundosRestantes) || 0;
+        if (bloqueado && segundosRestantes > 0) {
+          this.bloqueoHasta = Date.now() + segundosRestantes * 1000;
+        }
         this.registrarAuditoria({
           operadorId: 'sistema_seguridad',
           operadorNombre: 'Filtro Seguridad',
-          accion: 'Intento de acceso fallido',
+          accion: bloqueado ? 'Cuenta bloqueada temporalmente' : 'Intento de acceso fallido',
           entidad: 'autenticacion',
           entidadId: emailNormalizado.substring(0, 3) + '***',
           detalles: `Fallo de autenticación para ${emailNormalizado}`
         });
-        return { ok: false, error };
+        return { ok: false, error, bloqueado, segundosRestantes };
       }
       const sesion: SesionUsuario = { ...data.sesion, token: data.token };
       this.sesionActual = sesion;
@@ -445,8 +453,64 @@ class CoreSecurity {
     return [];
   }
 
+  /** Solicita el envío de un código de recuperación al correo indicado. */
+  async solicitarResetContrasena(email: string): Promise<{ ok: boolean; mensaje: string }> {
+    const correo = String(email || '').trim().toLowerCase();
+    if (!correo) return { ok: false, mensaje: 'Debe ingresar un correo electrónico.' };
+    try {
+      const resp = await fetch(API_FORGOT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: correo })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      return {
+        ok: resp.ok && data?.ok !== false,
+        mensaje:
+          data?.mensaje ||
+          data?.error ||
+          'Si el correo está registrado, recibirás un código de recuperación.'
+      };
+    } catch {
+      return { ok: false, mensaje: 'No se pudo conectar con el servidor de autenticación.' };
+    }
+  }
+
+  /** Confirma el restablecimiento con el código recibido y la nueva contraseña. */
+  async confirmarResetContrasena(
+    email: string,
+    codigo: string,
+    nuevaContrasena: string
+  ): Promise<{ ok: boolean; mensaje: string }> {
+    const correo = String(email || '').trim().toLowerCase();
+    const code = String(codigo || '').trim();
+    const pass = String(nuevaContrasena || '').trim();
+    if (!correo || !code || !pass) {
+      return { ok: false, mensaje: 'Correo, código y nueva contraseña son requeridos.' };
+    }
+    if (pass.length < 6) {
+      return { ok: false, mensaje: 'La nueva contraseña debe tener al menos 6 caracteres.' };
+    }
+    try {
+      const resp = await fetch(API_RESET, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: correo, codigo: code, password: pass })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (resp.ok && data?.ok) {
+        this.bloqueoHasta = 0;
+        return { ok: true, mensaje: data.mensaje || 'Contraseña restablecida correctamente.' };
+      }
+      return { ok: false, mensaje: data?.error || 'No se pudo restablecer la contraseña.' };
+    } catch {
+      return { ok: false, mensaje: 'No se pudo conectar con el servidor de autenticación.' };
+    }
+  }
+
   obtenerEstadoBloqueo(): { bloqueado: boolean; segundosRestantes: number; intentosRestantes: number } {
-    return { bloqueado: false, segundosRestantes: 0, intentosRestantes: 5 };
+    const restantes = Math.max(0, Math.ceil((this.bloqueoHasta - Date.now()) / 1000));
+    return { bloqueado: restantes > 0, segundosRestantes: restantes, intentosRestantes: 5 };
   }
 }
 

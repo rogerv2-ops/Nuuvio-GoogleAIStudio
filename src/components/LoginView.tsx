@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Store, Lock, Mail, Eye, EyeOff, 
-  ArrowLeft, AlertCircle, ShieldAlert, Clock
+  ArrowLeft, AlertCircle, ShieldAlert, Clock, KeyRound, CheckCircle2
 } from 'lucide-react';
 import { coreSecurity, AuthSession } from '../core/security';
 
@@ -25,6 +25,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [segundosBloqueo, setSegundosBloqueo] = useState<number>(0);
+
+  // Flujo de recuperación de contraseña por correo
+  const [resetPaso, setResetPaso] = useState<0 | 1 | 2>(0);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCodigo, setResetCodigo] = useState('');
+  const [resetNueva, setResetNueva] = useState('');
+  const [resetMostrarPass, setResetMostrarPass] = useState(false);
+  const [resetCargando, setResetCargando] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
 
   // Monitor de bloqueo de seguridad por fuerza bruta
   useEffect(() => {
@@ -70,6 +80,70 @@ export const LoginView: React.FC<LoginViewProps> = ({
     if (resultado.sesion) {
       onLoginExitoso(resultado.sesion);
     }
+  };
+
+  const abrirRecuperacion = () => {
+    setResetEmail(email);
+    setResetCodigo('');
+    setResetNueva('');
+    setResetError(null);
+    setResetInfo(null);
+    setResetPaso(1);
+  };
+
+  const cancelarRecuperacion = () => {
+    setResetPaso(0);
+    setResetError(null);
+    setResetInfo(null);
+  };
+
+  const handleSolicitarReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      setResetError('Ingresa el correo de tu cuenta.');
+      return;
+    }
+    setResetError(null);
+    setResetInfo(null);
+    setResetCargando(true);
+    const r = await coreSecurity.solicitarResetContrasena(resetEmail);
+    setResetCargando(false);
+    if (!r.ok) {
+      setResetError(r.mensaje);
+      return;
+    }
+    setResetInfo(r.mensaje);
+    setResetPaso(2);
+  };
+
+  const handleConfirmarReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetInfo(null);
+    setResetCargando(true);
+    const r = await coreSecurity.confirmarResetContrasena(resetEmail, resetCodigo, resetNueva);
+    setResetCargando(false);
+    if (!r.ok) {
+      setResetError(r.mensaje);
+      return;
+    }
+    setResetInfo(r.mensaje);
+    setEmail(resetEmail.trim().toLowerCase());
+    setPassword('');
+    setResetPaso(0);
+  };
+
+  const reenviarCodigo = async () => {
+    setResetError(null);
+    setResetInfo(null);
+    setResetCargando(true);
+    const r = await coreSecurity.solicitarResetContrasena(resetEmail);
+    setResetCargando(false);
+    if (!r.ok) {
+      setResetError(r.mensaje);
+      return;
+    }
+    setResetInfo('Código reenviado. Revisa tu correo.');
   };
 
   return (
@@ -136,7 +210,140 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
           ) : null}
 
-          {/* Formulario de Login */}
+          {resetPaso > 0 ? (
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={cancelarRecuperacion}
+                className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver al inicio de sesión</span>
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-800">Recuperar contraseña</h2>
+                  <p className="text-[11px] text-stone-500">
+                    {resetPaso === 1
+                      ? 'Te enviaremos un código de verificación a tu correo.'
+                      : 'Ingresa el código recibido y tu nueva contraseña.'}
+                  </p>
+                </div>
+              </div>
+
+              {resetError ? (
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-rose-700 text-xs flex items-start gap-2.5 animate-fadeIn">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+                  <div className="flex-1 font-medium">{resetError}</div>
+                </div>
+              ) : resetInfo ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-emerald-700 text-xs flex items-start gap-2.5 animate-fadeIn">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                  <div className="flex-1 font-medium">{resetInfo}</div>
+                </div>
+              ) : null}
+
+              <form onSubmit={resetPaso === 1 ? handleSolicitarReset : handleConfirmarReset} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">Correo Electrónico</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      disabled={resetPaso === 2}
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="tu-correo@empresa.pe"
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 font-medium placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 transition-all disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {resetPaso === 2 && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">Código de verificación</label>
+                      <input
+                        type="text"
+                        required
+                        inputMode="text"
+                        autoComplete="one-time-code"
+                        value={resetCodigo}
+                        onChange={(e) => setResetCodigo(e.target.value.toUpperCase())}
+                        placeholder="A1B2C3D4"
+                        className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm tracking-[0.3em] text-center font-bold text-stone-900 placeholder:text-stone-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">Nueva Contraseña</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={resetMostrarPass ? 'text' : 'password'}
+                          required
+                          minLength={6}
+                          autoComplete="new-password"
+                          value={resetNueva}
+                          onChange={(e) => setResetNueva(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 font-medium placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setResetMostrarPass(!resetMostrarPass)}
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-600 focus:outline-none"
+                          tabIndex={-1}
+                        >
+                          {resetMostrarPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={resetCargando}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 ${
+                    esGestion
+                      ? 'bg-[#0F172A] hover:bg-[#1E293B] shadow-slate-900/10'
+                      : 'bg-[#1B4332] hover:bg-[#2D6A4F] shadow-emerald-900/10'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {resetCargando ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>{resetPaso === 1 ? 'Enviar código' : 'Restablecer contraseña'}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {resetPaso === 2 && (
+                <button
+                  type="button"
+                  onClick={reenviarCodigo}
+                  disabled={resetCargando}
+                  className="w-full text-[11px] text-stone-500 hover:text-stone-800 transition-colors disabled:opacity-50"
+                >
+                  ¿No recibiste el código? Reenviar
+                </button>
+              )}
+            </div>
+          ) : (
+          <>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1.5">
@@ -192,6 +399,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
             </div>
 
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={abrirRecuperacion}
+                disabled={segundosBloqueo > 0}
+                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-600 transition-colors disabled:opacity-50"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={cargando || segundosBloqueo > 0}
@@ -220,6 +438,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </span>
             <span>Protección contra fuerza bruta activa</span>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
