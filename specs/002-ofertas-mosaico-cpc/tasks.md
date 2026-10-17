@@ -73,7 +73,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 - [x] T013 [US1] Verificar que el pie enumera cada oferta con título, precio y enlace `/c/{ofertaId}?u={telefono}` en `server.ts`. (FR-005/FR-008)
 - [x] T014 [US1] Cubrir casos borde: altura proporcional con 1/2/3 ofertas; cero ofertas elegibles → no enviar mosaico + aviso; fallo de render/envío visible y no parcial, en `server.ts`/`src/utils/cardRenderer.ts`.
 - [x] T015 [US1] Verificar el ranking sin cambios: el `sortFn` de `dispatchOffersMosaic` en `server.ts` usa el criterio vigente (plan → `likes` → fecha) y **no** introduce un criterio nuevo; `likes` solo influye en el orden, nunca en el débito. (FR-022)
-- [ ] T016 [US1] Validar US1 con los Escenarios 1–3 de `specs/002-ofertas-mosaico-cpc/quickstart.md` contra una instancia en marcha.
+- [x] T016 [US1] Validar US1 con los Escenarios 1–3 de `specs/002-ofertas-mosaico-cpc/quickstart.md` contra una instancia en marcha. (automatizado en `tests/ofertas/mosaic.e2e.test.ts`; PASS en prod vía `simulate-incoming`; Escenario 1 por render)
 
 **Checkpoint**: US1 funcional y testeable de forma independiente.
 
@@ -87,7 +87,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 
 ### Tests for User Story 2 (OPTIONAL)
 
-- [ ] T017 [P] [US2] (OPTIONAL) Tests de contrato/integración para `GET /c/:id` (facturable, ancla de ventana 24 h, 404, rate limit) en `tests/`.
+- [x] T017 [P] [US2] Tests de contrato para `GET /c/:id` (facturable, ancla de ventana 24 h, sin saldo, 404, rate limit) en `tests/ofertas/cpc.contract.test.ts`; asserts de débito en `scripts/ofertas_fixtures.py assert`. PASS en prod.
 
 ### Implementation for User Story 2
 
@@ -111,7 +111,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 
 ### Tests for User Story 3 (OPTIONAL)
 
-- [ ] T025 [P] [US3] (OPTIONAL) Test de que `POST /api/ofertas/:id/like` incrementa y persiste los likes tras reinicio (sin afectar saldos ni clics) en `tests/`.
+- [x] T025 [P] [US3] Test de `POST /api/ofertas/:id/like` (incrementa, persiste, NO factura ni toca clics/leads) en `tests/ofertas/likes.contract.test.ts`. PASS en prod.
 
 ### Implementation for User Story 3
 
@@ -133,7 +133,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 - [x] T032 [P] Ejecutar `bun build server.ts --target=node --outdir /tmp/bc --external vite` y `bun run build`; corregir errores. (raíz del repo)
 - [x] T033 [P] Ejecutar `bun test` (extender si se añadieron tests) y `scripts/security-smoke.sh`; confirmar cero regresiones.
 - [x] T034 Actualizar `INVENTARIO.md`/`FLUJOS.md` (F10/F10.b/F11) y marcar el Gap Analysis de `specs/002-ofertas-mosaico-cpc/plan.md` como completado.
-- [ ] T035 [P] Ejecutar los 8 Escenarios del `specs/002-ofertas-mosaico-cpc/quickstart.md` de punta a punta.
+- [x] T035 [P] Ejecutar los 8 Escenarios del `specs/002-ofertas-mosaico-cpc/quickstart.md` de punta a punta. (2–6 y 8 automatizados en `tests/ofertas/`; 1 y 7 validados por render/bundle; `./scripts/ofertas-tests.sh` en prod: 10 pass, cleanup OK)
 - [x] T036 Commit de `specs/002-ofertas-mosaico-cpc/` + cambios de fuente, push a `main`, esperar auto-deploy de Coolify y verificar en producción (mosaico, `/c/`, ventana 24 h, persistencia de likes, rate limits).
 - [x] T037 Validación final de la constitución (Principios I–V): `click_logs` persistido, sin dataURLs, migración aditiva, Me Gusta informativo fuera del cómputo de cobro.
 
@@ -162,7 +162,7 @@ description: "Task list for Mosaico de Ofertas, Formato 1:1, Clics CPC y Redirec
 
 - Setup: T002, T003.
 - Foundational: T005, T006 (archivos distintos).
-- Tests opcionales: T009, T017, T025.
+- Tests: T017 y T025 implementados (T016/T035 verificados); T009 pendiente.
 - Historias: US1, US2 y US3 pueden abordarse en paralelo tras Foundational (distintas áreas).
 
 ---

@@ -65,6 +65,7 @@ Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 - **CPC** `GET /c/:ofertaId` (rate limit `clicks` 20/60 s): `registerOfferClick` → `click_logs`; **1 clic facturable por ventana de 24 h** anclada al último clic facturable; debita `click_packs_list` (`debitarClic`, nunca < 0) e incrementa `leadsCalificados`; sin saldo ⇒ no facturable; `302` a WhatsApp del comercio con `NV-####`.
 - **Me Gusta** `POST /api/ofertas/:id/like` (rate limit `likes` 30/60 s): **informativo, no factura**; `incrementOfferLikes` atómico sobre `offers.likes`.
 - **Spec-Kit**: `specs/002-ofertas-mosaico-cpc/`.
+- **Tests**: `tests/ofertas/{cpc,likes,mosaic}.*.test.ts` + `scripts/ofertas-tests.sh` (siembra fixtures de prueba, reinicia, corre `bun test`, verifica débito en DB y limpia). 10 pass en prod.
 - **Verificado en prod**: 302+código, dedup 24 h, pack 80→78 en 2 facturables, rate limits (20/30→429), like persiste; datos de prueba limpiados.
 
 ## 4. Infra

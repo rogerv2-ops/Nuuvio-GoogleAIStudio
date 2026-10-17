@@ -96,3 +96,21 @@ export PATH="$HOME/.bun/bin:$PATH"
 bun test                 # suite existente (contrato/HTTP)
 bun run build            # build de producción obligatorio
 ```
+
+### Suite de ofertas (T016/T017/T025)
+
+Los Escenarios 2–6 y 8 están automatizados en `tests/ofertas/` (black-box HTTP),
+con fixtures dedicadas y limpieza garantizada:
+
+```bash
+# Siembra fixtures de prueba -> reinicia app -> bun test -> asserts en DB -> limpia.
+BASE_URL=https://nuuvio.sustrae.com \
+VUUV_ADMIN_EMAIL=... VUUV_ADMIN_PASSWORD=... \
+./scripts/ofertas-tests.sh
+```
+
+- `tests/ofertas/mosaic.e2e.test.ts` — Escenarios 2 y 3 (un solo mensaje, ≤3, exclusión por saldo).
+- `tests/ofertas/cpc.contract.test.ts` — Escenarios 4, 5 y 8 (facturable/débito, ventana 24 h, 404, 429).
+- `tests/ofertas/likes.contract.test.ts` — Escenario 6 (Me Gusta persiste, no factura).
+- `scripts/ofertas_fixtures.py` — seed/assert/cleanup (ids `*_test_*`, teléfonos `519990000…`).
+- Escenarios 1 y 7 se validaron por render (`renderMosaicImage`/`renderOfferCardImage`) y bundle.
