@@ -130,7 +130,7 @@ var dispatchOffersMosaic = async function dispatchOffersMosaic(user, distrito, d
 
       // Construcción del caption combinado con numeración y links de redirección CPC
       const numberEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
-      const hostUrl = process.env.APP_URL || process.env.PUBLIC_URL || 'https://nuuvio.ai.studio';
+      const hostUrl = process.env.APP_URL || process.env.PUBLIC_URL || process.env.COOLIFY_URL || (process.env.COOLIFY_FQDN ? `https://${process.env.COOLIFY_FQDN}` : "") || 'https://nuuvio.ai.studio';
       const baseUrl = hostUrl.replace(/\/+$/, "");
 
       const introLine = introAMostrar ? introAMostrar + "\n\n" : "";
