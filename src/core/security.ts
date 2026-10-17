@@ -78,6 +78,7 @@ class CoreSecurity {
   private auditLogs: RegistroAuditoria[] = [];
   private fetchPatched = false;
   private bloqueoHasta = 0;
+  private cerrandoPorNoAutorizado = false;
 
   constructor() {
     this.auditLogs = [
@@ -103,17 +104,23 @@ class CoreSecurity {
       }
     ];
     this.instalarInterceptorFetch();
+    this.instalarSincronizacionEntrePestanas();
     this.cargarSesionAlmacenada();
   }
 
-  /** Adjunta el token de sesión a toda llamada interna a /api/*. */
+  /**
+   * Adjunta el token de sesión a toda llamada interna a /api/* y detecta
+   * respuestas 401 para invalidar la sesión local (evita que la consola se
+   * renderice "logueada" mientras el servidor rechaza cada llamada).
+   */
   private instalarInterceptorFetch(): void {
     if (typeof window === 'undefined' || this.fetchPatched || typeof window.fetch !== 'function') return;
     const fetchOriginal = window.fetch.bind(window);
     window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      let url = '';
       try {
         const token = this.sesionActual?.token;
-        const url =
+        url =
           typeof input === 'string'
             ? input
             : input instanceof URL
@@ -127,9 +134,72 @@ class CoreSecurity {
       } catch {
         /* noop */
       }
-      return fetchOriginal(input as any, init);
+      return fetchOriginal(input as any, init).then((res) => {
+        try {
+          if (
+            res &&
+            res.status === 401 &&
+            url.indexOf('/api/') !== -1 &&
+            !/\/api\/auth\/(login|forgot-password|reset-password|me)/.test(url)
+          ) {
+            this.invalidarSesionLocal();
+          }
+        } catch {
+          /* noop */
+        }
+        return res;
+      });
     };
     this.fetchPatched = true;
+  }
+
+  /** Refleja en esta pestaña los cambios de sesión hechos en otra pestaña. */
+  private instalarSincronizacionEntrePestanas(): void {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+    window.addEventListener('storage', (event) => {
+      if (!event || event.key !== STORAGE_KEY) return;
+      if (event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue) as SesionUsuario;
+          if (parsed && parsed.token) this.sesionActual = parsed;
+        } catch {
+          /* noop */
+        }
+      } else {
+        this.sesionActual = null;
+      }
+      this.notificar();
+    });
+  }
+
+  /** Limpia la sesión local cuando el servidor respondió 401 (token inválido/expirado). */
+  invalidarSesionLocal(): void {
+    if (this.cerrandoPorNoAutorizado) return;
+    if (!this.sesionActual) return;
+    this.cerrandoPorNoAutorizado = true;
+    this.sesionActual = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* noop */
+    }
+    this.notificar();
+    this.cerrandoPorNoAutorizado = false;
+  }
+
+  /** Valida contra el servidor la sesión almacenada (por si el token ya no sirve). */
+  async validarSesionConServidor(): Promise<boolean> {
+    if (!this.sesionActual) return false;
+    try {
+      const resp = await fetch('/api/auth/me');
+      if (resp.status === 401) {
+        this.invalidarSesionLocal();
+        return false;
+      }
+      return resp.ok;
+    } catch {
+      return true;
+    }
   }
 
   private cargarSesionAlmacenada(): void {
@@ -241,8 +311,8 @@ class CoreSecurity {
 
   tieneAcceso(superficie: string): boolean {
     if (superficie === 'web') return true;
-    if (!this.sesionActual) return false;
-    if (superficie === 'gestion') return this.sesionActual.rol === 'admin';
+    if (!this.estaAutenticado()) return false;
+    if (superficie === 'gestion') return this.sesionActual!.rol === 'admin';
     if (superficie === 'comercio') return this.sesionActual.rol === 'comercio' || this.sesionActual.rol === 'admin';
     return false;
   }

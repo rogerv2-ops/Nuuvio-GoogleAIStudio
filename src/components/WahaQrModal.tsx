@@ -28,22 +28,38 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
   const [generandoCodigo, setGenerandoCodigo] = useState(false);
   const [copiadoCodigo, setCopiadoCodigo] = useState(false);
 
-  // Iniciar sesión y obtener QR real
+  // Aplica una respuesta de estado/QR del servidor al estado del modal.
+  const aplicarEstado = (data: any) => {
+    if (!data) return;
+    if (data.qrDataUrl) {
+      setQrDataUrl(data.qrDataUrl);
+      setStatus('SCAN_QR_CODE');
+      setSegundosRestantes(45);
+      return;
+    }
+    if (data.status === 'WORKING') {
+      setQrDataUrl(null);
+      setStatus('WORKING');
+      setPhone(data.phone || null);
+      if (onSessionConnected && data.phone) onSessionConnected(data.phone);
+      return;
+    }
+    if (data.status) setStatus(data.status);
+  };
+
+  // Iniciar sesión y obtener QR real (reutiliza la sesión activa si existe)
   const iniciarSesionQr = async () => {
     setCargando(true);
     try {
-      const res = await fetch('/api/waha/session/start', { method: 'POST' });
-      const data = await res.json();
-      if (data.ok) {
-        if (data.qrDataUrl) {
-          setQrDataUrl(data.qrDataUrl);
-          setStatus('SCAN_QR_CODE');
-        } else if (data.status === 'WORKING') {
-          setStatus('WORKING');
-          setPhone(data.phone);
-        }
-        setSegundosRestantes(45);
+      const estado = await fetch('/api/waha/session/status').then(r => r.json()).catch(() => ({}));
+      if (estado.status === 'WORKING' || estado.qrDataUrl) {
+        aplicarEstado(estado);
+        return;
       }
+      const necesitaForzar = estado.status !== 'STARTING' && estado.status !== 'SCAN_QR_CODE';
+      const res = await fetch(necesitaForzar ? '/api/waha/session/qr?force=true' : '/api/waha/session/qr');
+      const data = await res.json();
+      if (data.ok) aplicarEstado(data);
     } catch (e) {
       console.error('Error al iniciar sesión WhatsApp:', e);
       setStatus('FAILED');
@@ -56,19 +72,10 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
   const refrescarQr = async () => {
     setCargando(true);
     try {
-      const res = await fetch('/api/waha/session/qr');
+      const necesitaForzar = status !== 'STARTING' && status !== 'SCAN_QR_CODE';
+      const res = await fetch(`/api/waha/session/qr${necesitaForzar ? '?force=true' : ''}`);
       const data = await res.json();
-      if (data.ok) {
-        if (data.qrDataUrl) {
-          setQrDataUrl(data.qrDataUrl);
-          setStatus('SCAN_QR_CODE');
-        }
-        if (data.status === 'WORKING') {
-          setStatus('WORKING');
-          setPhone(data.phone);
-        }
-        setSegundosRestantes(45);
-      }
+      if (data.ok) aplicarEstado(data);
     } catch (e) {
       console.error('Error al refrescar QR:', e);
     } finally {
@@ -81,15 +88,7 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
     try {
       const res = await fetch('/api/waha/session/status');
       const data = await res.json();
-      if (data.ok) {
-        setStatus(data.status);
-        if (data.status === 'WORKING') {
-          setPhone(data.phone);
-          if (onSessionConnected && data.phone) {
-            onSessionConnected(data.phone);
-          }
-        }
-      }
+      if (data.ok) aplicarEstado(data);
     } catch (e) {
       console.error('Error verificando estado:', e);
     }

@@ -115,6 +115,7 @@ export default function App() {
   useEffect(() => {
     sincronizarVersionConServidor();
     seoMetadataModule.inicializar();
+    void coreSecurity.validarSesionConServidor();
     const forzarActualizacion = () => setTick(t => t + 1);
     const unConfig = coreConfig.suscribir(forzarActualizacion);
     const unSecurity = coreSecurity.suscribir(forzarActualizacion);
