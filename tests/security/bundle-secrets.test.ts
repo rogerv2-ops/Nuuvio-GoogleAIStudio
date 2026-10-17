@@ -5,7 +5,7 @@ import path from "node:path";
 const ROOT = path.resolve(import.meta.dir, "../..");
 const DIST = path.join(ROOT, "dist");
 
-const SECRETOS_PROHIBIDOS = ["Pasion2271", "CREDENCIALES_SISTEMA", "rogerv707@gmail.com"];
+const SECRETOS_PROHIBIDOS = ["Pasion2271", "CREDENCIALES_SISTEMA", "rogerv707@gmail.com", "vuuy_verify_secret_2026", "vuuy-dev-fallback-secret"];
 
 function recorrer(dir: string): string[] {
   const out: string[] = [];

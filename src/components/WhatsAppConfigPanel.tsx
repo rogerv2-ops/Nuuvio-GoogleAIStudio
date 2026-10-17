@@ -44,7 +44,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
       phoneNumberId: '',
       wabaId: '',
       accessToken: '',
-      verifyToken: 'vuuy_verify_secret_2026',
+      verifyToken: '',
       webhookUrl: '/api/whatsapp/webhook'
     },
     wahaConfig: {
@@ -572,7 +572,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
                       ...config,
                       metaConfig: { ...config.metaConfig, verifyToken: e.target.value }
                     })}
-                    placeholder="vuuy_verify_secret_2026"
+                    placeholder="verify token de Meta (se define en el servidor)"
                     className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                   />
                   <p className="text-[11px] text-stone-400">
