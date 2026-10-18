@@ -62,6 +62,15 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const [miPassword, setMiPassword] = useState('');
   const [miPasswordMsg, setMiPasswordMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
+  // Segundo factor (MFA / TOTP)
+  const [mfaEstado, setMfaEstado] = useState<{ habilitado: boolean; disponible: boolean } | null>(null);
+  const [mfaCargando, setMfaCargando] = useState(false);
+  const [mfaSetup, setMfaSetup] = useState<{ secret: string; otpauthUrl: string; qrDataUrl?: string } | null>(null);
+  const [mfaCodigo, setMfaCodigo] = useState('');
+  const [mfaCodigoDesactivar, setMfaCodigoDesactivar] = useState('');
+  const [mfaMensaje, setMfaMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [mfaCodigosRespaldo, setMfaCodigosRespaldo] = useState<string[] | null>(null);
+
   // Estados de nueva credencial
   const [modalNuevoUsuarioAbierto, setModalNuevoUsuarioAbierto] = useState(false);
   const [nuevoUsuarioForm, setNuevoUsuarioForm] = useState({
@@ -104,6 +113,69 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
       coreSecurity.cargarLogsSeguridad(150).then(setLogsSeguridad).catch(() => undefined);
     }
   }, [subruta]);
+
+  useEffect(() => {
+    if (esSeguridad) {
+      coreSecurity
+        .obtenerEstadoMfa()
+        .then((r) => {
+          if (r.ok) setMfaEstado({ habilitado: !!r.habilitado, disponible: r.disponible !== false });
+        })
+        .catch(() => undefined);
+    }
+  }, [subruta]);
+
+  const iniciarMfa = async () => {
+    setMfaMensaje(null);
+    setMfaCodigosRespaldo(null);
+    setMfaCargando(true);
+    const r = await coreSecurity.configurarMfa();
+    setMfaCargando(false);
+    if (!r.ok || !r.secret) {
+      setMfaMensaje({ ok: false, texto: r.error || 'No se pudo iniciar la configuración.' });
+      return;
+    }
+    setMfaSetup({ secret: r.secret, otpauthUrl: r.otpauthUrl || '', qrDataUrl: r.qrDataUrl });
+    setMfaCodigo('');
+  };
+
+  const confirmarMfa = async () => {
+    if (!mfaCodigo.trim()) return;
+    setMfaMensaje(null);
+    setMfaCargando(true);
+    const r = await coreSecurity.activarMfa(mfaCodigo);
+    setMfaCargando(false);
+    if (!r.ok) {
+      setMfaMensaje({ ok: false, texto: r.error || 'Código incorrecto.' });
+      return;
+    }
+    setMfaSetup(null);
+    setMfaCodigo('');
+    setMfaCodigosRespaldo(r.codigosRespaldo || []);
+    setMfaEstado({ habilitado: true, disponible: true });
+    setMfaMensaje({ ok: true, texto: 'Verificación en dos pasos activada.' });
+  };
+
+  const desactivarMfa = async () => {
+    if (!mfaCodigoDesactivar.trim()) return;
+    setMfaMensaje(null);
+    setMfaCargando(true);
+    const r = await coreSecurity.desactivarMfa(mfaCodigoDesactivar);
+    setMfaCargando(false);
+    if (!r.ok) {
+      setMfaMensaje({ ok: false, texto: r.error || 'Código incorrecto.' });
+      return;
+    }
+    setMfaCodigoDesactivar('');
+    setMfaCodigosRespaldo(null);
+    setMfaEstado({ habilitado: false, disponible: true });
+    setMfaMensaje({ ok: true, texto: 'Verificación en dos pasos desactivada.' });
+  };
+
+  const cancelarMfaSetup = () => {
+    setMfaSetup(null);
+    setMfaCodigo('');
+  };
 
   const handleToggleFlag = (nombre: keyof typeof flags) => {
     coreConfig.alternarModulo(nombre, 'Super Admin');
@@ -427,6 +499,85 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
       {/* 7. SEGURIDAD, CLAVES DE ACCESO Y VARIABLES DE ENTORNO */}
       {esSeguridad && (
         <div className="space-y-6">
+          {/* Tarjeta de Verificación en Dos Pasos (MFA / TOTP) */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-emerald-700" />
+                  <span>Verificación en Dos Pasos (MFA / TOTP)</span>
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Protege tu cuenta de administración con un código temporal de una app autenticadora.
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-[11px] font-bold self-start sm:self-auto ${mfaEstado?.habilitado ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                {mfaEstado?.habilitado ? 'Activado' : 'Desactivado'}
+              </span>
+            </div>
+
+            {mfaEstado?.disponible === false && (
+              <div className="p-3.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                MFA está deshabilitado globalmente por configuración del servidor (VUUV_MFA_DISABLED).
+              </div>
+            )}
+
+            {mfaMensaje && (
+              <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${mfaMensaje.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                {mfaMensaje.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <Shield className="w-4 h-4 text-rose-600 shrink-0" />}
+                <span>{mfaMensaje.texto}</span>
+              </div>
+            )}
+
+            {mfaCodigosRespaldo && (
+              <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-2">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />Códigos de respaldo (guárdalos ahora; no se vuelven a mostrar)
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {mfaCodigosRespaldo.map((c) => (
+                    <code key={c} className="px-2 py-1.5 bg-white rounded-lg border border-amber-200 text-[11px] font-mono text-center text-amber-900">{c}</code>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mfaSetup ? (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                  {mfaSetup.qrDataUrl ? (
+                    <img src={mfaSetup.qrDataUrl} alt="Código QR MFA" className="w-40 h-40 rounded-xl border border-stone-200 bg-white p-1" />
+                  ) : null}
+                  <div className="text-xs text-stone-600 space-y-1.5 flex-1 min-w-0">
+                    <p className="font-semibold text-stone-800">1. Escanea el código QR con tu app autenticadora.</p>
+                    <p>Si no puedes escanear, ingresa esta clave manualmente:</p>
+                    <code className="block px-3 py-2 bg-stone-50 rounded-lg border border-stone-200 font-mono text-[11px] break-all text-stone-800">{mfaSetup.secret}</code>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">2. Ingresa el código de 6 dígitos para confirmar</label>
+                  <input type="text" value={mfaCodigo} onChange={(e) => setMfaCodigo(e.target.value)} placeholder="123456" className="w-full sm:w-56 px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm tracking-[0.3em] text-center font-bold text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700" />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={mfaCargando} onClick={confirmarMfa} className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">Confirmar y activar</button>
+                  <button type="button" onClick={cancelarMfaSetup} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-all">Cancelar</button>
+                </div>
+              </div>
+            ) : mfaEstado?.habilitado ? (
+              <div className="space-y-3">
+                <p className="text-xs text-stone-500">Para desactivar, ingresa un código de tu app o un código de respaldo.</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <input type="text" value={mfaCodigoDesactivar} onChange={(e) => setMfaCodigoDesactivar(e.target.value)} placeholder="Código" className="w-40 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm tracking-[0.2em] text-center font-bold text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500" />
+                  <button type="button" disabled={mfaCargando} onClick={desactivarMfa} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">Desactivar MFA</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" disabled={mfaCargando || mfaEstado?.disponible === false} onClick={iniciarMfa} className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5">
+                <Key className="w-4 h-4" />Activar verificación en dos pasos
+              </button>
+            )}
+          </div>
+
           {/* Tarjeta de Sesión Activa */}
           <div className="bg-white rounded-2xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">

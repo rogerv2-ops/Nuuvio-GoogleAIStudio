@@ -35,6 +35,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [resetCargando, setResetCargando] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetInfo, setResetInfo] = useState<string | null>(null);
+  const [mfaPaso, setMfaPaso] = useState(false);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCodigo, setMfaCodigo] = useState('');
 
   // Monitor de bloqueo de seguridad por fuerza bruta
   useEffect(() => {
@@ -62,6 +65,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
     const resultado = await coreSecurity.iniciarSesion(email, password);
     setCargando(false);
 
+    if (resultado.mfaRequerido && resultado.mfaToken) {
+      setMfaToken(resultado.mfaToken);
+      setMfaCodigo('');
+      setMfaPaso(true);
+      setError(null);
+      return;
+    }
+
     if (!resultado.ok) {
       setError(resultado.error || 'Credenciales de acceso incorrectas.');
       if (resultado.bloqueado && resultado.segundosRestantes) {
@@ -77,6 +88,34 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
+    if (resultado.sesion) {
+      onLoginExitoso(resultado.sesion);
+    }
+  };
+
+  const cancelarMfa = () => {
+    setMfaPaso(false);
+    setMfaToken(null);
+    setMfaCodigo('');
+    setError(null);
+  };
+
+  const handleSubmitMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaToken) return;
+    setError(null);
+    setCargando(true);
+    const resultado = await coreSecurity.verificarMfa(mfaToken, mfaCodigo);
+    setCargando(false);
+    if (!resultado.ok) {
+      setError(resultado.error || 'Código de verificación incorrecto.');
+      return;
+    }
+    if (esGestion && resultado.sesion?.rol !== 'admin') {
+      setError('Esta cuenta no cuenta con permisos de Administrador para acceder a esta consola.');
+      coreSecurity.cerrarSesion();
+      return;
+    }
     if (resultado.sesion) {
       onLoginExitoso(resultado.sesion);
     }
@@ -341,6 +380,64 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   ¿No recibiste el código? Reenviar
                 </button>
               )}
+            </div>
+          ) : mfaPaso ? (
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={cancelarMfa}
+                className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver al inicio de sesión</span>
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-800">Verificación en dos pasos</h2>
+                  <p className="text-[11px] text-stone-500">
+                    Ingresa el código de 6 dígitos de tu app autenticadora o un código de respaldo.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitMfa} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">Código de verificación</label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    inputMode="text"
+                    autoComplete="one-time-code"
+                    value={mfaCodigo}
+                    onChange={(e) => setMfaCodigo(e.target.value.toUpperCase())}
+                    placeholder="123456"
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-lg tracking-[0.4em] text-center font-bold text-stone-900 placeholder:text-stone-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={cargando}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 ${
+                    esGestion
+                      ? 'bg-[#0F172A] hover:bg-[#1E293B] shadow-slate-900/10'
+                      : 'bg-[#1B4332] hover:bg-[#2D6A4F] shadow-emerald-900/10'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {cargando ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Verificar</span>
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           ) : (
           <>

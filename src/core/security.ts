@@ -60,6 +60,8 @@ interface ResultadoLogin {
   error?: string;
   bloqueado?: boolean;
   segundosRestantes?: number;
+  mfaRequerido?: boolean;
+  mfaToken?: string;
 }
 
 const STORAGE_KEY = 'vuuy_auth_session_v3';
@@ -71,6 +73,11 @@ const API_SECURITY_LOGS = '/api/security/logs';
 const API_FORGOT = '/api/auth/forgot-password';
 const API_RESET = '/api/auth/reset-password';
 const API_REFRESH = '/api/auth/refresh';
+const API_LOGIN_MFA = '/api/auth/login/mfa';
+const API_MFA_STATUS = '/api/auth/mfa/status';
+const API_MFA_SETUP = '/api/auth/mfa/setup';
+const API_MFA_ACTIVATE = '/api/auth/mfa/activate';
+const API_MFA_DISABLE = '/api/auth/mfa/disable';
 
 const ACTIVITY_KEY = 'vuuy_auth_activity_v1';
 const IDLE_MS = 5 * 60 * 1000;
@@ -356,6 +363,9 @@ class CoreSecurity {
         body: JSON.stringify({ email: emailNormalizado, password: contrasenaLimpia })
       });
       const data: any = await resp.json().catch(() => ({}));
+      if (data?.mfaRequerido && data?.mfaToken) {
+        return { ok: false, mfaRequerido: true, mfaToken: String(data.mfaToken) };
+      }
       if (!resp.ok || !data?.ok || !data?.sesion) {
         const error = data?.error || 'Credenciales de acceso incorrectas.';
         const bloqueado = resp.status === 423 || data?.bloqueado === true;
@@ -393,6 +403,96 @@ class CoreSecurity {
       return { ok: true, sesion };
     } catch {
       return { ok: false, error: 'No se pudo conectar con el servidor de autenticación.' };
+    }
+  }
+
+  async verificarMfa(mfaToken: string, codigo: string): Promise<ResultadoLogin> {
+    const codigoLimpio = String(codigo || '').trim();
+    if (!mfaToken || !codigoLimpio) {
+      return { ok: false, error: 'Ingrese el código de verificación.' };
+    }
+    try {
+      const resp = await fetch(API_LOGIN_MFA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfaToken, codigo: codigoLimpio })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok || !data?.sesion) {
+        return { ok: false, error: data?.error || 'Código de verificación incorrecto.' };
+      }
+      const sesion: SesionUsuario = { ...data.sesion, token: '' };
+      this.sesionActual = sesion;
+      this.ultimaActividad = Date.now();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sesion));
+      } catch {
+        /* noop */
+      }
+      this.registrarAuditoria({
+        operadorId: sesion.usuarioId,
+        operadorNombre: sesion.nombre,
+        accion: 'Inicio de sesión (MFA)',
+        entidad: 'sesion',
+        entidadId: sesion.usuarioId,
+        detalles: `Segundo factor verificado con rol ${sesion.rol} (${sesion.email})`
+      });
+      this.notificar();
+      return { ok: true, sesion };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor de autenticación.' };
+    }
+  }
+
+  async obtenerEstadoMfa(): Promise<{ ok: boolean; habilitado?: boolean; disponible?: boolean; error?: string }> {
+    try {
+      const resp = await fetch(API_MFA_STATUS);
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudo consultar el estado de MFA.' };
+      return { ok: true, habilitado: !!data.habilitado, disponible: data.disponible !== false };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
+    }
+  }
+
+  async configurarMfa(): Promise<{ ok: boolean; secret?: string; otpauthUrl?: string; qrDataUrl?: string; error?: string }> {
+    try {
+      const resp = await fetch(API_MFA_SETUP, { method: 'POST' });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudo iniciar la configuración de MFA.' };
+      return { ok: true, secret: data.secret, otpauthUrl: data.otpauthUrl, qrDataUrl: data.qrDataUrl };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
+    }
+  }
+
+  async activarMfa(codigo: string): Promise<{ ok: boolean; codigosRespaldo?: string[]; error?: string }> {
+    try {
+      const resp = await fetch(API_MFA_ACTIVATE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: String(codigo || '').trim() })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudo activar MFA.' };
+      return { ok: true, codigosRespaldo: Array.isArray(data.codigosRespaldo) ? data.codigosRespaldo : [] };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
+    }
+  }
+
+  async desactivarMfa(codigo: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const resp = await fetch(API_MFA_DISABLE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: String(codigo || '').trim() })
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudo desactivar MFA.' };
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
     }
   }
 
