@@ -5,7 +5,6 @@
  * Incluye CRM Kanban de 7 etapas (F-OPS-02).
  */
 import { Merchant, MerchantKanbanItem, KanbanStage } from '../types';
-import { SEED_MERCHANTS } from '../data/seedData';
 import { coreEvents } from '../core/events';
 import { coreSecurity } from '../core/security';
 
@@ -23,29 +22,7 @@ class ComerciosModule {
   private listeners: (() => void)[] = [];
 
   constructor() {
-    const seedEtapas: Record<string, { etapa: KanbanStage; notas: string }> = {
-      merch_06: { etapa: 'prospecto', notas: 'Lead captado en Instagram. Interesada en promocionar panes de masa madre.' },
-      merch_07: { etapa: 'contactado', notas: 'Contactado vía WhatsApp. Coordinando reunión con el gerente comercial.' },
-      merch_08: { etapa: 'registrado', notas: 'Ficha completada en la web. RUC validado en SUNAT, pendiente fotos del local.' },
-      merch_05: { etapa: 'en_validacion', notas: 'Checklist de verificación física en proceso. Visita técnica agendada.' },
-      merch_00: { etapa: 'activo', notas: 'Comercio activo con oferta Ceviche 2x1 publicada y verificada.' },
-      merch_01: { etapa: 'activo', notas: 'Comercio verificado. Oferta de bowl saludable con alta demanda.' },
-      merch_02: { etapa: 'activo', notas: 'Tostaduría activa en Barranco. Tasa de conversión óptima.' },
-      merch_03: { etapa: 'activo', notas: 'Bao Bar Nikkei activo en San Isidro.' },
-      merch_04: { etapa: 'en_riesgo', notas: 'Alerta: Sin ofertas renovadas en los últimos 15 días. Programar llamada de reactivación.' },
-      merch_09: { etapa: 'perdido', notas: 'Comercio pausó operaciones temporalmente por remodelación.' }
-    };
-
-    SEED_MERCHANTS.forEach(m => {
-      this.comercios.set(m.id, { ...m });
-      const seed = seedEtapas[m.id];
-      this.kanban.set(m.id, {
-        merchantId: m.id,
-        etapa: seed ? seed.etapa : (m.estado === 'activo' ? 'activo' : m.estado === 'pendiente' ? 'en_validacion' : 'perdido'),
-        notas: seed ? seed.notas : (m.estado === 'activo' ? 'Comercio validado y activo' : 'Pendiente de verificación manual'),
-        actualizadoEn: new Date().toISOString()
-      });
-    });
+    // Sin siembra: los comercios se cargan desde PostgreSQL / API.
   }
 
   public registrarComercio(datos: {

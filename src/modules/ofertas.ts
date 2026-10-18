@@ -4,7 +4,6 @@
  * y vencimiento automático (hasta 30 días).
  */
 import { Offer, OfferType } from '../types';
-import { SEED_OFFERS } from '../data/seedData';
 import { coreEvents } from '../core/events';
 import { coreSecurity } from '../core/security';
 import { comerciosModule } from './comercios';
@@ -22,10 +21,7 @@ class OfertasModule {
   }
 
   private cargarDeLocalStorage() {
-    // 1. Cargar semillas como base
-    SEED_OFFERS.forEach(o => this.ofertas.set(o.id, { ...o }));
-
-    // 2. Sobrescribir / complementar con datos guardados en localStorage
+    // Cargar ofertas guardadas en localStorage (sin siembra)
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem(STORAGE_KEY_OFERTAS);

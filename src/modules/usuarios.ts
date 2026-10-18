@@ -4,16 +4,13 @@
  * vinculación de WhatsApp, categorías, consentimientos y bajas.
  */
 import { AudienceUser } from '../types';
-import { SEED_USER, SEED_AUDIENCE_USERS } from '../data/seedData';
 import { coreEvents } from '../core/events';
 
 class UsuariosModule {
-  private usuarios: Map<string, AudienceUser> = new Map(SEED_AUDIENCE_USERS.map(u => [u.id, u]));
+  private usuarios: Map<string, AudienceUser> = new Map();
 
   // Códigos temporales de 6 dígitos para vincular teléfono con correo (H1)
-  private codigosVinculacion: Map<string, { usuarioId: string; expiraEn: number }> = new Map([
-    ['542918', { usuarioId: 'usr_demo_02', expiraEn: Date.now() + 48 * 3600 * 1000 }]
-  ]);
+  private codigosVinculacion: Map<string, { usuarioId: string; expiraEn: number }> = new Map();
 
   private solicitudesDelDia: Map<string, { fecha: string; contador: number }> = new Map();
   private listeners: (() => void)[] = [];
@@ -92,12 +89,13 @@ class UsuariosModule {
         const parsed: AudienceUser[] = JSON.parse(guardados);
         if (Array.isArray(parsed)) {
           parsed.forEach((u) => {
-            if (u && u.id) {
+            if (u && u.id && !String(u.id).startsWith('usr_demo_')) {
               this.usuarios.set(u.id, u);
             }
           });
         }
       }
+      this.guardarEnStorage();
     } catch (e) {
       console.warn('Error al cargar usuarios de localStorage:', e);
     }

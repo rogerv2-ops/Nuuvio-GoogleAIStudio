@@ -4,33 +4,11 @@
  * marketplace de recompensas y canje con código alfanumérico único de 8 caracteres.
  */
 import { PointsMovement, Reward, Redemption } from '../types';
-import { SEED_REWARDS, SEED_USER } from '../data/seedData';
+import { SEED_REWARDS } from '../data/seedData';
 import { coreEvents } from '../core/events';
 
 class PuntosModule {
-  private movimientos: PointsMovement[] = [
-    {
-      id: 'mov_01',
-      usuarioId: SEED_USER.id,
-      cantidad: 50,
-      motivo: 'referido_registrado',
-      fecha: '2026-10-02T10:00:00Z'
-    },
-    {
-      id: 'mov_02',
-      usuarioId: SEED_USER.id,
-      cantidad: 50,
-      motivo: 'referido_registrado',
-      fecha: '2026-10-04T12:00:00Z'
-    },
-    {
-      id: 'mov_03',
-      usuarioId: SEED_USER.id,
-      cantidad: 40,
-      motivo: 'compartir',
-      fecha: '2026-10-06T15:00:00Z'
-    }
-  ];
+  private movimientos: PointsMovement[] = [];
 
   private recompensas: Map<string, Reward> = new Map();
   private canjes: Map<string, Redemption> = new Map();
