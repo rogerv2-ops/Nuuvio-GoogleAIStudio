@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
   onSuccess: (user: AudienceUser) => void;
   ofertaObjetivo?: Offer | null;
-  motivo?: 'whatsapp' | 'compartir' | 'general';
+  motivo?: 'whatsapp' | 'general';
 }
 
 const DISTRITOS_LIMA = [
@@ -266,7 +266,7 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
             {paso === 'formulario'
               ? (motivo === 'whatsapp'
                   ? 'Para pedir ofertas ("Lo quiero") y desbloquear promociones necesitas registrarte previamente.'
-                  : 'Para compartir ofertas ("Lo comparto") con tu enlace de referidos y sumar puntos, completa tu registro gratuito.')
+                  : 'Completa tu registro gratuito para desbloquear las ofertas cercanas y pedirlas por WhatsApp.')
               : `Hemos despachado tu invitación oficial a ${email}.`}
           </p>
 

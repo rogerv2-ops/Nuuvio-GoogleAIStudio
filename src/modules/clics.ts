@@ -8,7 +8,6 @@ import { coreEvents } from '../core/events';
 import { ofertasModule } from './ofertas';
 import { comerciosModule } from './comercios';
 import { facturacionModule } from './facturacion';
-import { puntosModule } from './puntos';
 
 class ClicsAtribucionModule {
   private clics: ClickRecord[] = [
@@ -23,58 +22,6 @@ class ClicsAtribucionModule {
       valido: true,
       facturable: true,
       creadoEn: new Date(Date.now() - 3600000 * 5).toISOString()
-    },
-    {
-      id: 'clk_sh_01',
-      ofertaId: 'ofr_01',
-      comercioId: 'merch_01',
-      usuarioId: 'usr_demo_01',
-      tipo: 'compartir',
-      codigoPersonal: 'VUUY-CV88',
-      referidoPor: 'VUUY-CV88',
-      canal: 'whatsapp',
-      valido: true,
-      facturable: false,
-      creadoEn: new Date(Date.now() - 3600000 * 38).toISOString()
-    },
-    {
-      id: 'clk_sh_02',
-      ofertaId: 'ofr_02',
-      comercioId: 'merch_02',
-      usuarioId: 'usr_demo_02',
-      tipo: 'compartir',
-      codigoPersonal: 'VUUY-LR26',
-      referidoPor: 'VUUY-LR26',
-      canal: 'web',
-      valido: true,
-      facturable: false,
-      creadoEn: new Date(Date.now() - 3600000 * 24).toISOString()
-    },
-    {
-      id: 'clk_sh_03',
-      ofertaId: 'ofr_03',
-      comercioId: 'merch_03',
-      usuarioId: 'usr_demo_03',
-      tipo: 'compartir',
-      codigoPersonal: 'VUUY-MA73',
-      referidoPor: 'VUUY-MA73',
-      canal: 'whatsapp',
-      valido: true,
-      facturable: false,
-      creadoEn: new Date(Date.now() - 3600000 * 18).toISOString()
-    },
-    {
-      id: 'clk_sh_04',
-      ofertaId: 'ofr_04',
-      comercioId: 'merch_04',
-      usuarioId: 'usr_demo_04',
-      tipo: 'compartir',
-      codigoPersonal: 'VUUY-VM91',
-      referidoPor: 'VUUY-VM91',
-      canal: 'web',
-      valido: true,
-      facturable: false,
-      creadoEn: new Date(Date.now() - 3600000 * 10).toISOString()
     },
     {
       id: 'clk_init_02',
@@ -182,60 +129,6 @@ class ClicsAtribucionModule {
 
     this.notificar();
     return { ok: true, waUrl, codigoPersonal, facturable };
-  }
-
-  /**
-   * Registro de clic en "Compartir" (F-AUD-04):
-   * Genera enlace de referido y suma puntos al usuario
-   */
-  public registrarClicCompartir(params: {
-    ofertaId: string;
-    usuarioId: string;
-    codigoRef: string;
-    canal: 'whatsapp' | 'web';
-  }): { urlCompartir: string; textoCompartir: string } {
-    const oferta = ofertasModule.obtenerOferta(params.ofertaId);
-    const urlCompartir = `${window.location.origin}/o/${oferta?.codigoUrl || params.ofertaId}?ref=${params.codigoRef}`;
-
-    const id = `clk_sh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    this.clics.unshift({
-      id,
-      ofertaId: params.ofertaId,
-      comercioId: oferta?.comercioId || '',
-      usuarioId: params.usuarioId,
-      tipo: 'compartir',
-      codigoPersonal: params.codigoRef,
-      referidoPor: params.codigoRef,
-      canal: params.canal,
-      valido: true,
-      facturable: false,
-      creadoEn: new Date().toISOString()
-    });
-
-    // Acreditar puntos por compartir (D7)
-    puntosModule.acreditarPuntos({
-      usuarioId: params.usuarioId,
-      cantidad: 10,
-      motivo: 'compartir',
-      referenciaId: params.ofertaId
-    });
-
-    coreEvents.emitir({
-      tipoEvento: 'clic_compartir',
-      actorTipo: 'usuario',
-      actorId: params.usuarioId,
-      distrito: oferta?.distrito,
-      origen: params.canal,
-      datos: {
-        ofertaId: params.ofertaId,
-        codigoRef: params.codigoRef
-      }
-    });
-
-    const textoCompartir = `¡Encontré esta super oferta en Yuddit! ${oferta?.titulo} a solo S/ ${oferta?.precioOferta} (Antes S/ ${oferta?.precioNormal}). Mírala aquí: ${urlCompartir}`;
-
-    this.notificar();
-    return { urlCompartir, textoCompartir };
   }
 
   /**

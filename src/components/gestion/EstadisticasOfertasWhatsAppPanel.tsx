@@ -22,7 +22,6 @@ import {
   Users,
   Eye,
   ArrowUpRight,
-  Share2,
   Info,
   CheckCircle2,
   Filter,
@@ -473,7 +472,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
         <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-2xs space-y-2">
           <div className="flex items-center justify-between text-stone-500">
             <span className="text-[11px] font-bold uppercase tracking-wider">Contactos Directos WA</span>
-            <Share2 className="w-4 h-4 text-emerald-800" />
+            <MessageCircle className="w-4 h-4 text-emerald-800" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-black text-stone-900">
@@ -885,7 +884,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
             Metodología del Alcance Estimado en WhatsApp
           </span>
           <p className="leading-relaxed text-[11px] text-stone-500">
-            El alcance estimado se calcula multiplicando las ofertas publicadas y activas por la base de audiencia verificada y suscriptores activos del bot oficial de Yuddit en cada distrito de Lima (Miraflores, Barranco, San Isidro, Surco, etc.), sumado a las impresiones en los digests matutinos y enlaces compartidos de WhatsApp con deep-link individual (<code className="font-mono text-emerald-900">wa.me/?text=...</code>).
+            El alcance estimado se calcula multiplicando las ofertas publicadas y activas por la base de audiencia verificada y suscriptores activos del bot oficial de Yuddit en cada distrito de Lima (Miraflores, Barranco, San Isidro, Surco, etc.), sumado a las impresiones en los digests matutinos.
           </p>
         </div>
       </div>

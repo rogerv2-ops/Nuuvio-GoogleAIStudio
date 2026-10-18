@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Globe, Search, CheckCircle2, AlertCircle, Sparkles, Copy, Check,
-  Share2, RefreshCw, Save, Tag, ExternalLink, Code2, Eye, ShieldCheck,
+  RefreshCw, Save, Tag, ExternalLink, Code2, Eye, ShieldCheck,
   Info, ArrowUpRight, Smartphone, Monitor
 } from 'lucide-react';
 import { seoMetadataModule, SeoMetadata, SeoScoreResult } from '../modules/seoMetadata';
@@ -374,11 +374,11 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
-                  <Share2 className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-[#0F172A]">Tarjetas Sociales (OpenGraph & Twitter)</h3>
-                  <p className="text-[11px] text-stone-400">Visualización al compartir en WhatsApp, Facebook y X</p>
+                  <p className="text-[11px] text-stone-400">Vista previa en WhatsApp, Facebook y X</p>
                 </div>
               </div>
             </div>
@@ -390,7 +390,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                   type="text"
                   value={datos.ogTitle}
                   onChange={e => handleChange('ogTitle', e.target.value)}
-                  placeholder="Título para compartir"
+                  placeholder="Título de la vista previa"
                   className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                 />
               </div>

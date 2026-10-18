@@ -75,13 +75,6 @@ class CoreConfig {
       actualizadoEn: new Date().toISOString(),
       actualizadoPor: 'Sistema'
     }],
-    ['puntos_por_compartir', {
-      clave: 'puntos_por_compartir',
-      valor: 10,
-      descripcion: 'Puntos otorgados al usuario por compartir una oferta (D7)',
-      actualizadoEn: new Date().toISOString(),
-      actualizadoPor: 'Sistema'
-    }],
     ['puntos_por_referido_registro', {
       clave: 'puntos_por_referido_registro',
       valor: 50,

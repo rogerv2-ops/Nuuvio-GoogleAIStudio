@@ -15,7 +15,6 @@ import {
   Legend
 } from 'recharts';
 import {
-  Share2,
   TrendingUp,
   Users,
   Target,
@@ -59,7 +58,6 @@ interface SharedLinkStat {
   codigoRef: string;
   usuarioNombre: string;
   distrito: string;
-  enlacesCompartidos: number;
   visitasGeneradas: number;
   referidosRegistrados: number;
   tasaConversion: number;
@@ -100,11 +98,6 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
   const clics: ClickRecord[] = useMemo(() => clicsAtribucionModule.listarClics(), [version]);
   const eventos: EventLog[] = useMemo(() => coreEvents.consultar({ limite: 250 }), [version]);
 
-  // Enlaces compartidos registrados (clics tipo compartir)
-  const eventosCompartir = useMemo(() => {
-    return clics.filter(c => c.tipo === 'compartir');
-  }, [clics]);
-
   // Eventos de visitas UTM capturadas
   const eventosVisitasUtm = useMemo(() => {
     return eventos.filter(e => e.tipoEvento === 'visita_landing_utm');
@@ -122,23 +115,15 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     const usuariosVerificados = usuarios.filter(u => u.emailVerificado).length;
     const tasaVerificacion = registrosTotales > 0 ? ((usuariosVerificados / registrosTotales) * 100).toFixed(1) : '0';
 
-    // Viralidad: Enlaces compartidos y registros derivados de referidos
-    const totalCompartidos = Math.max(eventosCompartir.length * 4 + 18, 26);
-    const registrosPorReferido = usuarios.filter(u => Boolean(u.invitadoPor)).length;
-    const factorViralK = totalCompartidos > 0 ? (registrosPorReferido / Math.max(registrosTotales, 1)).toFixed(2) : '0.45';
-
     return {
       visitasTotales,
       registrosConAtribucion,
       registrosTotales,
       usuariosVerificados,
       tasaConversionVisitas,
-      tasaVerificacion,
-      totalCompartidos,
-      registrosPorReferido,
-      factorViralK
+      tasaVerificacion
     };
-  }, [eventosVisitasUtm, usuarios, eventosCompartir]);
+  }, [eventosVisitasUtm, usuarios]);
 
   // Comparativa contra el periodo anterior inmediatamente igual
   const comparativaPeriodoAnterior = useMemo(() => {
@@ -146,14 +131,12 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     const priorVisitas = Math.max(1, Math.round(kpisAtribucion.visitasTotales * 0.82));
     const priorRegistros = Math.max(1, Math.round(kpisAtribucion.registrosTotales * 0.78));
     const priorVerificados = Math.max(1, Math.round(kpisAtribucion.usuariosVerificados * 0.80));
-    const priorCompartidos = Math.max(1, Math.round(kpisAtribucion.totalCompartidos * 0.85));
 
     return {
       infoAnt,
       priorVisitas,
       priorRegistros,
-      priorVerificados,
-      priorCompartidos
+      priorVerificados
     };
   }, [rangoFecha.fechaInicio, rangoFecha.fechaFin, kpisAtribucion]);
 
@@ -164,7 +147,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     whatsapp: '#10B981',  // Verde / WhatsApp
     tiktok: '#0F172A',    // Negro / TikTok
     google: '#F59E0B',    // Ámbar / Google
-    referidos: '#8B5CF6', // Violeta / Enlaces compartidos por usuarios
+    referidos: '#8B5CF6', // Violeta / Referidos
     directo: '#64748B'    // Gris / Directo
   };
 
@@ -220,8 +203,8 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     }).sort((a, b) => b.registros - a.registros || b.visitas - a.visitas);
   }, [eventosVisitasUtm, usuarios]);
 
-  // 4. Desglose de Rendimiento de Enlaces Compartidos por Afiliados / Referidores
-  const estadisticasEnlacesCompartidos = useMemo<SharedLinkStat[]>(() => {
+  // 4. Desglose de Rendimiento de Enlaces de Referidos por Afiliados / Referidores
+  const estadisticasReferidos = useMemo<SharedLinkStat[]>(() => {
     const mapaAfiliados: Record<string, SharedLinkStat> = {};
 
     // Inicializar con los usuarios que tienen código de referido
@@ -231,20 +214,11 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
           codigoRef: u.codigoRef,
           usuarioNombre: `${u.nombre} ${u.apellido}`,
           distrito: u.distrito || 'Lima',
-          enlacesCompartidos: 0,
           visitasGeneradas: 0,
           referidosRegistrados: 0,
           tasaConversion: 0,
           puntosGanados: u.puntosSaldo || 0
         };
-      }
-    });
-
-    // Contabilizar veces que compartieron
-    eventosCompartir.forEach(c => {
-      const ref = c.referidoPor || c.codigoPersonal;
-      if (ref && mapaAfiliados[ref]) {
-        mapaAfiliados[ref].enlacesCompartidos += 1;
       }
     });
 
@@ -265,7 +239,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
 
     return Object.values(mapaAfiliados)
       .map(item => {
-        const visitas = Math.max(item.visitasGeneradas, item.enlacesCompartidos * 3 + item.referidosRegistrados * 2);
+        const visitas = Math.max(item.visitasGeneradas, item.referidosRegistrados * 2);
         const conv = visitas > 0 ? Number(((item.referidosRegistrados / visitas) * 100).toFixed(1)) : 0;
         return {
           ...item,
@@ -273,8 +247,8 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
           tasaConversion: conv
         };
       })
-      .sort((a, b) => b.referidosRegistrados - a.referidosRegistrados || b.enlacesCompartidos - a.enlacesCompartidos);
-  }, [usuarios, eventosCompartir, eventosVisitasUtm]);
+      .sort((a, b) => b.referidosRegistrados - a.referidosRegistrados || b.visitasGeneradas - a.visitasGeneradas);
+  }, [usuarios, eventosVisitasUtm]);
 
   // 5. Serie Temporal para Gráfico Principal (Visitas vs Registros vs Verificados por Día)
   const datosSerieTemporal = useMemo(() => {
@@ -302,8 +276,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         fecha: diaTexto,
         visitasAtribuidas: baseVisitas,
         registrosUtm: baseRegistros,
-        verificados: baseVerificados,
-        referidosCompartidos: Math.round(baseRegistros * 0.6)
+        verificados: baseVerificados
       });
 
       curr.setDate(curr.getDate() + 1);
@@ -383,14 +356,14 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
   }, [estadisticasPorFuente, busqueda]);
 
   const enlacesFiltrados = useMemo(() => {
-    if (!busqueda.trim()) return estadisticasEnlacesCompartidos;
+    if (!busqueda.trim()) return estadisticasReferidos;
     const term = busqueda.toLowerCase();
-    return estadisticasEnlacesCompartidos.filter(e =>
+    return estadisticasReferidos.filter(e =>
       e.codigoRef.toLowerCase().includes(term) ||
       e.usuarioNombre.toLowerCase().includes(term) ||
       e.distrito.toLowerCase().includes(term)
     );
-  }, [estadisticasEnlacesCompartidos, busqueda]);
+  }, [estadisticasReferidos, busqueda]);
 
   return (
     <div className="space-y-6">
@@ -439,8 +412,8 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* ================= 4 TARJETAS DE KPIS NUMÉRICAS ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ================= 3 TARJETAS DE KPIS NUMÉRICAS ================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* KPI 1: Visitas Inbound Atribuidas */}
         {/* KPI 1: Visitas Inbound Atribuidas */}
         <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
@@ -493,25 +466,6 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
             <TrendBadge
               actual={kpisAtribucion.usuariosVerificados}
               anterior={comparativaPeriodoAnterior.priorVerificados}
-              etiquetaPeriodo="vs periodo ant."
-              size="xs"
-            />
-          </div>
-        </div>
-
-        {/* KPI 4: Viralidad por Enlaces Compartidos */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs space-y-1.5">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-medium">Enlaces Compartidos (K-Factor)</span>
-            <Share2 className="w-4 h-4 text-indigo-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none">
-            {kpisAtribucion.totalCompartidos}
-          </div>
-          <div className="pt-1">
-            <TrendBadge
-              actual={kpisAtribucion.totalCompartidos}
-              anterior={comparativaPeriodoAnterior.priorCompartidos}
               etiquetaPeriodo="vs periodo ant."
               size="xs"
             />
@@ -827,7 +781,6 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
                   <th className="py-2.5 px-3">Código Afiliado (Ref)</th>
                   <th className="py-2.5 px-3">Usuario Promotor</th>
                   <th className="py-2.5 px-3">Distrito</th>
-                  <th className="py-2.5 px-3 text-right">Compartidos</th>
                   <th className="py-2.5 px-3 text-right">Visitas Generadas</th>
                   <th className="py-2.5 px-3 text-right">Referidos Registrados</th>
                   <th className="py-2.5 px-3 text-right">Conversión</th>
@@ -837,7 +790,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                 {enlacesFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-slate-500">
+                    <td colSpan={7} className="py-6 text-center text-slate-500">
                       No hay enlaces de afiliados que coincidan con el criterio.
                     </td>
                   </tr>
@@ -856,9 +809,6 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
                         </td>
                         <td className="py-3 px-3 text-slate-500">
                           {item.distrito}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-600">
-                          {item.enlacesCompartidos}
                         </td>
                         <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-600">
                           {item.visitasGeneradas}
@@ -942,7 +892,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
                     <option value="paid_social">paid_social (Pauta pagada)</option>
                     <option value="social_post">social_post (Post orgánico)</option>
                     <option value="creator_bio">creator_bio (Enlace en Bio)</option>
-                    <option value="chat_share">chat_share (Compartido en Chat)</option>
+                    <option value="chat_share">chat_share (Chat / mensajería)</option>
                     <option value="cpc">cpc (Búsqueda paga)</option>
                   </select>
                 </div>

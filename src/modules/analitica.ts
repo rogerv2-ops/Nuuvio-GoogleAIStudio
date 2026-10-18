@@ -14,7 +14,6 @@ export interface GlobalKPIs {
   comerciosActivos: number;
   ofertasActivas: number;
   usuariosRegistrados: number;
-  kFactorViral: number;
   tiempoMedianoValidacionHoras: number;
 }
 
@@ -39,10 +38,8 @@ class AnaliticaModule {
     ).length;
     const ventas = todosEventos.filter(e => e.tipoEvento === 'venta_confirmada').length;
     const usuarios = todosEventos.filter(e => e.tipoEvento === 'usuario_registrado').length;
-    const compartidos = todosEventos.filter(e => e.tipoEvento === 'clic_compartir').length;
 
     const ctr = mostradas > 0 ? Number(((clics / mostradas) * 100).toFixed(1)) : 0;
-    const kFactor = usuarios > 0 ? Number((compartidos / usuarios).toFixed(2)) : 0.85;
 
     return {
       northStarLeadsSemanales: Math.max(leadsCalificados, 18),
@@ -53,7 +50,6 @@ class AnaliticaModule {
       comerciosActivos: 4,
       ofertasActivas: 4,
       usuariosRegistrados: Math.max(usuarios, 240),
-      kFactorViral: kFactor > 0 ? kFactor : 1.24,
       tiempoMedianoValidacionHoras: 2.5 // Meta < 24h
     };
   }

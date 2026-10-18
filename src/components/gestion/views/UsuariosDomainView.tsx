@@ -348,7 +348,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                   <span>Programa Viral de Puntos y Recompensas</span>
                 </h2>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  Reglas de gamificación: 10 puntos por compartir oferta, 50 puntos por referido registrado.
+                  Reglas de gamificación: 50 puntos por referido registrado.
                 </p>
               </div>
 

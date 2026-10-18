@@ -57,7 +57,7 @@ export class IaUsuariosAgent {
     if (t.includes("ayuda") || t.includes("hola") || t.includes("como funciona")) {
       return {
         intencion: "ayuda",
-        respuestaTexto: `¡Hola! Soy el asistente de Yuddit para ${distritoUsuario}. 🌟\n\nAquí puedes:\n• Escribir *Oferta* para recibir hasta 5 oportunidades cercanas con fotos y descuentos.\n• Escribir *puntos* para revisar tu saldo acumulado por compartir.\n• Escribir *canjear* para redimir premios en comercios de tu zona.`,
+        respuestaTexto: `¡Hola! Soy el asistente de Yuddit para ${distritoUsuario}. 🌟\n\nAquí puedes:\n• Escribir *Oferta* para recibir hasta 5 oportunidades cercanas con fotos y descuentos.\n• Escribir *puntos* para revisar tu saldo acumulado por referidos.\n• Escribir *canjear* para redimir premios en comercios de tu zona.`,
       };
     }
 

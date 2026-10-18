@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
   History, Send, Eye, MessageCircle, Target, TrendingUp, Search, 
-  Filter, Calendar, ExternalLink, Share2, CheckCircle2, Clock, 
-  AlertCircle, ArrowUpDown, ChevronRight, Copy, Check, Sparkles,
+  Filter, Calendar, ExternalLink, CheckCircle2, Clock, 
+  AlertCircle, ArrowUpDown, ChevronRight, Sparkles,
   Zap, ArrowRight, ShieldCheck, Tag
 } from 'lucide-react';
 import { Merchant, Offer } from '../../../types';
@@ -26,7 +26,6 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
   const [filtroEstado, setFiltroEstado] = useState<'todas' | 'activa' | 'en_validacion' | 'pausada' | 'vencida'>('todas');
   const [criterioOrden, setCriterioOrden] = useState<'recientes' | 'vistas' | 'clics' | 'ctr'>('recientes');
   const [promocionDetalle, setPromocionDetalle] = useState<Offer | null>(null);
-  const [enlaceCopiadoId, setEnlaceCopiadoId] = useState<string | null>(null);
 
   // Estadísticas globales de alcance acumulado para el comercio
   const metricasGlobales = useMemo(() => {
@@ -95,13 +94,6 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
 
     return lista;
   }, [ofertas, filtroEstado, busqueda, criterioOrden]);
-
-  const copiarEnlaceRastreado = (o: Offer) => {
-    const url = `${window.location.origin}/?oferta=${o.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${o.id}&event=view_offer`;
-    navigator.clipboard.writeText(url);
-    setEnlaceCopiadoId(o.id);
-    setTimeout(() => setEnlaceCopiadoId(null), 2000);
-  };
 
   const formatearFecha = (fechaStr?: string) => {
     if (!fechaStr) return 'Fecha no registrada';
@@ -432,26 +424,8 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
                     </div>
                   </div>
 
-                  {/* Botones de acción rápida */}
+                  {/* Botón de acción rápida */}
                   <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                    <button
-                      onClick={() => copiarEnlaceRastreado(o)}
-                      className="px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 text-xs font-semibold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Copiar enlace con tracking UTM"
-                    >
-                      {enlaceCopiadoId === o.id ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700 font-bold">¡Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-stone-500" />
-                          <span>Copiar enlace</span>
-                        </>
-                      )}
-                    </button>
-
                     <button
                       onClick={() => setPromocionDetalle(o)}
                       className="px-3 py-1.5 bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
@@ -645,37 +619,6 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
                 <p className="text-[10px] text-amber-800 mt-1">
                   Contactos listos para conversión en tu tienda
                 </p>
-              </div>
-            </div>
-
-            {/* Enlace rastreado para reenvío */}
-            <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 space-y-2 text-xs">
-              <span className="font-bold text-stone-700 block">
-                Enlace oficial con atribución y eventos:
-              </span>
-              <div className="p-2 bg-white rounded-lg border border-stone-200 font-mono text-[11px] text-stone-600 break-all select-all">
-                {`${window.location.origin}/?oferta=${promocionDetalle.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${promocionDetalle.id}&event=view_offer`}
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[10px] text-stone-400">
-                  Eventos: view_offer · contact_merchant
-                </span>
-                <button
-                  onClick={() => copiarEnlaceRastreado(promocionDetalle)}
-                  className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                >
-                  {enlaceCopiadoId === promocionDetalle.id ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>¡Copiado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copiar enlace</span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
 

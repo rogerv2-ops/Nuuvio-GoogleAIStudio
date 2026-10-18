@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, MapPin, Share2, MessageCircle, ThumbsUp, ChevronRight,
+  Search, MapPin, MessageCircle, ThumbsUp, ChevronRight,
   Sparkles, CheckCircle2, Copy, Check, Filter, Info, Shield, 
   Store, UserCheck, X, ExternalLink, Lock, LogOut
 } from 'lucide-react';
@@ -9,7 +9,6 @@ import { DISTRITOS_LIMA } from '../data/seedData';
 import { ofertasModule } from '../modules/ofertas';
 import { usuariosModule } from '../modules/usuarios';
 import { comerciosModule } from '../modules/comercios';
-import { clicsAtribucionModule } from '../modules/clics';
 import { BannerHeader } from './BannerHeader';
 import { UserRegistrationFunnelModal, limpiarYNormalizarTelefono } from './UserRegistrationFunnelModal';
 import { capturarAtribucionDeUrl } from '../utils/attribution';
@@ -34,7 +33,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [usuarioActivo, setUsuarioActivo] = useState<AudienceUser | null>(usuariosModule.getUsuarioActivo());
   const [modalFunnelAbierto, setModalFunnelAbierto] = useState(false);
   const [ofertaObjetivoFunnel, setOfertaObjetivoFunnel] = useState<Offer | null>(null);
-  const [motivoFunnel, setMotivoFunnel] = useState<'whatsapp' | 'compartir' | 'general'>('whatsapp');
+  const [motivoFunnel, setMotivoFunnel] = useState<'whatsapp' | 'general'>('whatsapp');
   const [toastVerificacion, setToastVerificacion] = useState<string | null>(null);
 
   // Modales adicionales
@@ -116,7 +115,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
         const usuarioVerificado = usuariosModule.verificarPorToken(token);
         if (usuarioVerificado) {
           setUsuarioActivo(usuarioVerificado);
-          setToastVerificacion(`¡Cuenta verificada exitosamente! Bienvenido, ${usuarioVerificado.nombre}. Ya puedes pedir ofertas por WhatsApp y compartir.`);
+          setToastVerificacion(`¡Cuenta verificada exitosamente! Bienvenido, ${usuarioVerificado.nombre}. Ya puedes pedir ofertas por WhatsApp.`);
           
           // Limpiar el parámetro de la URL sin recargar la página
           params.delete('verify_token');
@@ -239,32 +238,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     }
   };
 
-  const handleCompartirOferta = (oferta: Offer) => {
-    coreEvents.emitir({
-      tipoEvento: 'clic_compartir',
-      actorTipo: 'usuario',
-      actorId: usuarioActivo?.id || 'anonimo',
-      distrito: oferta.distrito,
-      origen: 'web',
-      datos: { accion: 'compartir', ofertaId: oferta.id, comercioNombre: oferta.comercioNombre }
-    });
-
-    let textoCompartir: string;
-    if (usuarioActivo && usuarioActivo.codigoRef) {
-      const resultado = clicsAtribucionModule.registrarClicCompartir({
-        ofertaId: oferta.id,
-        usuarioId: usuarioActivo.id,
-        codigoRef: usuarioActivo.codigoRef,
-        canal: 'whatsapp'
-      });
-      textoCompartir = resultado.textoCompartir;
-    } else {
-      const urlOferta = `${window.location.origin}/o/${oferta.codigoUrl || oferta.id}`;
-      textoCompartir = `¡Mira esta oferta en Yuddit! ${oferta.titulo} a solo S/ ${oferta.precioOferta}. ${urlOferta}`;
-    }
-    window.open(`https://wa.me/?text=${encodeURIComponent(textoCompartir)}`, '_blank');
-  };
-
   const handleRegistrarUsuarioSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formUser.nombre || !formUser.email || !formUser.telefono) {
@@ -324,7 +297,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               <div>
                 <p className="font-bold text-xs">{toastVerificacion}</p>
                 <p className="text-[11px] text-emerald-200 mt-0.5">
-                  Los botones de WhatsApp y Compartir ya están habilitados.
+                  Los botones de WhatsApp ya están habilitados.
                 </p>
               </div>
             </div>
@@ -536,7 +509,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                         </span>
                       </div>
 
-                      {/* Action Button: 💬 WhatsApp "Lo quiero" a ancho completo (botón compartir eliminado) */}
+                      {/* Action Button: 💬 WhatsApp "Lo quiero" a ancho completo */}
                       <div className="pt-2 border-t border-stone-100">
                         <button
                           onClick={() => handleContactarOferta(oferta)}
@@ -1049,7 +1022,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               <strong>Yuddit</strong> es un asistente sobre WhatsApp creado en Lima para conectar personas con oportunidades comerciales cercanas y alcanzables con un solo mensaje.
             </p>
             <p className="text-xs text-[#57534E] leading-relaxed">
-              Para los usuarios, es una forma rápida de encontrar ofertas reales y ganar puntos por compartir. Para los comercios, es un generador de leads calificados que tocan a su puerta listos para comprar.
+              Para los usuarios, es una forma rápida de encontrar ofertas reales cerca de ti. Para los comercios, es un generador de leads calificados que tocan a su puerta listos para comprar.
             </p>
             <p className="text-xs font-semibold text-[#1B4332]">
               Regla del modelo: PULL, no push. Jamás enviamos ofertas no solicitadas.
@@ -1088,7 +1061,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
         onClose={() => setModalFunnelAbierto(false)}
         onSuccess={(usuario) => {
           setUsuarioActivo(usuario);
-          setToastVerificacion(`¡Cuenta verificada exitosamente! Bienvenido, ${usuario.nombre}. Ya puedes pedir ofertas por WhatsApp y compartir.`);
+          setToastVerificacion(`¡Cuenta verificada exitosamente! Bienvenido, ${usuario.nombre}. Ya puedes pedir ofertas por WhatsApp.`);
         }}
         ofertaObjetivo={ofertaObjetivoFunnel}
         motivo={motivoFunnel}

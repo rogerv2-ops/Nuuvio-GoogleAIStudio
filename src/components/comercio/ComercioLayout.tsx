@@ -977,7 +977,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                     </div>
 
                     <p className="text-[11px] text-stone-600 leading-snug">
-                      Convierte la foto estática en un video comercial animado para compartir por WhatsApp en historias o mensajes directos.
+                      Convierte la foto estática en un video comercial animado para tus historias de WhatsApp o mensajes directos.
                     </p>
 
                     {mostrarOpcionesVideo && (

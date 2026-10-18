@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  BarChart3, Users, Building2, Share2, TrendingUp, 
+  BarChart3, Users, Building2, TrendingUp, 
   MapPin, CheckCircle2, ArrowRight, ExternalLink, MessageCircle, Tag, Calendar
 } from 'lucide-react';
 import { AdminRechartsDashboard } from '../../AdminRechartsDashboard';
@@ -102,7 +102,7 @@ export const AnaliticaDomainView: React.FC<AnaliticaDomainViewProps> = ({ subrut
               : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
           }`}
         >
-          <Share2 className="w-3.5 h-3.5" />
+          <TrendingUp className="w-3.5 h-3.5" />
           <span>Rendimiento & Atribución UTM</span>
         </button>
       </div>

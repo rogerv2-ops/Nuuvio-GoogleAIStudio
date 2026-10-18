@@ -1,6 +1,6 @@
 /**
  * MODULO 9: puntos-referidos (esquema: pts)
- * El motor viral: puntos por compartir y registro de referidos,
+ * El motor viral: registro de referidos,
  * marketplace de recompensas y canje con código alfanumérico único de 8 caracteres.
  */
 import { PointsMovement, Reward, Redemption } from '../types';
@@ -27,7 +27,7 @@ class PuntosModule {
   public acreditarPuntos(params: {
     usuarioId: string;
     cantidad: number;
-    motivo: 'compartir' | 'referido_registrado' | 'ajuste_gestion';
+    motivo: 'referido_registrado' | 'ajuste_gestion';
     referenciaId?: string;
   }): number {
     const id = `mov_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;

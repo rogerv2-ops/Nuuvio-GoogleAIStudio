@@ -108,7 +108,7 @@ export interface ClickRecord {
   ofertaId: string;
   comercioId: string;
   usuarioId: string;
-  tipo: 'contactar' | 'compartir';
+  tipo: 'contactar';
   codigoPersonal: string; // Código de 6 caracteres único para verificación sin QR
   referidoPor?: string;
   canal: 'whatsapp' | 'web';
@@ -131,7 +131,7 @@ export interface PointsMovement {
   id: string;
   usuarioId: string;
   cantidad: number; // positivo o negativo
-  motivo: 'compartir' | 'referido_registrado' | 'canje' | 'ajuste_gestion';
+  motivo: 'referido_registrado' | 'canje' | 'ajuste_gestion';
   referenciaId?: string;
   fecha: string;
 }
