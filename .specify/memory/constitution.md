@@ -14,7 +14,7 @@ Este documento contiene las reglas inquebrantables de arquitectura, producto y s
 
 ## 3. SEGURIDAD Y PRIVACIDAD (MURO DE FUEGO)
 - **Ofuscación Absoluta:** El número de WhatsApp del bot y los números de los comercios JAMÁS deben estar expuestos (`hardcoded`) en el frontend. Toda redirección debe pasar por rutas puente en el servidor (ej. `/api/go/pedir` o `/c/:ofertaId`).
-- **Enlaces WhatsApp Nativos (`whatsapp://send`):** Todo enlace o redirección hacia WhatsApp DEBE usar el esquema nativo `whatsapp://send?phone=<num>&text=<texto>` (para que el sistema operativo ofrezca elegir entre WhatsApp y WhatsApp Business), con fallback a `https://api.whatsapp.com/send?...`. Está prohibido `https://wa.me/...` y redirigir (302) sin el esquema nativo. Las rutas puente del servidor (`/go/*`, `/api/go/*`) deben responder una página intersticial que intente el esquema nativo y haga fallback automático a la web.
+- **Enlaces WhatsApp con selector de app:** Todo enlace o redirección hacia WhatsApp DEBE permitir elegir entre WhatsApp y WhatsApp Business. Android: `intent://send?phone=<num>&text=<texto>#Intent;scheme=whatsapp;end` (implicito → selector del sistema), o con `package=com.whatsapp` / `package=com.whatsapp.w4b` para botones explicitos. iOS: `https://wa.me/<num>?text=<texto>` (iOS muestra el selector). Escritorio/fallback: `https://api.whatsapp.com/send?...`. Las rutas puente del servidor (`/go/*`, `/api/go/*`, `/c/*`) deben devolver una página con botones para elegir la app. Prohibido usar `whatsapp://send` como unico enlace (abre una sola app sin selector).
 - **Antifraude de Leads:** Todo lead o clic facturable debe validarse en Postgres para evitar cobros dobles al comercio por el mismo usuario interactuando con la misma oferta en un lapso de 24 horas.
 - **Separación de Roles:** Un número de teléfono no puede ser Usuario Consumidor y Comercio a la vez. El backend debe verificar la tabla `merchants` antes que `audience_users`.
 
@@ -42,9 +42,11 @@ Toda oferta nueva publicada por un comercio debe pasar por:
 Esta constitución prevalece sobre atajos. Toda excepción requiere justificación
 y plan de migración. Cambios a este archivo con commit explícito.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-18
+**Version**: 1.3.1 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-18
 
 **Changelog**:
+- 1.3.1 (2026-10-18): corrige la regla de enlaces WhatsApp — el selector de app se logra
+  con `intent://` (Android) y `wa.me` (iOS); `whatsapp://send` solo no ofrece selector.
 - 1.3.0 (2026-10-18): nueva regla en Seguridad (§3) — todo enlace/redirección a WhatsApp
   debe usar el esquema nativo `whatsapp://send` con fallback web; prohibido `wa.me` y
   redirecciones 302 sin esquema nativo.

@@ -207,7 +207,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       window.location.href = '/go/whatsapp';
       return;
     }
-    const mensajeWo = `Hola quiero aprovechar esta oferta: ${oferta.titulo || ''}`.trim();
+    const ref = oferta.codigoUrl || oferta.id;
+    const mensajeWo = `Hola quiero aprovechar esta oferta: ${oferta.titulo || ''}${ref ? ` (ref ${ref})` : ''}`.trim();
     fetch('/api/whatsapp/config')
       .then((r) => r.json())
       .then((cfg) => {

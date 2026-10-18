@@ -69,6 +69,11 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
     if (userVerified) {
       setUsuario(userVerified);
       setEstadoVerificacion('valido');
+      // Reflejar la verificación en el servidor (dejar la cuenta activa en la base de datos)
+      fetch(`/api/audience/verify-token?token=${encodeURIComponent(tokenParam)}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => { if (data?.ok && data.user) usuariosModule.agregarOActualizarUsuario(data.user); })
+        .catch(() => {});
     } else {
       const usuarioExistente = usuariosModule.obtenerPorToken(tokenParam);
       if (usuarioExistente && usuarioExistente.emailVerificado) {
