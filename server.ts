@@ -143,13 +143,14 @@ var dispatchOffersMosaic = async function dispatchOffersMosaic(user, distrito, d
       const numberEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
       const hostUrl = process.env.APP_URL || process.env.PUBLIC_URL || 'https://yuddit.com';
       const baseUrl = hostUrl.replace(/\/+$/, "");
+      const clickSecret = await getClickSecret();
 
       const introLine = introAMostrar ? introAMostrar + "\n\n" : "";
       let combinedCaption = `${introLine}✨ *Aquí tienes ${seleccionadas.length === 1 ? "la mejor opción" : "las " + seleccionadas.length + " mejores opciones"} cerca de ti:*\n\n`;
       seleccionadas.forEach((o, index) => {
         const emoji = numberEmojis[index] || `${index + 1}️⃣`;
         const pOferta = Number(o.precioOferta).toFixed(2);
-        const trackingUrl = `${baseUrl}/c/${encodeURIComponent(o.id)}?u=${encodeURIComponent(cleanPhone)}`;
+        const trackingUrl = `${baseUrl}/c/${encodeURIComponent(o.id)}?u=${encodeURIComponent(cleanPhone)}&s=${firmarEnlaceClic(o.id, cleanPhone, clickSecret)}`;
         combinedCaption += `${emoji} *${o.titulo}* - S/ ${pOferta}\n`;
       });
 
@@ -202,7 +203,10 @@ var dispatchOffersMosaic = async function dispatchOffersMosaic(user, distrito, d
   }
 };
 var dispatchFiveOffers = dispatchOffersMosaic;__name(dispatchFiveOffers,"dispatchFiveOffers");
-async function enviarOfertaEspecifica(user,oferta,doSend,cleanPhone,canal){try{const hostUrl=(process.env.APP_URL||process.env.PUBLIC_URL||"https://yuddit.com");const baseUrl=hostUrl.replace(/\/+$/,"");const telValido=isPeruPhoneNumber(cleanPhone);const trackingUrl=telValido?`${baseUrl}/c/${encodeURIComponent(oferta.id)}?u=${encodeURIComponent(cleanPhone)}`:`${baseUrl}/c/${encodeURIComponent(oferta.id)}`;const pOferta=Number(oferta.precioOferta).toFixed(2);const pNormal=Number(oferta.precioNormal).toFixed(2);const ahorro=(Number(oferta.precioNormal)-Number(oferta.precioOferta)).toFixed(2);const caption=`¡Gran elección! 🎯 *${oferta.titulo}* te ahorra *S/ ${ahorro}* hoy.\n\n🏬 ${oferta.comercioNombre}\n💰 S/ ${pOferta} (antes S/ ${pNormal})\n📍 ${oferta.distrito}\n\nToca el botón de abajo para asegurar tus cupos enviando tu código único al WhatsApp del local. 👇`;ultimasOfertasEnviadasPorUsuario.set(cleanPhone,[oferta.id]);await doSend({text:caption,interactiveButton:{displayText:"Quiero esta oferta",url:trackingUrl}});messageLogs.unshift({id:`log_${Date.now()}`,timestamp:new Date().toISOString(),canal,direccion:"saliente",telefono:`+${cleanPhone}`,contenido:`Oferta "${oferta.titulo}" enviada individualmente a ${user?.nombre||cleanPhone}.`,estado:"entregado",detalles:`Enlace directo de la oferta ${oferta.id} despachado.`}),void insertChatLog({id:`log_${Date.now()}`,timestamp:new Date().toISOString(),canal,direccion:"saliente",telefono:`+${cleanPhone}`,contenido:`Oferta "${oferta.titulo}" enviada individualmente a ${user?.nombre||cleanPhone}.`,estado:"entregado",detalles:`Enlace directo de la oferta ${oferta.id} despachado.`}).catch(()=>{})}catch(err){console.error("[WhatsApp Bot] Error enviando oferta especifica:",err)}}__name(enviarOfertaEspecifica,"enviarOfertaEspecifica");
+function firmarEnlaceClic(ofertaId,telefono,secret){if(!secret)return"";return b64urlEncode(crypto.createHmac("sha256",secret).update(String(ofertaId)+"|"+String(telefono)).digest()).slice(0,24)}
+function firmaClicValida(ofertaId,telefono,firma,secret){if(!secret||!firma)return false;const exp=firmarEnlaceClic(ofertaId,telefono,secret);const a=Buffer.from(String(firma));const b=Buffer.from(exp);return a.length===b.length&&a.length>0&&crypto.timingSafeEqual(a,b)}
+async function getClickSecret(){try{return await getAuthSecret()}catch(e){console.warn("[Clic] Sin secreto de firma para enlaces de clic:",e);return""}}
+async function enviarOfertaEspecifica(user,oferta,doSend,cleanPhone,canal){try{const hostUrl=(process.env.APP_URL||process.env.PUBLIC_URL||"https://yuddit.com");const baseUrl=hostUrl.replace(/\/+$/,"");const telValido=isPeruPhoneNumber(cleanPhone);const clickSecret=await getClickSecret();const trackingUrl=telValido?`${baseUrl}/c/${encodeURIComponent(oferta.id)}?u=${encodeURIComponent(cleanPhone)}&s=${firmarEnlaceClic(oferta.id,cleanPhone,clickSecret)}`:`${baseUrl}/c/${encodeURIComponent(oferta.id)}`;const pOferta=Number(oferta.precioOferta).toFixed(2);const pNormal=Number(oferta.precioNormal).toFixed(2);const ahorro=(Number(oferta.precioNormal)-Number(oferta.precioOferta)).toFixed(2);const caption=`¡Gran elección! 🎯 *${oferta.titulo}* te ahorra *S/ ${ahorro}* hoy.\n\n🏬 ${oferta.comercioNombre}\n💰 S/ ${pOferta} (antes S/ ${pNormal})\n📍 ${oferta.distrito}\n\nToca el botón de abajo para asegurar tus cupos enviando tu código único al WhatsApp del local. 👇`;ultimasOfertasEnviadasPorUsuario.set(cleanPhone,[oferta.id]);await doSend({text:caption,interactiveButton:{displayText:"Quiero esta oferta",url:trackingUrl}});messageLogs.unshift({id:`log_${Date.now()}`,timestamp:new Date().toISOString(),canal,direccion:"saliente",telefono:`+${cleanPhone}`,contenido:`Oferta "${oferta.titulo}" enviada individualmente a ${user?.nombre||cleanPhone}.`,estado:"entregado",detalles:`Enlace directo de la oferta ${oferta.id} despachado.`}),void insertChatLog({id:`log_${Date.now()}`,timestamp:new Date().toISOString(),canal,direccion:"saliente",telefono:`+${cleanPhone}`,contenido:`Oferta "${oferta.titulo}" enviada individualmente a ${user?.nombre||cleanPhone}.`,estado:"entregado",detalles:`Enlace directo de la oferta ${oferta.id} despachado.`}).catch(()=>{})}catch(err){console.error("[WhatsApp Bot] Error enviando oferta especifica:",err)}}__name(enviarOfertaEspecifica,"enviarOfertaEspecifica");
 function ofertaEspecificaDisponible(query){const qn=normalizarBusqueda(query);if(!qn)return null;return serverOfertas.find(o=>{const tn=normalizarBusqueda(o.titulo);const coincide=tn===qn||(qn.length>=4&&(tn.includes(qn)||qn.includes(tn)));if(!coincide)return false;const activa=o.estado==="activa";const noExpirada=new Date(o.venceEn).getTime()>Date.now();const rawWsp=o.comercioWhatsapp||o.comercioTelefono||o.telefonoComercio||"";const tieneWsp=rawWsp.replace(/\D/g,"").length>=7;const tieneSaldo=comercioTieneSaldo(o.comercioId||"merch_01");return activa&&noExpirada&&tieneWsp&&tieneSaldo})||null}__name(ofertaEspecificaDisponible,"ofertaEspecificaDisponible");procesarMensajeEntrante = async function procesarMensajeEntrante({from,body,senderPhone,pushName,canal="waha",replySender,hasImage,imageMessage,imageUrl,imageBuffer,buttonId}){let cleanPhone=normalizeSenderPhone(senderPhone);if(!cleanPhone)return;{const _lk=String(senderPhone||"").replace(/\D/g,"");if(lidToPhoneMap.has(_lk)){cleanPhone=lidToPhoneMap.get(_lk)}}const jid=from.includes("@")?from:`${cleanPhone}@s.whatsapp.net`;const doSend=__name(async payload=>{if(replySender){await replySender(payload);return}if(canal==="meta"&&waConfig.metaConfig.accessToken&&waConfig.metaConfig.phoneNumberId){const metaUrl=`https://graph.facebook.com/v21.0/${waConfig.metaConfig.phoneNumberId}/messages`;const hostUrl=process.env.APP_URL||process.env.PUBLIC_URL||"https://yuddit.com";const metaPayload={messaging_product:"whatsapp",to:cleanPhone};if(payload.buttons&&payload.buttons.length){metaPayload.type="interactive";metaPayload.interactive={type:"button",body:{text:payload.caption||payload.text||"Elige una opcion"},action:{buttons:payload.buttons.slice(0,3).map(b=>({type:"reply",reply:{id:String(b.id),title:String(b.text).slice(0,20)}}))}}}else if(payload.interactiveButton&&!payload.image){metaPayload.type="interactive";metaPayload.interactive={type:"cta_url",body:{text:payload.caption||payload.text||"Oferta destacada"},action:{name:"cta_url",parameters:{display_text:payload.interactiveButton.displayText,url:payload.interactiveButton.url}}}}else if(payload.interactiveButton&&payload.image){const imgLink=payload.imageUrl?`${hostUrl}${payload.imageUrl}`:`${hostUrl}/banner-ficha-oferta-mujer.webp`;metaPayload.type="interactive";metaPayload.interactive={type:"cta_url",header:{type:"image",image:{link:imgLink}},body:{text:payload.caption||"Oferta destacada"},action:{name:"cta_url",parameters:{display_text:payload.interactiveButton.displayText,url:payload.interactiveButton.url}}}}else if(payload.image){metaPayload.type="image";const imgLink=payload.imageUrl?`${hostUrl}${payload.imageUrl}`:`${hostUrl}/banner-ficha-oferta-mujer.webp`;metaPayload.image={link:imgLink,caption:payload.caption}}else{metaPayload.type="text";metaPayload.text={body:payload.text||""}}try{await fetch(metaUrl,{method:"POST",headers:{"Authorization":`Bearer ${waConfig.metaConfig.accessToken}`,"Content-Type":"application/json"},body:JSON.stringify(metaPayload)})}catch(errMeta){console.error("[Meta Cloud API] Error enviando mensaje interactivo:",errMeta)}return}if(activeBaileysSocket&&wahaSession.status==="WORKING"){try{if(payload.buttons&&payload.buttons.length){try{await activeBaileysSocket.sendMessage(jid,{text:payload.caption||payload.text||"Elige una opcion",buttons:payload.buttons.slice(0,3).map(b=>({buttonId:String(b.id),buttonText:{displayText:String(b.text)},type:1}))})}catch(eButtons){await activeBaileysSocket.sendMessage(jid,{text:(payload.caption||payload.text||"Elige una opcion")+" - "+payload.buttons.slice(0,3).map((b,i)=>(i+1)+") "+b.text).join(" | ")})}}else if(payload.interactiveButton&&!payload.image){const _c2=payload.caption||payload.text||"";try{await activeBaileysSocket.sendMessage(jid,{text:_c2,templateButtons:[{index:1,urlButton:{displayText:payload.interactiveButton.displayText,url:payload.interactiveButton.url}}]})}catch(eBtn2){await activeBaileysSocket.sendMessage(jid,{text:_c2+"  "+payload.interactiveButton.displayText+": "+payload.interactiveButton.url})}}else if(payload.interactiveButton&&payload.image){try{await activeBaileysSocket.sendMessage(jid,{image:payload.image,caption:payload.caption||"",templateButtons:[{index:1,urlButton:{displayText:payload.interactiveButton.displayText,url:payload.interactiveButton.url}}]})}catch(eBtn){await activeBaileysSocket.sendMessage(jid,{image:payload.image,caption:(payload.caption||"")+`
 
 \u{1F449} *[ ${payload.interactiveButton.displayText} ]*
@@ -285,9 +289,20 @@ app.get("/go/whatsapp",(req,res)=>{const phone=numeroSistemaParaEnlace();if(!pho
   const uRaw = String(req.query.u || "").replace(/\D/g, "");
   const tieneTelefonoValido = uRaw.length >= 9 && uRaw.length <= 15;
   const u = tieneTelefonoValido ? uRaw : "anonimo";
+  const firma = String(req.query.s || "");
   const oferta = serverOfertas.find((o) => o.id === ofertaId);
   if (!oferta) {
     return res.status(404).send("Oferta no encontrada");
+  }
+
+  // Antifraude: solo los enlaces firmados por el bot (HMAC del secreto del servidor) pueden facturar.
+  let firmaValida = false;
+  if (tieneTelefonoValido && firma) {
+    try {
+      firmaValida = firmaClicValida(ofertaId, u, firma, await getClickSecret());
+    } catch (e) {
+      firmaValida = false;
+    }
   }
 
   const comercioId = oferta.comercioId || "merch_01";
@@ -295,7 +310,7 @@ app.get("/go/whatsapp",(req,res)=>{const phone=numeroSistemaParaEnlace();if(!pho
     ofertaId,
     comercioId,
     usuarioTelefono: u,
-    saldoDisponible: tieneTelefonoValido && comercioTieneSaldo(comercioId),
+    saldoDisponible: firmaValida && comercioTieneSaldo(comercioId),
   });
 
   oferta.clics = (oferta.clics || 0) + 1;
