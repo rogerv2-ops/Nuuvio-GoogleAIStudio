@@ -203,34 +203,18 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       }
     });
 
-    // Inicio del embudo: si el usuario no está registrado/verificado, pasa al flujo de registro.
-    if (!estaVerificado) {
-      coreEvents.emitir({
-        tipoEvento: 'click_bloqueado_sin_registro',
-        actorTipo: 'usuario',
-        actorId: 'anonimo',
-        distrito: oferta?.distrito || 'Lima',
-        origen: 'web',
-        datos: { accion: 'lo_quiero', ofertaId: oferta?.id, comercioNombre: oferta?.comercioNombre }
-      });
-      setOfertaObjetivoFunnel(oferta || null);
-      setMotivoFunnel('whatsapp');
-      setModalFunnelAbierto(true);
-      return;
-    }
-
-    // Usuario registrado: abrir WhatsApp nativo del bot con "Quiero la oferta: [título]" (dispara el Paso 2).
+    // "Lo quiero" siempre abre el WhatsApp del bot (sin registro previo).
     if (!oferta?.id) {
       window.location.href = '/go/whatsapp';
       return;
     }
-    const tituloOferta = oferta.titulo || '';
+    const mensajeWo = `Hola quiero aprovechar esta oferta: ${oferta.titulo || ''}`.trim();
     fetch('/api/whatsapp/config')
       .then((r) => r.json())
       .then((cfg) => {
         const botPhone = String(cfg?.botPhone || '').replace(/\D/g, '');
         if (botPhone) {
-          abrirWhatsAppNativo(botPhone, `Quiero la oferta: ${tituloOferta}`);
+          abrirWhatsAppNativo(botPhone, mensajeWo);
         } else {
           window.location.href = `/go/oferta/${encodeURIComponent(oferta.id)}`;
         }
@@ -256,31 +240,29 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   };
 
   const handleCompartirOferta = (oferta: Offer) => {
-    if (!estaVerificado) {
-      coreEvents.emitir({
-        tipoEvento: 'click_bloqueado_sin_registro',
-        actorTipo: 'usuario',
-        actorId: 'anonimo',
-        distrito: oferta.distrito,
-        origen: 'web',
-        datos: { accion: 'compartir', ofertaId: oferta.id, comercioNombre: oferta.comercioNombre }
-      });
-      setOfertaObjetivoFunnel(oferta);
-      setMotivoFunnel('compartir');
-      setModalFunnelAbierto(true);
-      return;
-    }
-
-    const resultado = clicsAtribucionModule.registrarClicCompartir({
-      ofertaId: oferta.id,
-      usuarioId: usuarioActivo.id,
-      codigoRef: usuarioActivo.codigoRef,
-      canal: 'web'
+    coreEvents.emitir({
+      tipoEvento: 'clic_compartir',
+      actorTipo: 'usuario',
+      actorId: usuarioActivo?.id || 'anonimo',
+      distrito: oferta.distrito,
+      origen: 'web',
+      datos: { accion: 'compartir', ofertaId: oferta.id, comercioNombre: oferta.comercioNombre }
     });
 
-    navigator.clipboard?.writeText(resultado.urlCompartir);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+    let textoCompartir: string;
+    if (usuarioActivo && usuarioActivo.codigoRef) {
+      const resultado = clicsAtribucionModule.registrarClicCompartir({
+        ofertaId: oferta.id,
+        usuarioId: usuarioActivo.id,
+        codigoRef: usuarioActivo.codigoRef,
+        canal: 'whatsapp'
+      });
+      textoCompartir = resultado.textoCompartir;
+    } else {
+      const urlOferta = `${window.location.origin}/o/${oferta.codigoUrl || oferta.id}`;
+      textoCompartir = `¡Mira esta oferta en Yuudit! ${oferta.titulo} a solo S/ ${oferta.precioOferta}. ${urlOferta}`;
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(textoCompartir)}`, '_blank');
   };
 
   const handleRegistrarUsuarioSubmit = async (e: React.FormEvent) => {
