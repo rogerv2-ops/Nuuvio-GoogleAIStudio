@@ -23,6 +23,31 @@ class ComerciosModule {
 
   constructor() {
     // Sin siembra: los comercios se cargan desde PostgreSQL / API.
+    this.cargarDesdeServidor();
+  }
+
+  private async cargarDesdeServidor() {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/comercios');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.ok) return;
+      if (Array.isArray(data.comercios) && data.comercios.length > 0) {
+        this.comercios.clear();
+        data.comercios.forEach((m: Merchant) => { if (m && m.id) this.comercios.set(m.id, m); });
+      }
+      const kanbanArr = Array.isArray(data.kanban)
+        ? data.kanban.map((k: any) => (k && k.kanban ? k.kanban : k)).filter((k: any) => k && k.merchantId)
+        : [];
+      if (kanbanArr.length > 0) {
+        this.kanban.clear();
+        kanbanArr.forEach((k: MerchantKanbanItem) => this.kanban.set(k.merchantId, k));
+      }
+      this.notificar();
+    } catch (e) {
+      // Silencioso: sin sesion o sin red.
+    }
   }
 
   public registrarComercio(datos: {
@@ -175,6 +200,26 @@ class ComerciosModule {
       entidad: 'comercio',
       entidadId: comercioId,
       detalles: `Rechazado con motivo: ${motivo}`
+    });
+
+    this.notificar();
+    return true;
+  }
+
+  public eliminarComercio(comercioId: string, operadorNombre: string = 'Super Admin'): boolean {
+    const comercio = this.comercios.get(comercioId);
+    if (!comercio) return false;
+
+    this.comercios.delete(comercioId);
+    this.kanban.delete(comercioId);
+
+    coreSecurity.registrarAuditoria({
+      operadorId: 'admin_master_01',
+      operadorNombre,
+      accion: 'Eliminar comercio',
+      entidad: 'comercio',
+      entidadId: comercioId,
+      detalles: `Comercio ${comercio.nombreComercial} (RUC ${comercio.ruc}) eliminado del directorio.`
     });
 
     this.notificar();
