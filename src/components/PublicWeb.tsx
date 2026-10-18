@@ -202,26 +202,18 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       }
     });
 
-    // "Lo quiero" siempre abre el WhatsApp del bot (sin registro previo).
-    if (!oferta?.id) {
-      window.location.href = '/go/whatsapp';
-      return;
-    }
-    const ref = oferta.codigoUrl || oferta.id;
-    const mensajeWo = `Hola quiero aprovechar esta oferta: ${oferta.titulo || ''}${ref ? ` (ref ${ref})` : ''}`.trim();
+    // "Lo quiero" siempre abre el WhatsApp del bot directamente (sin pagina intermedia).
+    const ref = oferta?.codigoUrl || oferta?.id || '';
+    const mensajeWo = oferta?.titulo
+      ? `Hola quiero aprovechar esta oferta: ${oferta.titulo}${ref ? ` (ref ${ref})` : ''}`.trim()
+      : 'Hola, quiero ver las ofertas de Yuddit';
     fetch('/api/whatsapp/config')
       .then((r) => r.json())
       .then((cfg) => {
         const botPhone = String(cfg?.botPhone || '').replace(/\D/g, '');
-        if (botPhone) {
-          abrirWhatsAppNativo(botPhone, mensajeWo);
-        } else {
-          window.location.href = `/go/oferta/${encodeURIComponent(oferta.id)}`;
-        }
+        if (botPhone) abrirWhatsAppNativo(botPhone, mensajeWo);
       })
-      .catch(() => {
-        window.location.href = `/go/oferta/${encodeURIComponent(oferta.id)}`;
-      });
+      .catch(() => {});
   };
 
   // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.

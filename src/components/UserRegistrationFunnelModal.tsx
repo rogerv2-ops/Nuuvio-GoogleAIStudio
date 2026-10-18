@@ -187,8 +187,8 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
 
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
       const vLink = emailRes.verificationLink || `${currentOrigin}/bienvenida?verify_token=${regRes.verificationToken}`;
-      // El número del sistema nunca se expone: el enlace apunta al redirect público del servidor.
-      const waLink = emailRes.whatsappLink || '/go/whatsapp';
+      // Enlace nativo directo (whatsapp://send) que devuelve el servidor; sin pagina intermedia.
+      const waLink = emailRes.whatsappLink || '';
 
       setVerificationLink(vLink);
       setWhatsappLink(waLink);

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AudienceUser } from '../types';
 import { usuariosModule } from '../modules/usuarios';
+import { generarLinksWhatsApp } from '../utils/whatsappNative';
 
 interface BienvenidaViewProps {
   onVolverAWeb: () => void;
@@ -85,8 +86,8 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
     }
   }, []);
 
-  // Enlace público que redirige en el servidor a WhatsApp (el número nunca se expone en el cliente)
-  const whatsappRedirectUrl = '/go/whatsapp';
+  // Enlace directo a WhatsApp (sin página intermedia); el número del bot ya viene en las props.
+  const whatsappRedirectUrl = botPhone ? generarLinksWhatsApp(botPhone, 'Ofertas').nativeUrl : '#';
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6">
