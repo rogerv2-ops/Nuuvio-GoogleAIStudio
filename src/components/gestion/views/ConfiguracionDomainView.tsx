@@ -396,7 +396,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
               <ul className="space-y-1 list-disc list-inside">
                 <li>Soporte SMTP estándar (Gmail, Outlook, Amazon SES)</li>
                 <li>Soporte Resend REST API para entornos Cloud</li>
-                <li>Plantillas responsivas oficiales de Yuudit</li>
+                <li>Plantillas responsivas oficiales de Yuddit</li>
               </ul>
             </div>
           </div>
@@ -472,7 +472,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
           <div>
             <h3 className="text-base font-bold text-stone-900">Interruptores de Módulos (Feature Flags)</h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Controla de forma atómica y en tiempo real el encendido o apagado de cada subsistema de Yuudit.
+              Controla de forma atómica y en tiempo real el encendido o apagado de cada subsistema de Yuddit.
             </p>
           </div>
 

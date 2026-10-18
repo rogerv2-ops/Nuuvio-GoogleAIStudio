@@ -73,7 +73,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
 
   // Estados para envío de mensaje de prueba
   const [testTelefono, setTestTelefono] = useState('+51 987 654 321');
-  const [testMensaje, setTestMensaje] = useState('¡Hola! Este es un mensaje de prueba desde Yuudit para verificar la conexión de WhatsApp.');
+  const [testMensaje, setTestMensaje] = useState('¡Hola! Este es un mensaje de prueba desde Yuddit para verificar la conexión de WhatsApp.');
   const [enviandoTest, setEnviandoTest] = useState(false);
   const [resultadoTest, setResultadoTest] = useState<{ ok: boolean; mensaje: string } | null>(null);
 
@@ -761,7 +761,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
         isOpen={modalQrAbierto}
         onClose={() => setModalQrAbierto(false)}
         onSessionConnected={phone => {
-          setWahaSessionStatus({ status: 'WORKING', phone, name: 'Yuudit WhatsApp Oficial' });
+          setWahaSessionStatus({ status: 'WORKING', phone, name: 'Yuddit WhatsApp Oficial' });
           cargarLogs();
         }}
       />

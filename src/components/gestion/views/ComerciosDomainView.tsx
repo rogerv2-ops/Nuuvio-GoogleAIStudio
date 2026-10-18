@@ -780,7 +780,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
               Directorio de Comercios Activos ({comerciosTodos.filter(c => c.estado === 'activo').length})
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Aliados comerciales habilitados para publicar promociones en la red Yuudit.
+              Aliados comerciales habilitados para publicar promociones en la red Yuddit.
             </p>
           </div>
 

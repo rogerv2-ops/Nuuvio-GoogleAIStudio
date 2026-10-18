@@ -39,7 +39,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuudit</span>
+                <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuddit</span>
                 <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
               </div>
               <p className="text-[11px] text-[#78716C] leading-none hidden sm:block">Plataforma de ofertas locales · Lima</p>

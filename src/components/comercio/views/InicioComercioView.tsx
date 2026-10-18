@@ -43,7 +43,7 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                Tu Asistente Yuudit
+                Tu Asistente Yuddit
               </span>
               <span className="text-xs text-stone-300">
                 Local: <strong className="text-white">{comercio.nombreComercial}</strong> ({comercio.distrito})
@@ -175,7 +175,7 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
             <span className="text-[10px] font-semibold text-stone-400">Sin QR</span>
           </div>
           <p className="text-xs text-stone-500">
-            Pídele el código de 5 caracteres que le dio Yuudit en su WhatsApp (ej. CV88-91) y regístralo aquí:
+            Pídele el código de 5 caracteres que le dio Yuddit en su WhatsApp (ej. CV88-91) y regístralo aquí:
           </p>
           <div className="flex gap-2">
             <input

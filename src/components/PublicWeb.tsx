@@ -260,7 +260,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       textoCompartir = resultado.textoCompartir;
     } else {
       const urlOferta = `${window.location.origin}/o/${oferta.codigoUrl || oferta.id}`;
-      textoCompartir = `¡Mira esta oferta en Yuudit! ${oferta.titulo} a solo S/ ${oferta.precioOferta}. ${urlOferta}`;
+      textoCompartir = `¡Mira esta oferta en Yuddit! ${oferta.titulo} a solo S/ ${oferta.precioOferta}. ${urlOferta}`;
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(textoCompartir)}`, '_blank');
   };
@@ -594,7 +594,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
             </button>
           </div>
           <p className="text-[11px]">
-            Yuudit © 2026 · Plataforma de ofertas locales para Lima, Perú · PULL, no push.
+            Yuddit © 2026 · Plataforma de ofertas locales para Lima, Perú · PULL, no push.
           </p>
         </footer>
       </div>
@@ -765,7 +765,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-[#1C1917]">Registro de Usuario</h3>
-                <p className="text-xs text-[#78716C]">Únete a Yuudit para pedir ofertas cercanas</p>
+                <p className="text-xs text-[#78716C]">Únete a Yuddit para pedir ofertas cercanas</p>
               </div>
               <button onClick={() => setModalRegistroAbierto(false)} className="text-[#78716C] hover:text-[#1C1917]">
                 ✕
@@ -1046,7 +1046,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               <button onClick={() => setModalQuienesSomosAbierto(false)} className="text-[#78716C] hover:text-[#1C1917] cursor-pointer">✕</button>
             </div>
             <p className="text-xs text-[#57534E] leading-relaxed">
-              <strong>Yuudit</strong> es un asistente sobre WhatsApp creado en Lima para conectar personas con oportunidades comerciales cercanas y alcanzables con un solo mensaje.
+              <strong>Yuddit</strong> es un asistente sobre WhatsApp creado en Lima para conectar personas con oportunidades comerciales cercanas y alcanzables con un solo mensaje.
             </p>
             <p className="text-xs text-[#57534E] leading-relaxed">
               Para los usuarios, es una forma rápida de encontrar ofertas reales y ganar puntos por compartir. Para los comercios, es un generador de leads calificados que tocan a su puerta listos para comprar.
@@ -1075,7 +1075,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
             <div className="text-xs text-[#57534E] space-y-2 max-h-60 overflow-y-auto leading-relaxed">
               <p>• <strong>Uso para Audiencia:</strong> El servicio es 100% gratuito. Los usuarios reciben ofertas solo cuando escriben "Oferta".</p>
               <p>• <strong>Comercios:</strong> Deben contar con RUC activo y local físico comprobable. Cada oferta tiene una vigencia máxima de 30 días.</p>
-              <p>• <strong>Privacidad y Datos:</strong> Yuudit nunca comparte los números de teléfono con terceros. El lead se completa únicamente cuando el usuario decide voluntariamente escribir por WhatsApp al comercio.</p>
+              <p>• <strong>Privacidad y Datos:</strong> Yuddit nunca comparte los números de teléfono con terceros. El lead se completa únicamente cuando el usuario decide voluntariamente escribir por WhatsApp al comercio.</p>
               <p>• <strong>Bajas (Opt-out):</strong> El usuario puede darse de baja en cualquier momento escribiendo "baja" o "stop".</p>
             </div>
           </div>

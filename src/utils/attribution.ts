@@ -1,5 +1,5 @@
 /**
- * Utilidad de atribución UTM y Referidos/Afiliados para Yuudit
+ * Utilidad de atribución UTM y Referidos/Afiliados para Yuddit
  * Captura y preserva los parámetros de campaña y afiliado desde la URL
  */
 import { coreEvents } from '../core/events';

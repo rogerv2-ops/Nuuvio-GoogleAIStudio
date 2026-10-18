@@ -420,7 +420,7 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
               </div>
 
               <p className="text-[10px] text-center text-stone-500">
-                Al registrarte aceptas los Términos de Servicio de Yuudit. Modelo PULL, no push: cero spam.
+                Al registrarte aceptas los Términos de Servicio de Yuddit. Modelo PULL, no push: cero spam.
               </p>
             </form>
           ) : (

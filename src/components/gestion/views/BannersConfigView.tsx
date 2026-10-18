@@ -80,16 +80,16 @@ export const BannersConfigView: React.FC = () => {
 
     if (bannerEditando) {
       bannersModule.actualizarBanner(bannerEditando.id, {
-        titulo: formTitulo.trim() || 'Banner Yuudit',
+        titulo: formTitulo.trim() || 'Banner Yuddit',
         subtitulo: formSubtitulo.trim(),
         imagenUrl: formImagenUrl.trim(),
         enlaceUrl: formEnlaceUrl.trim(),
         activado: formActivado
       });
-      setNotificacion(`Banner "${formTitulo.trim() || 'Yuudit'}" actualizado correctamente.`);
+      setNotificacion(`Banner "${formTitulo.trim() || 'Yuddit'}" actualizado correctamente.`);
     } else {
       bannersModule.crearBanner({
-        titulo: formTitulo.trim() || 'Banner Yuudit',
+        titulo: formTitulo.trim() || 'Banner Yuddit',
         subtitulo: formSubtitulo.trim(),
         imagenUrl: formImagenUrl.trim(),
         enlaceUrl: formEnlaceUrl.trim(),

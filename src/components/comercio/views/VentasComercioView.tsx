@@ -122,7 +122,7 @@ export const VentasComercioView: React.FC<VentasComercioViewProps> = ({
             codigoPersonal: String(evento.datos?.codigoCanje || 'CJ-9982'),
             ofertaTitulo: String(evento.datos?.premio || 'Recompensa Fidelización'),
             monto: 0,
-            usuarioNombre: String(evento.datos?.usuarioNombre || 'Usuario Yuudit'),
+            usuarioNombre: String(evento.datos?.usuarioNombre || 'Usuario Yuddit'),
             horaStr: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             tipo: 'canje_puntos'
           };
@@ -450,7 +450,7 @@ export const VentasComercioView: React.FC<VentasComercioViewProps> = ({
               <span>🎁</span> Validar Canje de Puntos
             </h4>
             <p className="text-xs text-stone-400 mt-0.5">
-              Canjes de recompensas solicitadas por usuarios con puntos Yuudit
+              Canjes de recompensas solicitadas por usuarios con puntos Yuddit
             </p>
           </div>
 

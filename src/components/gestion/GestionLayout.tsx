@@ -207,7 +207,7 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
                 </div>
                 {!sidebarColapsadoDesktop && (
                   <div className="leading-tight">
-                    <span className="font-bold text-base tracking-tight text-white block">Yuudit consola</span>
+                    <span className="font-bold text-base tracking-tight text-white block">Yuddit consola</span>
                     <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">CRM & ERP Modular</span>
                   </div>
                 )}

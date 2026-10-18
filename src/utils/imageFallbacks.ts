@@ -96,7 +96,7 @@ export function getCategoryFallbackImage(categoria: string = '', titulo: string 
     <g transform="translate(60, 70)">
       <rect width="40" height="40" rx="10" fill="#1B4332" />
       <text x="20" y="27" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#FFFFFF" text-anchor="middle">Y</text>
-      <text x="54" y="27" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#FFFFFF" letter-spacing="-0.5">Yuudit</text>
+      <text x="54" y="27" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#FFFFFF" letter-spacing="-0.5">Yuddit</text>
       <rect x="120" y="4" width="170" height="32" rx="16" fill="${accent}" fill-opacity="0.2" stroke="${accent}" stroke-width="1.5" />
       <text x="205" y="25" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="${accent}" text-anchor="middle" letter-spacing="1">${badgeLabel}</text>
     </g>

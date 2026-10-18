@@ -108,7 +108,7 @@ export const MisOfertasComercioView: React.FC<MisOfertasComercioViewProps> = ({
 
     const esVideo = formatoCompartir === 'video' && !!modalCompartir.videoUrl;
     const mediaUrl = esVideo ? modalCompartir.videoUrl : modalCompartir.imagenes[0];
-    const textoMensaje = `¡Hola! Te comparto nuestra oferta especial en ${comercio.nombreComercial}: "${modalCompartir.titulo}" a solo S/ ${modalCompartir.precioOferta} (Antes S/ ${modalCompartir.precioNormal}). ${esVideo ? `🎬 Mira el video promocional: ${window.location.origin}${mediaUrl}` : ''} ¡Canjéala hoy mismo en Yuudit!`;
+    const textoMensaje = `¡Hola! Te comparto nuestra oferta especial en ${comercio.nombreComercial}: "${modalCompartir.titulo}" a solo S/ ${modalCompartir.precioOferta} (Antes S/ ${modalCompartir.precioNormal}). ${esVideo ? `🎬 Mira el video promocional: ${window.location.origin}${mediaUrl}` : ''} ¡Canjéala hoy mismo en Yuddit!`;
 
     // Si no ingresó teléfono, abrir WhatsApp Web con enlace
     if (!cleanTel) {
