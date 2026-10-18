@@ -102,7 +102,7 @@ export const OnboardingTourModal: React.FC<OnboardingTourModalProps> = ({
 
               <div>
                 <h3 className="text-lg sm:text-xl font-black text-[#0F172A] tracking-tight">
-                  ¡Bienvenido a vuuy, {comercio?.nombreComercial || 'Aliado'}!
+                  ¡Bienvenido a Yuudit, {comercio?.nombreComercial || 'Aliado'}!
                 </h3>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed mt-1">
                   Estás a pocos pasos de activar tu presencia comercial para miles de vecinos interesados en tu distrito ({comercio?.distrito || 'Lima'}).
@@ -247,7 +247,7 @@ export const OnboardingTourModal: React.FC<OnboardingTourModalProps> = ({
                   ¡Felicitaciones! Estás listo para empezar
                 </h3>
                 <p className="text-xs text-stone-600 leading-relaxed mt-1 max-w-sm mx-auto">
-                  Tu negocio está completamente configurado en vuuy. Publica tu primera oferta y empieza a recibir contactos hoy mismo.
+                  Tu negocio está completamente configurado en Yuudit. Publica tu primera oferta y empieza a recibir contactos hoy mismo.
                 </p>
               </div>
 

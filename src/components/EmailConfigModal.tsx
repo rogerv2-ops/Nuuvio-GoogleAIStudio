@@ -275,7 +275,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Usuario / Email</label>
                     <input
                       type="text"
-                      placeholder="notificaciones@vuuy.pe"
+                      placeholder="notificaciones@yuddit.com"
                       value={smtpUser}
                       onChange={(e) => setSmtpUser(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
@@ -298,7 +298,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Nombre Remitente</label>
                     <input
                       type="text"
-                      placeholder="vuuy Ofertas"
+                      placeholder="Yuudit Ofertas"
                       value={smtpFromName}
                       onChange={(e) => setSmtpFromName(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
@@ -308,7 +308,7 @@ export const EmailConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">Correo Remitente (From)</label>
                     <input
                       type="email"
-                      placeholder="notificaciones@vuuy.pe"
+                      placeholder="notificaciones@yuddit.com"
                       value={smtpFromEmail}
                       onChange={(e) => setSmtpFromEmail(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-hidden focus:border-[#1B4332]"

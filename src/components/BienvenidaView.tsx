@@ -97,7 +97,7 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
               className="inline-flex items-center gap-1.5 text-xs text-stone-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Volver a vuuy</span>
+              <span>Volver a Yuudit</span>
             </button>
 
             {estadoVerificacion === 'valido' && (
@@ -111,7 +111,7 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
             {estadoVerificacion === 'verificando' && 'Verificando enlace...'}
             {estadoVerificacion === 'valido' && (
-              <>¡Bienvenido a vuuy{usuario?.nombre ? `, ${usuario.nombre}` : ''}! 🎉</>
+              <>¡Bienvenido a Yuudit{usuario?.nombre ? `, ${usuario.nombre}` : ''}! 🎉</>
             )}
             {estadoVerificacion === 'invalido' && 'Acceso restringido'}
           </h1>
@@ -238,7 +238,7 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
                   ¿Cómo desbloquear tu acceso a WhatsApp?
                 </p>
                 <ol className="list-decimal list-inside space-y-1.5 text-stone-600 pl-1 leading-relaxed">
-                  <li>Si ya te registraste, busca el correo de <strong>vuuy</strong> en tu bandeja de entrada o spam.</li>
+                  <li>Si ya te registraste, busca el correo de <strong>Yuudit</strong> en tu bandeja de entrada o spam.</li>
                   <li>Toca el botón <strong>"Confirmar mi correo"</strong> dentro de ese correo.</li>
                   <li>Ese enlace te redirigirá a esta página con tu botón oficial de WhatsApp desbloqueado.</li>
                 </ol>
@@ -262,7 +262,7 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
                         id: 'dev_preview_user',
                         nombre: 'Usuario de Prueba',
                         apellido: 'Demo',
-                        email: 'demo@vuuy.pe',
+                        email: 'demo@yuddit.com',
                         emailVerificado: true,
                         telefono: '+51 987 654 321',
                         edad: 28,

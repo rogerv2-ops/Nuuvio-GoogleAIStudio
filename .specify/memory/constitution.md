@@ -1,4 +1,4 @@
-# VUUY - CONSTITUCIÓN DEL CÓDIGO Y REGLAS MAESTRAS
+# YUUDIT - CONSTITUCIÓN DEL CÓDIGO
 
 Este documento contiene las reglas inquebrantables de arquitectura, producto y seguridad. Como agente de IA, DEBES leer y respetar estas reglas antes de proponer o ejecutar cualquier cambio en el código.
 
@@ -8,7 +8,7 @@ Este documento contiene las reglas inquebrantables de arquitectura, producto y s
 - **Lógica en el Servidor, Vistas Tontas:** Los componentes de React (`.tsx`) solo renderizan datos. Cualquier cálculo, filtrado, ordenamiento o validación debe ocurrir en el backend (`server.ts` o `src/modules/`).
 
 ## 2. REGLAS DE MENSAJERÍA Y COSTOS (MODELO DUAL Y MOSAICOS)
-- **Modelo Dual (PULL B2C / PUSH B2B):** Para los usuarios finales (consumidores), vuuy opera 100% PULL (nunca inicia una conversación, solo responde). Para los Comercios Aliados, el sistema puede operar PUSH (envío proactivo de alertas de saldo bajo, confirmaciones de aprobación o reportes de métricas).
+- **Modelo Dual (PULL B2C / PUSH B2B):** Para los usuarios finales (consumidores), Yuudit opera 100% PULL (nunca inicia una conversación, solo responde). Para los Comercios Aliados, el sistema puede operar PUSH (envío proactivo de alertas de saldo bajo, confirmaciones de aprobación o reportes de métricas).
 - **Regla de 1 Mensaje (Mosaicos):** Para ahorrar costos en la API de Meta al responder a usuarios, el bot debe responder con máximo 1 mensaje que contenga una sola imagen fusionada (Mosaico de 3 ofertas renderizado con `@napi-rs/canvas`) y 1 texto interactivo con botones nativos.
 - **Formato Visual:** Todas las tarjetas individuales generadas deben tener un formato cuadrado estricto 1:1 (800x800 px).
 

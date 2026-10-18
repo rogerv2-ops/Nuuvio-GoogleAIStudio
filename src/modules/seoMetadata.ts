@@ -37,10 +37,10 @@ export interface SeoScoreResult {
   items: SeoAnalysisItem[];
 }
 
-const STORAGE_KEY = 'vuuy_global_seo_metadata_v1';
+const STORAGE_KEY = 'yuddit_global_seo_metadata_v1';
 
 const METADATOS_DEFECTO: SeoMetadata = {
-  title: 'vuuy — Descubre Ofertas y Promociones Cercanas en Lima',
+  title: 'Yuudit — Descubre Ofertas y Promociones Cercanas en Lima',
   description: 'Asistente inteligente y directorio para descubrir las mejores ofertas, promociones y descuentos geolocalizados en Lima. Contacta directamente a comercios locales por WhatsApp.',
   keywords: [
     'ofertas lima',
@@ -54,13 +54,13 @@ const METADATOS_DEFECTO: SeoMetadata = {
     'directorio comercios peru'
   ],
   canonicalUrl: 'https://yuddit.com',
-  ogTitle: 'vuuy — Descubre Ofertas y Promociones Cercanas en Lima',
+  ogTitle: 'Yuudit — Descubre Ofertas y Promociones Cercanas en Lima',
   ogDescription: 'Descubre las mejores ofertas y descuentos en tu distrito de Lima con contacto instantáneo a comercios verificados por WhatsApp.',
   ogImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&h=630&q=80',
   ogType: 'website',
   twitterCard: 'summary_large_image',
   robots: 'index, follow',
-  author: 'vuuy Perú',
+  author: 'Yuudit Perú',
   geoRegion: 'PE-LIM',
   geoPlacename: 'Lima, Perú',
   schemaType: 'WebApplication',
@@ -197,7 +197,7 @@ class SeoMetadataModule {
       setMetaTag('property', 'og:title', this.metadata.ogTitle || this.metadata.title);
       setMetaTag('property', 'og:description', this.metadata.ogDescription || this.metadata.description);
       setMetaTag('property', 'og:type', this.metadata.ogType || 'website');
-      setMetaTag('property', 'og:site_name', 'vuuy');
+      setMetaTag('property', 'og:site_name', 'Yuudit');
       if (this.metadata.ogImageUrl) {
         setMetaTag('property', 'og:image', this.metadata.ogImageUrl);
       }
@@ -224,10 +224,10 @@ class SeoMetadataModule {
 
       // 5. Schema.org JSON-LD
       const jsonLdData = this.generarJsonLdObjeto();
-      let scriptLd = document.getElementById('vuuy-seo-schema-ld') as HTMLScriptElement | null;
+      let scriptLd = document.getElementById('yuddit-seo-schema-ld') as HTMLScriptElement | null;
       if (!scriptLd) {
         scriptLd = document.createElement('script');
-        scriptLd.id = 'vuuy-seo-schema-ld';
+        scriptLd.id = 'yuddit-seo-schema-ld';
         scriptLd.type = 'application/ld+json';
         document.head.appendChild(scriptLd);
       }
@@ -245,7 +245,7 @@ class SeoMetadataModule {
       return {
         '@context': 'https://schema.org',
         '@type': 'LocalBusiness',
-        name: 'vuuy — Red de Ofertas Cercanas',
+        name: 'Yuudit — Red de Ofertas Cercanas',
         description: this.metadata.description,
         url: baseUrl,
         image: this.metadata.ogImageUrl,
@@ -269,13 +269,13 @@ class SeoMetadataModule {
       return {
         '@context': 'https://schema.org',
         '@type': 'Organization',
-        name: 'vuuy',
+        name: 'Yuudit',
         url: baseUrl,
         logo: this.metadata.ogImageUrl,
         description: this.metadata.description,
         sameAs: [
-          'https://instagram.com/vuuy.pe',
-          'https://facebook.com/vuuy.pe'
+          'https://instagram.com/yuddit',
+          'https://facebook.com/yuddit'
         ]
       };
     }
@@ -284,7 +284,7 @@ class SeoMetadataModule {
     return {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: 'vuuy',
+      name: 'Yuudit',
       alternateName: this.metadata.title,
       applicationCategory: 'ShoppingApplication',
       operatingSystem: 'All',
@@ -314,7 +314,7 @@ class SeoMetadataModule {
 
 <!-- OpenGraph (WhatsApp, Facebook, LinkedIn) -->
 <meta property="og:type" content="${this.metadata.ogType}" />
-<meta property="og:site_name" content="vuuy" />
+<meta property="og:site_name" content="Yuudit" />
 <meta property="og:title" content="${this.metadata.ogTitle || this.metadata.title}" />
 <meta property="og:description" content="${this.metadata.ogDescription || this.metadata.description}" />
 <meta property="og:url" content="${this.metadata.canonicalUrl}" />

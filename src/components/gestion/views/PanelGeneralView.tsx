@@ -98,11 +98,11 @@ export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar })
             </div>
 
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white">
-              Centro de Mando de vuuy · Red Lima
+              Centro de Mando de Yuudit · Red Lima
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              vuuy es un asistente de WhatsApp que genera <strong>leads calificados para comercios</strong>. 
+              Yuudit es un asistente de WhatsApp que genera <strong>leads calificados para comercios</strong>. 
               Los usuarios solicitan ofertas cuando las necesitan; <em>no enviamos ofertas masivas invasivas</em>. 
               Visualiza en tiempo real la captación, el pipeline de comercios y la atribución comercial.
             </p>
@@ -131,7 +131,7 @@ export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar })
             <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/60">
               <span className="font-bold text-amber-400 block mb-1">2. Ventas Confirmadas</span>
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Son resultados que el comercio informa introduciendo el código personal de 8 dígitos del usuario. No son ingresos de vuuy sino métricas de efectividad.
+                Son resultados que el comercio informa introduciendo el código personal de 8 dígitos del usuario. No son ingresos de Yuudit sino métricas de efectividad.
               </p>
             </div>
             <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/60">

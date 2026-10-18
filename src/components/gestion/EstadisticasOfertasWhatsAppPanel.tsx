@@ -885,7 +885,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
             Metodología del Alcance Estimado en WhatsApp
           </span>
           <p className="leading-relaxed text-[11px] text-stone-500">
-            El alcance estimado se calcula multiplicando las ofertas publicadas y activas por la base de audiencia verificada y suscriptores activos del bot oficial de vuuy en cada distrito de Lima (Miraflores, Barranco, San Isidro, Surco, etc.), sumado a las impresiones en los digests matutinos y enlaces compartidos de WhatsApp con deep-link individual (<code className="font-mono text-emerald-900">wa.me/?text=...</code>).
+            El alcance estimado se calcula multiplicando las ofertas publicadas y activas por la base de audiencia verificada y suscriptores activos del bot oficial de Yuudit en cada distrito de Lima (Miraflores, Barranco, San Isidro, Surco, etc.), sumado a las impresiones en los digests matutinos y enlaces compartidos de WhatsApp con deep-link individual (<code className="font-mono text-emerald-900">wa.me/?text=...</code>).
           </p>
         </div>
       </div>

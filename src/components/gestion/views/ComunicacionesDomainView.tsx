@@ -247,7 +247,7 @@ export const ComunicacionesDomainView: React.FC<ComunicacionesDomainViewProps> =
               Plantillas de Notificaciones y Correos
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Estructura visual de las comunicaciones transaccionales oficiales de vuuy.
+              Estructura visual de las comunicaciones transaccionales oficiales de Yuudit.
             </p>
           </div>
 
@@ -258,7 +258,7 @@ export const ComunicacionesDomainView: React.FC<ComunicacionesDomainViewProps> =
               </span>
               <h4 className="text-xs font-bold text-stone-900">Verificación de 1 Clic (Magic Link)</h4>
               <p className="text-[11px] text-stone-500">
-                Correo limpio con logo de vuuy y botón verde único para verificar cuenta sin contraseñas.
+                Correo limpio con logo de Yuudit y botón verde único para verificar cuenta sin contraseñas.
               </p>
             </div>
 

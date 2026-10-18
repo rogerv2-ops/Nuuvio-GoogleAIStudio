@@ -344,7 +344,7 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
           <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/70 text-xs space-y-2">
             <span className="font-bold text-stone-800 block">Datos Fiscales del Emisor:</span>
             <div className="grid grid-cols-2 gap-2 text-stone-600">
-              <div><strong>Razón Social:</strong> VUUY PERU S.A.C.</div>
+              <div><strong>Razón Social:</strong> YUUDIT PERU S.A.C.</div>
               <div><strong>RUC:</strong> 20608976543</div>
               <div><strong>Régimen:</strong> MYPE Tributario</div>
               <div><strong>Tasa IGV:</strong> 18.00%</div>
@@ -358,7 +358,7 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
         <div className="bg-white rounded-2xl border border-stone-200/80 shadow-2xs p-5 space-y-4">
           <div>
             <h3 className="text-base font-bold text-stone-900">
-              Reporte Financiero y Monetización de vuuy
+              Reporte Financiero y Monetización de Yuudit
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
               Desglose de ingresos directos vs valorización de aportes en canje de productos.

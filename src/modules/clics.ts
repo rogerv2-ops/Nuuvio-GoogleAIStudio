@@ -176,7 +176,7 @@ class ClicsAtribucionModule {
     // Mensaje prearmado hacia el WhatsApp del negocio
     const telComercio = (comercio?.telefono || oferta.comercioWhatsapp).replace(/\D/g, '');
     const mensaje = encodeURIComponent(
-      `Hola ${oferta.comercioNombre}, vi tu oferta en vuuy: "${oferta.titulo}" (S/ ${oferta.precioOferta}). Mi código de usuario es ${codigoPersonal}. ¿Sigue disponible?`
+      `Hola ${oferta.comercioNombre}, vi tu oferta en Yuudit: "${oferta.titulo}" (S/ ${oferta.precioOferta}). Mi código de usuario es ${codigoPersonal}. ¿Sigue disponible?`
     );
     const waUrl = `https://wa.me/${telComercio}?text=${mensaje}`;
 
@@ -232,7 +232,7 @@ class ClicsAtribucionModule {
       }
     });
 
-    const textoCompartir = `¡Encontré esta super oferta en vuuy! ${oferta?.titulo} a solo S/ ${oferta?.precioOferta} (Antes S/ ${oferta?.precioNormal}). Mírala aquí: ${urlCompartir}`;
+    const textoCompartir = `¡Encontré esta super oferta en Yuudit! ${oferta?.titulo} a solo S/ ${oferta?.precioOferta} (Antes S/ ${oferta?.precioNormal}). Mírala aquí: ${urlCompartir}`;
 
     this.notificar();
     return { urlCompartir, textoCompartir };

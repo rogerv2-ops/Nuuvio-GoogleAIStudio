@@ -57,13 +57,13 @@ export class IaUsuariosAgent {
     if (t.includes("ayuda") || t.includes("hola") || t.includes("como funciona")) {
       return {
         intencion: "ayuda",
-        respuestaTexto: `¡Hola! Soy el asistente de vuuy para ${distritoUsuario}. 🌟\n\nAquí puedes:\n• Escribir *Oferta* para recibir hasta 5 oportunidades cercanas con fotos y descuentos.\n• Escribir *puntos* para revisar tu saldo acumulado por compartir.\n• Escribir *canjear* para redimir premios en comercios de tu zona.`,
+        respuestaTexto: `¡Hola! Soy el asistente de Yuudit para ${distritoUsuario}. 🌟\n\nAquí puedes:\n• Escribir *Oferta* para recibir hasta 5 oportunidades cercanas con fotos y descuentos.\n• Escribir *puntos* para revisar tu saldo acumulado por compartir.\n• Escribir *canjear* para redimir premios en comercios de tu zona.`,
       };
     }
 
     aiService
       .generarTexto({
-        prompt: `Pregunta libre del usuario en ${distritoUsuario}: "${texto}". Responde amablemente como asistente de vuuy en menos de 100 palabras.`,
+        prompt: `Pregunta libre del usuario en ${distritoUsuario}: "${texto}". Responde amablemente como asistente de Yuudit en menos de 100 palabras.`,
         asistenteId: "ia-usuarios",
       })
       .catch(() => {});

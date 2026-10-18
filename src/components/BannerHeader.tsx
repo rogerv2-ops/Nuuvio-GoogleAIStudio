@@ -68,7 +68,7 @@ export const BannerHeader: React.FC = () => {
     return (
       <div
         className="w-full relative overflow-hidden rounded-[20px] border border-[#EAE5D9] shadow-xs bg-[#FFFDF9]"
-        title="Ofertas cerca de ti - vuuy"
+        title="Ofertas cerca de ti - Yuudit"
       >
         <img
           src={withResourceVersion('/banner-ficha-oferta-mujer.webp')}
@@ -110,7 +110,7 @@ export const BannerHeader: React.FC = () => {
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     onError={handleImageError}
                   />
-                  {(b.titulo && b.titulo !== 'Ofertas cerca de ti - vuuy' && b.titulo !== 'Banner vuuy') && (
+                  {(b.titulo && b.titulo !== 'Ofertas cerca de ti - Yuudit' && b.titulo !== 'Banner Yuudit') && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent p-4 sm:p-6 flex flex-col justify-end text-white rounded-[20px]">
                       <h3 className="font-black text-sm sm:text-lg lg:text-xl drop-shadow-md">{b.titulo}</h3>
                       {b.subtitulo && <p className="text-xs sm:text-sm text-stone-200 drop-shadow-sm font-medium">{b.subtitulo}</p>}
@@ -126,7 +126,7 @@ export const BannerHeader: React.FC = () => {
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     onError={handleImageError}
                   />
-                  {(b.titulo && b.titulo !== 'Ofertas cerca de ti - vuuy' && b.titulo !== 'Banner vuuy' && b.subtitulo) && (
+                  {(b.titulo && b.titulo !== 'Ofertas cerca de ti - Yuudit' && b.titulo !== 'Banner Yuudit' && b.subtitulo) && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent p-4 sm:p-6 flex flex-col justify-end text-white rounded-[20px]">
                       <h3 className="font-black text-sm sm:text-lg lg:text-xl drop-shadow-md">{b.titulo}</h3>
                       {b.subtitulo && <p className="text-xs sm:text-sm text-stone-200 drop-shadow-sm font-medium">{b.subtitulo}</p>}

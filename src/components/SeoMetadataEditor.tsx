@@ -136,7 +136,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
               Gestor de Metadatos SEO y Posicionamiento
             </h2>
             <p className="text-xs sm:text-sm text-stone-200/90 leading-relaxed font-normal">
-              Edita el título global, meta descripción, palabras clave (keywords) y tarjetas sociales de vuuy. 
+              Edita el título global, meta descripción, palabras clave (keywords) y tarjetas sociales de Yuudit. 
               Los cambios se sincronizan en vivo con las etiquetas <code className="bg-black/30 px-1.5 py-0.5 rounded text-emerald-300 font-mono text-[11px]">&lt;head&gt;</code> y enriquecen la visibilidad en Google y WhatsApp.
             </p>
           </div>
@@ -241,7 +241,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                 type="text"
                 value={datos.title}
                 onChange={e => handleChange('title', e.target.value)}
-                placeholder="vuuy — Asistente de WhatsApp y Ofertas Cercanas"
+                placeholder="Yuudit — Asistente de WhatsApp y Ofertas Cercanas"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332] transition-all"
               />
               <p className="text-[11px] text-stone-500 leading-tight">
@@ -444,7 +444,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                   type="url"
                   value={datos.canonicalUrl}
                   onChange={e => handleChange('canonicalUrl', e.target.value)}
-                  placeholder="https://vuuy.pe"
+                  placeholder="https://yuddit.com"
                   className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                 />
               </div>
@@ -568,7 +568,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
             {tabPrevisualizacion === 'google' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[11px] text-stone-500">
-                  <span>Cómo verán los usuarios a vuuy en los resultados de Google:</span>
+                  <span>Cómo verán los usuarios a Yuudit en los resultados de Google:</span>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -599,16 +599,16 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                       v
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[12px] font-medium text-stone-900 leading-tight">vuuy</span>
+                      <span className="text-[12px] font-medium text-stone-900 leading-tight">Yuudit</span>
                       <span className="text-[11px] text-stone-500 truncate leading-tight">
-                        {datos.canonicalUrl || 'https://vuuy.pe'}
+                        {datos.canonicalUrl || 'https://yuddit.com'}
                       </span>
                     </div>
                   </div>
 
                   {/* Title Link */}
                   <h4 className="text-[15px] sm:text-[16px] text-[#1a0dab] hover:underline cursor-pointer font-normal leading-snug line-clamp-2">
-                    {datos.title || 'vuuy — Asistente de Ofertas y Comercios'}
+                    {datos.title || 'Yuudit — Asistente de Ofertas y Comercios'}
                   </h4>
 
                   {/* Description Snippet */}
@@ -635,7 +635,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
             {tabPrevisualizacion === 'social' && (
               <div className="space-y-3">
                 <p className="text-[11px] text-stone-500">
-                  Previsualización de la tarjeta de enlace que verán las personas cuando se comparta vuuy por WhatsApp o redes:
+                  Previsualización de la tarjeta de enlace que verán las personas cuando se comparta Yuudit por WhatsApp o redes:
                 </p>
 
                 <div className="bg-[#EFEAE2] p-3 rounded-2xl">
@@ -658,7 +658,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                         </div>
                       )}
                       <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                        vuuy.pe
+                        yuddit.com
                       </div>
                     </div>
 
@@ -670,7 +670,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
                       <p className="text-[11px] text-stone-600 line-clamp-2 leading-snug">
                         {datos.ogDescription || datos.description}
                       </p>
-                      <span className="text-[10px] text-stone-400 block pt-1">vuuy.pe</span>
+                      <span className="text-[10px] text-stone-400 block pt-1">yuddit.com</span>
                     </div>
                   </div>
                 </div>

@@ -22,7 +22,7 @@ interface AdminPanelProps {
 }
 
 /**
- * Consola CRM/ERP Modular de Gestión de vuuy
+ * Consola CRM/ERP Modular de Gestión de Yuudit
  * Integra los 8 dominios principales con registro centralizado de navegación,
  * páginas resumen ejecutivas, vistas operativas y redirección canónica.
  */

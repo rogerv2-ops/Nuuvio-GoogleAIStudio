@@ -8,7 +8,7 @@ export default defineConfig({
     host: process.env.SQL_HOST || "localhost",
     user: process.env.SQL_USER || "postgres",
     password: process.env.SQL_PASSWORD || "",
-    database: process.env.SQL_DB_NAME || "vuuy_db",
+    database: process.env.SQL_DB_NAME || "yuddit_db",
     ssl: false,
   },
 });

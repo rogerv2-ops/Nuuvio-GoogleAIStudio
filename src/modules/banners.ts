@@ -19,7 +19,7 @@ const LOCAL_STORAGE_KEY_BANNERS = 'vuuy_feed_banners_v2';
 export const DEFAULT_BANNERS: FeedBanner[] = [
   {
     id: 'banner_01',
-    titulo: 'Ofertas cerca de ti - vuuy',
+    titulo: 'Ofertas cerca de ti - Yuudit',
     subtitulo: 'Solo cuando las quieres. Sin spam ni perder tiempo. En tu zona.',
     imagenUrl: '/banner-ficha-oferta-mujer.webp',
     enlaceUrl: '',
@@ -65,7 +65,7 @@ class BannersModule {
         return {
           ...b,
           imagenUrl: '/banner-ficha-oferta-mujer.webp',
-          titulo: b.titulo === 'Ofertas cerca de ti - vuuy' ? 'Ofertas cerca de ti - vuuy' : b.titulo
+          titulo: b.titulo === 'Ofertas cerca de ti - Yuudit' ? 'Ofertas cerca de ti - Yuudit' : b.titulo
         };
       }
       return b;

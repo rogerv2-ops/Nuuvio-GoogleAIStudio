@@ -396,7 +396,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
               <ul className="space-y-1 list-disc list-inside">
                 <li>Soporte SMTP estándar (Gmail, Outlook, Amazon SES)</li>
                 <li>Soporte Resend REST API para entornos Cloud</li>
-                <li>Plantillas responsivas oficiales de vuuy</li>
+                <li>Plantillas responsivas oficiales de Yuudit</li>
               </ul>
             </div>
           </div>
@@ -472,7 +472,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
           <div>
             <h3 className="text-base font-bold text-stone-900">Interruptores de Módulos (Feature Flags)</h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Controla de forma atómica y en tiempo real el encendido o apagado de cada subsistema de vuuy.
+              Controla de forma atómica y en tiempo real el encendido o apagado de cada subsistema de Yuudit.
             </p>
           </div>
 
@@ -647,7 +647,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                 </div>
                 <div className="p-2.5 bg-white rounded-xl border border-stone-200/60">
                   <span className="text-[10px] text-stone-400 block font-semibold">EMAIL</span>
-                  <strong className="text-stone-900 font-mono">{sesion?.email || 'admin@vuuy.pe'}</strong>
+                  <strong className="text-stone-900 font-mono">{sesion?.email || 'admin@yuddit.com'}</strong>
                 </div>
                 <div className="p-2.5 bg-white rounded-xl border border-stone-200/60">
                   <span className="text-[10px] text-stone-400 block font-semibold">ROL</span>
@@ -1050,7 +1050,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                       required
                       value={nuevoUsuarioForm.email}
                       onChange={(e) => setNuevoUsuarioForm({ ...nuevoUsuarioForm, email: e.target.value })}
-                      placeholder="ejemplo@vuuy.pe"
+                      placeholder="ejemplo@yuddit.com"
                       className="w-full p-2 border border-stone-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-700 font-mono"
                     />
                   </div>

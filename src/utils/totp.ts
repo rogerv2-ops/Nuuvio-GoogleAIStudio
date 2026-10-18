@@ -78,7 +78,7 @@ export function verificarTotp(secret: string, codigo: string, timeMs: number = D
 }
 
 /** URI otpauth:// para que la app autenticadora (Google Authenticator, Authy) la lea. */
-export function otpauthUrl(secret: string, cuenta: string, emisor = "vuuy"): string {
+export function otpauthUrl(secret: string, cuenta: string, emisor = "Yuudit"): string {
   const label = encodeURIComponent(`${emisor}:${cuenta}`);
   const params = new URLSearchParams({
     secret,

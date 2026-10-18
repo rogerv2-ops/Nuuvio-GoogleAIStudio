@@ -116,7 +116,7 @@ export const TopOfertasSistemaDraggableWidget: React.FC<TopOfertasSistemaDraggab
           </h3>
 
           <p className="text-xs text-stone-300 max-w-2xl leading-relaxed">
-            Las 9 promociones con mayor efectividad de venta en toda la red vuuy basadas en la relación directa entre solicitudes ("Lo quiero") y ventas confirmadas.
+            Las 9 promociones con mayor efectividad de venta en toda la red Yuudit basadas en la relación directa entre solicitudes ("Lo quiero") y ventas confirmadas.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export const TopOfertasSistemaDraggableWidget: React.FC<TopOfertasSistemaDraggab
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 text-[10px] text-amber-400/90 font-bold uppercase tracking-wider truncate">
                       <Building2 className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{oferta.comercioNombre || 'Comercio vuuy'}</span>
+                      <span className="truncate">{oferta.comercioNombre || 'Comercio Yuudit'}</span>
                     </div>
 
                     <h4 className="font-bold text-xs sm:text-sm text-white line-clamp-1 leading-snug group-hover:text-emerald-300 transition-colors">

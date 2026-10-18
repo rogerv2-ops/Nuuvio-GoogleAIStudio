@@ -622,7 +622,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                       {comercio?.contactoNombre || 'Comercio'}
                     </p>
                     <p className="text-[10px] text-stone-400 truncate font-mono">
-                      {sesion?.email || 'comercio@vuuy.pe'}
+                      {sesion?.email || 'comercio@yuddit.com'}
                     </p>
                   </div>
                 )}
@@ -1158,7 +1158,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                   {/* BARRA SUPERIOR DEL FEED */}
                   <div className="bg-[#1B4332] text-white p-2 flex items-center justify-between">
                     <span className="font-black text-[11px] tracking-wider flex items-center gap-1">
-                      <span>🍃</span> vuuy feed
+                      <span>🍃</span> Yuudit feed
                     </span>
                     <span className="text-[8px] bg-emerald-900/80 px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-200 font-bold">
                       {comercio?.distrito || 'Miraflores'}
@@ -1289,7 +1289,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
                 </div>
 
                 <p className="text-[10px] text-stone-500 font-medium text-center leading-tight">
-                  Así visualizarán los usuarios tu oferta en la app móvil de vuuy.
+                  Así visualizarán los usuarios tu oferta en la app móvil de Yuudit.
                 </p>
               </div>
             </form>
@@ -1330,7 +1330,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
 
               <div className="bg-[#1B4332] text-white p-3 flex items-center justify-between">
                 <span className="font-black text-xs tracking-wider flex items-center gap-1">
-                  <span>🍃</span> vuuy feed
+                  <span>🍃</span> Yuudit feed
                 </span>
                 <span className="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-200 font-bold">
                   Lima · {comercio?.distrito || 'Miraflores'}
@@ -1478,7 +1478,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
             <div className="space-y-3 text-xs text-stone-600">
               <div className="p-3 bg-stone-50 rounded-xl space-y-1">
                 <h5 className="font-bold text-stone-900">1. ¿Cómo llegan los clientes a mi local?</h5>
-                <p>Los usuarios piden ofertas en vuuy. Cuando una les gusta, tocan "Lo quiero" y se abre tu WhatsApp con un mensaje prearmado y su código personal (ej. CV88-91).</p>
+                <p>Los usuarios piden ofertas en Yuudit. Cuando una les gusta, tocan "Lo quiero" y se abre tu WhatsApp con un mensaje prearmado y su código personal (ej. CV88-91).</p>
               </div>
               <div className="p-3 bg-stone-50 rounded-xl space-y-1">
                 <h5 className="font-bold text-stone-900">2. ¿Cómo confirmo una venta?</h5>

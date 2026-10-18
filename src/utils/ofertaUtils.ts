@@ -1,5 +1,5 @@
 /**
- * Utilidades para ofertas en vuuy
+ * Utilidades para ofertas en Yuudit
  */
 
 /**

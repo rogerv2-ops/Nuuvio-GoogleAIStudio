@@ -207,7 +207,7 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
                 </div>
                 {!sidebarColapsadoDesktop && (
                   <div className="leading-tight">
-                    <span className="font-bold text-base tracking-tight text-white block">vuuy consola</span>
+                    <span className="font-bold text-base tracking-tight text-white block">Yuudit consola</span>
                     <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">CRM & ERP Modular</span>
                   </div>
                 )}
@@ -339,7 +339,7 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
             {!sidebarColapsadoDesktop ? (
               <div className="bg-black/20 p-2.5 rounded-xl border border-white/5 flex items-center justify-between text-xs">
                 <div className="truncate">
-                  <span className="text-[11px] font-bold text-white block truncate">{sesion?.email || 'admin@vuuy.pe'}</span>
+                  <span className="text-[11px] font-bold text-white block truncate">{sesion?.email || 'admin@yuddit.com'}</span>
                   <span className="text-[10px] text-emerald-400 font-medium">{sesion?.rol || 'Super Administrador'}</span>
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">

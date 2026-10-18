@@ -1,5 +1,5 @@
 /**
- * vuuy - Definición central de tipos de dominio
+ * Yuudit - Definición central de tipos de dominio
  * Según documento maestro consolidado y arquitectura microkernel
  */
 

@@ -1,6 +1,6 @@
 /**
  * MODULO 1: core-messaging (esquema: msg)
- * Puerta única entre vuuy y WhatsApp.
+ * Puerta única entre Yuudit y WhatsApp.
  * Recibe webhooks, normaliza, identifica actor, respeta ventana de 24h y despacha comandos.
  */
 import { ChatMessage, Offer } from '../types';
@@ -24,7 +24,7 @@ class CoreMessaging {
     {
       id: 'msg_u_01',
       remitente: 'bot',
-      texto: '¡Hola Carlos! Bienvenido a vuuy. Escribe *Oferta* para ver las mejores promociones cerca de ti en Miraflores.',
+      texto: '¡Hola Carlos! Bienvenido a Yuudit. Escribe *Oferta* para ver las mejores promociones cerca de ti en Miraflores.',
       tipo: 'texto',
       timestamp: new Date(Date.now() - 3600000 * 4).toISOString()
     }
@@ -34,7 +34,7 @@ class CoreMessaging {
     {
       id: 'msg_c_01',
       remitente: 'bot',
-      texto: '¡Hola! Este es el canal oficial de vuuy Comercios. Escribe *quiero publicar* para crear una nueva oferta para tu negocio.',
+      texto: '¡Hola! Este es el canal oficial de Yuudit Comercios. Escribe *quiero publicar* para crear una nueva oferta para tu negocio.',
       tipo: 'texto',
       timestamp: new Date(Date.now() - 3600000 * 6).toISOString()
     }
@@ -116,7 +116,7 @@ class CoreMessaging {
           return [{
             id: `msg_bot_${Date.now()}`,
             remitente: 'bot',
-            texto: `🎉 ¡Excelente, ${vinculado.nombre}! Tu número de WhatsApp quedó vinculado con tu cuenta de vuuy.\n\nYa puedes escribir *Oferta* para recibir oportunidades cerca de ti en ${vinculado.distrito}.`,
+            texto: `🎉 ¡Excelente, ${vinculado.nombre}! Tu número de WhatsApp quedó vinculado con tu cuenta de Yuudit.\n\nYa puedes escribir *Oferta* para recibir oportunidades cerca de ti en ${vinculado.distrito}.`,
             tipo: 'texto',
             timestamp: ahora
           }];
@@ -201,7 +201,7 @@ class CoreMessaging {
       return [{
         id: `msg_bot_${Date.now()}`,
         remitente: 'bot',
-        texto: `💰 Tu saldo acumulado en vuuy es de *${saldo} puntos*.\n\nRecuerda: ganas 10 pts cada vez que compartes una oferta y 50 pts cuando un amigo invitado se registra.${textoRecompensas}\n\nEscribe *canjear* para obtener un premio con tu saldo.`,
+        texto: `💰 Tu saldo acumulado en Yuudit es de *${saldo} puntos*.\n\nRecuerda: ganas 10 pts cada vez que compartes una oferta y 50 pts cuando un amigo invitado se registra.${textoRecompensas}\n\nEscribe *canjear* para obtener un premio con tu saldo.`,
         tipo: 'texto',
         timestamp: ahora
       }];
@@ -243,7 +243,7 @@ class CoreMessaging {
       return [{
         id: `msg_bot_${Date.now()}`,
         remitente: 'bot',
-        texto: 'Has sido dado de baja de vuuy. No recibirás más mensajes ni resúmenes. Si deseas volver en el futuro, solo vuelve a escribirnos.',
+        texto: 'Has sido dado de baja de Yuudit. No recibirás más mensajes ni resúmenes. Si deseas volver en el futuro, solo vuelve a escribirnos.',
         tipo: 'texto',
         timestamp: ahora
       }];
@@ -270,7 +270,7 @@ class CoreMessaging {
       return [{
         id: `msg_bot_${Date.now()}`,
         remitente: 'bot',
-        texto: `👋 Hola. Este número no está registrado como comercio aprobado en vuuy.\n\nPara registrar tu negocio con RUC de 11 dígitos y publicar tus ofertas, visita: ${window.location.origin}/comercio/registro`,
+        texto: `👋 Hola. Este número no está registrado como comercio aprobado en Yuudit.\n\nPara registrar tu negocio con RUC de 11 dígitos y publicar tus ofertas, visita: ${window.location.origin}/comercio/registro`,
         tipo: 'texto',
         timestamp: ahora
       }];
