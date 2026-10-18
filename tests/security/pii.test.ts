@@ -4,7 +4,7 @@ import {
   descifrarCampo,
   indiceCiego,
   estaCifrado,
-  esErrorClavePii,
+  piiHabilitado,
 } from "../../src/utils/pii.ts";
 
 const KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -47,18 +47,16 @@ describe("Fase 5 - cifrado PII (AES-256-GCM) + indice ciego HMAC", () => {
     expect(indiceCiego("")).toBe(null);
   });
 
-  test("fail-closed sin clave", () => {
+  test("fail-open sin clave: opera en texto plano y sin indice", () => {
     const guardada = process.env.VUUV_PII_KEY;
     delete process.env.VUUV_PII_KEY;
     try {
-      let capturado: unknown = null;
-      try {
-        cifrarCampo("x");
-      } catch (e) {
-        capturado = e;
-      }
-      expect(capturado).not.toBe(null);
-      expect(esErrorClavePii(capturado)).toBe(true);
+      expect(piiHabilitado()).toBe(false);
+      const enc = cifrarCampo("dato@x.com");
+      expect(enc).toBe("dato@x.com");
+      expect(estaCifrado(enc)).toBe(false);
+      expect(descifrarCampo("dato@x.com")).toBe("dato@x.com");
+      expect(indiceCiego("dato@x.com")).toBe(null);
     } finally {
       process.env.VUUV_PII_KEY = guardada;
     }
