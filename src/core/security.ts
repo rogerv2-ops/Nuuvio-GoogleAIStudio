@@ -78,6 +78,8 @@ const API_MFA_STATUS = '/api/auth/mfa/status';
 const API_MFA_SETUP = '/api/auth/mfa/setup';
 const API_MFA_ACTIVATE = '/api/auth/mfa/activate';
 const API_MFA_DISABLE = '/api/auth/mfa/disable';
+const API_SESSIONS = '/api/auth/sessions';
+const API_SESSIONS_REVOKE_ALL = '/api/auth/sessions/revoke-all';
 
 const ACTIVITY_KEY = 'vuuy_auth_activity_v1';
 const IDLE_MS = 5 * 60 * 1000;
@@ -492,6 +494,30 @@ class CoreSecurity {
       if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudo desactivar MFA.' };
       return { ok: true };
     } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
+    }
+  }
+
+  async listarSesiones(): Promise<{ ok: boolean; sesiones?: Array<{ id: string; createdAt: string; expiresAt: string; origen: string | null; actual: boolean }>; error?: string }> {
+    try {
+      const resp = await fetch(API_SESSIONS);
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudieron listar las sesiones.' };
+      return { ok: true, sesiones: Array.isArray(data.sessions) ? data.sessions : [] };
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor.' };
+    }
+  }
+
+  async cerrarTodasLasSesiones(): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const resp = await fetch(API_SESSIONS_REVOKE_ALL, { method: 'POST' });
+      const data: any = await resp.json().catch(() => ({}));
+      this.cerrarSesion();
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || 'No se pudieron cerrar las sesiones.' };
+      return { ok: true };
+    } catch {
+      this.cerrarSesion();
       return { ok: false, error: 'No se pudo conectar con el servidor.' };
     }
   }

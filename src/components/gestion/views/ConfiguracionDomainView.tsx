@@ -70,6 +70,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const [mfaCodigoDesactivar, setMfaCodigoDesactivar] = useState('');
   const [mfaMensaje, setMfaMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [mfaCodigosRespaldo, setMfaCodigosRespaldo] = useState<string[] | null>(null);
+  const [cerrandoSesiones, setCerrandoSesiones] = useState(false);
 
   // Estados de nueva credencial
   const [modalNuevoUsuarioAbierto, setModalNuevoUsuarioAbierto] = useState(false);
@@ -175,6 +176,12 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const cancelarMfaSetup = () => {
     setMfaSetup(null);
     setMfaCodigo('');
+  };
+
+  const cerrarTodasLasSesiones = async () => {
+    setCerrandoSesiones(true);
+    await coreSecurity.cerrarTodasLasSesiones();
+    setCerrandoSesiones(false);
   };
 
   const handleToggleFlag = (nombre: keyof typeof flags) => {
@@ -576,6 +583,27 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                 <Key className="w-4 h-4" />Activar verificación en dos pasos
               </button>
             )}
+          </div>
+
+          {/* Tarjeta de Sesiones Activas y Revocación */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-4">
+              <h3 className="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-emerald-700" />
+                <span>Sesiones Activas y Revocación</span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Cada inicio de sesión genera un registro revocable. Si sospechas de un acceso, cierra todas las sesiones.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={cerrandoSesiones}
+              onClick={cerrarTodasLasSesiones}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Lock className="w-4 h-4" />Cerrar todas las sesiones
+            </button>
           </div>
 
           {/* Tarjeta de Sesión Activa */}
