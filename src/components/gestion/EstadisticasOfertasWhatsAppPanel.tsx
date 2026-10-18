@@ -283,7 +283,7 @@ export const EstadisticasOfertasWhatsAppPanel: React.FC = () => {
     const texto = `Resumen Ofertas & Alcance WhatsApp (${rangoFecha.fechaInicio} al ${rangoFecha.fechaFin})
 Ofertas Publicadas en Período: ${kpisPeriodo.totalPublicadas}
 Alcance Estimado en WhatsApp: ${kpisPeriodo.totalAlcance.toLocaleString()} usuarios
-Contactos Directos wa.me: ${kpisPeriodo.totalContactos.toLocaleString()}
+Contactos Directos WhatsApp: ${kpisPeriodo.totalContactos.toLocaleString()}
 Tasa de Interacción Promedio: ${kpisPeriodo.tasaPromedio}%
 Intervalos Auditados: ${datosIntervalos.length}`;
     navigator.clipboard.writeText(texto).then(() => {
@@ -478,7 +478,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
             <span className="text-3xl font-black text-stone-900">
               {kpisPeriodo.totalContactos.toLocaleString()}
             </span>
-            <span className="text-xs text-stone-500 font-medium">chats wa.me</span>
+            <span className="text-xs text-stone-500 font-medium">chats WhatsApp</span>
           </div>
           <div className="pt-1">
             <TrendBadge
@@ -699,7 +699,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
                 <Area
                   type="monotone"
                   dataKey="contactosDirectosWhatsApp"
-                  name="Contactos Directos (wa.me)"
+                  name="Contactos Directos (WhatsApp)"
                   stroke="#1B4332"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -786,7 +786,7 @@ Intervalos Auditados: ${datosIntervalos.length}`;
                 <th className="py-3 px-4 text-center">Ofertas Publicadas</th>
                 <th className="py-3 px-4 text-center">Ofertas Activas</th>
                 <th className="py-3 px-4 text-right">Alcance Estimado WA</th>
-                <th className="py-3 px-4 text-right">Contactos (wa.me)</th>
+                <th className="py-3 px-4 text-right">Contactos (WhatsApp)</th>
                 <th className="py-3 px-4 text-right">Tasa Interacción</th>
               </tr>
             </thead>

@@ -8,6 +8,7 @@ import { coreEvents } from '../core/events';
 import { ofertasModule } from './ofertas';
 import { comerciosModule } from './comercios';
 import { facturacionModule } from './facturacion';
+import { generarLinksWhatsApp } from '../utils/whatsappNative';
 
 class ClicsAtribucionModule {
   private clics: ClickRecord[] = [
@@ -61,10 +62,10 @@ class ClicsAtribucionModule {
     usuarioId: string;
     usuarioCodigoRef?: string;
     canal: 'whatsapp' | 'web';
-  }): { ok: boolean; waUrl: string; codigoPersonal: string; facturable: boolean } {
+  }): { ok: boolean; waUrl: string; waUrlWeb: string; codigoPersonal: string; facturable: boolean } {
     const oferta = ofertasModule.obtenerOferta(params.ofertaId);
     if (!oferta) {
-      return { ok: false, waUrl: '', codigoPersonal: '', facturable: false };
+      return { ok: false, waUrl: '', waUrlWeb: '', codigoPersonal: '', facturable: false };
     }
 
     const comercio = comerciosModule.obtenerComercio(oferta.comercioId);
@@ -122,13 +123,11 @@ class ClicsAtribucionModule {
 
     // Mensaje prearmado hacia el WhatsApp del negocio
     const telComercio = (comercio?.telefono || oferta.comercioWhatsapp).replace(/\D/g, '');
-    const mensaje = encodeURIComponent(
-      `Hola ${oferta.comercioNombre}, vi tu oferta en Yuddit: "${oferta.titulo}" (S/ ${oferta.precioOferta}). Mi código de usuario es ${codigoPersonal}. ¿Sigue disponible?`
-    );
-    const waUrl = `https://wa.me/${telComercio}?text=${mensaje}`;
+    const textoWhatsApp = `Hola ${oferta.comercioNombre}, vi tu oferta en Yuddit: "${oferta.titulo}" (S/ ${oferta.precioOferta}). Mi código de usuario es ${codigoPersonal}. ¿Sigue disponible?`;
+    const { nativeUrl: waUrl, webUrl: waUrlWeb } = generarLinksWhatsApp(telComercio, textoWhatsApp);
 
     this.notificar();
-    return { ok: true, waUrl, codigoPersonal, facturable };
+    return { ok: true, waUrl, waUrlWeb, codigoPersonal, facturable };
   }
 
   /**

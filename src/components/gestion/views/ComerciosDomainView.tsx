@@ -9,6 +9,7 @@ import { comerciosModule, ValidationChecklist } from '../../../modules/comercios
 import { ofertasModule } from '../../../modules/ofertas';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { facturacionModule } from '../../../modules/facturacion';
+import { abrirWhatsAppNativo } from '../../../utils/whatsappNative';
 import { Merchant, KanbanStage, Offer } from '../../../types';
 import { DISTRITOS_LIMA, CATEGORIAS_OFERTAS } from '../../../data/seedData';
 import { CrmVentasView } from '../../CrmVentasView';
@@ -924,9 +925,8 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block">WhatsApp</span>
                 <a
-                  href={`https://wa.me/${comercioFicha360.telefono.replace(/[^0-9]/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`whatsapp://send?phone=${comercioFicha360.telefono.replace(/[^0-9]/g, '')}&text=${encodeURIComponent('Ofertas')}`}
+                  onClick={(e) => { e.preventDefault(); abrirWhatsAppNativo(comercioFicha360.telefono); }}
                   className="font-semibold text-emerald-700 hover:underline flex items-center gap-1"
                 >
                   <MessageCircle className="w-3 h-3" />
