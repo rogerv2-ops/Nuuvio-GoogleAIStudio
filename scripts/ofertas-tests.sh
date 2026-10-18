@@ -7,7 +7,7 @@
 #   5) SIEMPRE limpia fixtures/click_logs y reinicia (trap EXIT)
 #
 # Uso:
-#   BASE_URL=https://nuuvio.sustrae.com \
+#   BASE_URL=https://yuddit.com \
 #   VUUV_ADMIN_EMAIL=... VUUV_ADMIN_PASSWORD=... \
 #   ./scripts/ofertas-tests.sh
 #
@@ -15,7 +15,7 @@
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_URL="${BASE_URL:-https://nuuvio.sustrae.com}"
+BASE_URL="${BASE_URL:-https://yuddit.com}"
 export TEST_BASE_URL="$BASE_URL"
 export OFERTAS_TEST_PREFIX="${OFERTAS_TEST_PREFIX:-519990000}"
 export DOCKER="${DOCKER:-sudo -n docker}"

@@ -104,7 +104,7 @@ con fixtures dedicadas y limpieza garantizada:
 
 ```bash
 # Siembra fixtures de prueba -> reinicia app -> bun test -> asserts en DB -> limpia.
-BASE_URL=https://nuuvio.sustrae.com \
+BASE_URL=https://yuddit.com \
 VUUV_ADMIN_EMAIL=... VUUV_ADMIN_PASSWORD=... \
 ./scripts/ofertas-tests.sh
 ```

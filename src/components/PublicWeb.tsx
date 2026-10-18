@@ -16,6 +16,7 @@ import { capturarAtribucionDeUrl } from '../utils/attribution';
 import { coreEvents } from '../core/events';
 import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
 import { esOfertaNueva } from '../utils/ofertaUtils';
+import { abrirWhatsAppNativo } from '../utils/whatsappNative';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -218,9 +219,25 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       return;
     }
 
-    // Usuario registrado: el servidor arma el enlace a WhatsApp (el número nunca se expone en el cliente).
-    const destino = oferta?.id ? `/go/oferta/${encodeURIComponent(oferta.id)}` : '/go/whatsapp';
-    window.location.href = destino;
+    // Usuario registrado: abrir WhatsApp nativo del bot con "Quiero la oferta: [título]" (dispara el Paso 2).
+    if (!oferta?.id) {
+      window.location.href = '/go/whatsapp';
+      return;
+    }
+    const tituloOferta = oferta.titulo || '';
+    fetch('/api/whatsapp/config')
+      .then((r) => r.json())
+      .then((cfg) => {
+        const botPhone = String(cfg?.botPhone || '').replace(/\D/g, '');
+        if (botPhone) {
+          abrirWhatsAppNativo(botPhone, `Quiero la oferta: ${tituloOferta}`);
+        } else {
+          window.location.href = `/go/oferta/${encodeURIComponent(oferta.id)}`;
+        }
+      })
+      .catch(() => {
+        window.location.href = `/go/oferta/${encodeURIComponent(oferta.id)}`;
+      });
   };
 
   // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.

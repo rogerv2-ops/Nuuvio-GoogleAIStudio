@@ -436,8 +436,8 @@ export async function renderMosaicImage(ofertas: OfferCardData[]): Promise<Buffe
 
     // Dibuja un círculo oscuro llamativo en la esquina superior izquierda con el número de oferta (1, 2 o 3)
     ctx.save();
-    const badgeX = 54;
-    const badgeY = yOffset + 54;
+    const badgeX = 40;
+    const badgeY = yOffset + 40;
     const radius = 30;
 
     ctx.shadowColor = "rgba(0, 0, 0, 0.8)";

@@ -197,7 +197,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
   };
 
   const getWebhookUrlCompleta = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
     return `${origin}${modoSeleccionado === 'meta' ? config.metaConfig.webhookUrl : config.wahaConfig.webhookUrl}`;
   };
 

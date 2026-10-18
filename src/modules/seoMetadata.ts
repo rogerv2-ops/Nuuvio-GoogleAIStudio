@@ -53,7 +53,7 @@ const METADATOS_DEFECTO: SeoMetadata = {
     'compras lima cupones',
     'directorio comercios peru'
   ],
-  canonicalUrl: 'https://nuuvio.ai.studio',
+  canonicalUrl: 'https://yuddit.com',
   ogTitle: 'vuuy — Descubre Ofertas y Promociones Cercanas en Lima',
   ogDescription: 'Descubre las mejores ofertas y descuentos en tu distrito de Lima con contacto instantáneo a comercios verificados por WhatsApp.',
   ogImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&h=630&q=80',
@@ -238,7 +238,7 @@ class SeoMetadataModule {
   }
 
   public generarJsonLdObjeto() {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
     const baseUrl = this.metadata.canonicalUrl || origin;
 
     if (this.metadata.schemaType === 'LocalBusiness') {

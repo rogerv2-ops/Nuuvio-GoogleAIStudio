@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test de seguridad contra un servidor en ejecucion.
-# Uso: BASE_URL=https://nuuvio.sustrae.com ADMIN_EMAIL=... ADMIN_PASSWORD=... ./scripts/security-smoke.sh
+# Uso: BASE_URL=https://yuddit.com ADMIN_EMAIL=... ADMIN_PASSWORD=... ./scripts/security-smoke.sh
 set -u
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"

@@ -1,47 +1,32 @@
-# vuuy Constitution
+# VUUY - CONSTITUCIÓN DEL CÓDIGO Y REGLAS MAESTRAS
 
-## Core Principles
+Este documento contiene las reglas inquebrantables de arquitectura, producto y seguridad. Como agente de IA, DEBES leer y respetar estas reglas antes de proponer o ejecutar cualquier cambio en el código.
 
-### I. Persistencia total en Postgres (NON-NEGOTIABLE)
-Toda data de los 3 actores (usuarios, comercios, nuuvio) vive en Postgres.
-Nada persistsolo en memoria sobrevive un deploy: al arrancar, todo se carga
-desde DB y solo se siembra si la tabla está vacía. Prohibido guardar estado
-operativo únicamente en variables en memoria, archivos efímeros o contenedor.
+## 1. REGLAS DE ARQUITECTURA Y PERSISTENCIA (BACKEND FIRST)
+- **Base de Datos Única:** Toda la persistencia de datos (usuarios, comercios, ofertas, clics, saldos) debe hacerse ESTRICTAMENTE en PostgreSQL utilizando Drizzle ORM (`src/db/repo.ts`). 
+- **Cero JSON Locales:** Está estrictamente prohibido usar archivos `.json` locales o `localStorage` para guardar el estado del negocio. El contenedor en la nube es efímero y se borra al reiniciar.
+- **Lógica en el Servidor, Vistas Tontas:** Los componentes de React (`.tsx`) solo renderizan datos. Cualquier cálculo, filtrado, ordenamiento o validación debe ocurrir en el backend (`server.ts` o `src/modules/`).
 
-**Alcance (qué NO es data sujeta a este mandato)**: este principio aplica a
-**data de dominio y de actores** (identidades, credenciales, comercios,
-ofertas, banners, audiencia, packs, configuraciones y eventos de auditoría
-persistibles), que SIEMPRE vive en Postgres. Queda **fuera de su alcance** el
-estado efímero que por diseño no representa data de ningún actor y cuya pérdida
-es funcionalmente inofensiva: contadores y ventanas de *rate limiting*, cachés
-de corta vida en proceso y similares. Dicho estado PUEDE vivir solo en memoria,
-siempre que (a) su pérdida en un arranque/deploy no altere ni corrompa data de
-actores, y (b) no afecte la corrección funcional. Cuando exista duda sobre si
-un dato es de dominio, se trata como de dominio (se persiste).
+## 2. REGLAS DE MENSAJERÍA Y COSTOS (MODELO DUAL Y MOSAICOS)
+- **Modelo Dual (PULL B2C / PUSH B2B):** Para los usuarios finales (consumidores), vuuy opera 100% PULL (nunca inicia una conversación, solo responde). Para los Comercios Aliados, el sistema puede operar PUSH (envío proactivo de alertas de saldo bajo, confirmaciones de aprobación o reportes de métricas).
+- **Regla de 1 Mensaje (Mosaicos):** Para ahorrar costos en la API de Meta al responder a usuarios, el bot debe responder con máximo 1 mensaje que contenga una sola imagen fusionada (Mosaico de 3 ofertas renderizado con `@napi-rs/canvas`) y 1 texto interactivo con botones nativos.
+- **Formato Visual:** Todas las tarjetas individuales generadas deben tener un formato cuadrado estricto 1:1 (800x800 px).
 
-### II. Imágenes a disco, jamás dataURLs (NON-NEGOTIABLE)
-Toda imagen (ofertas, banners, logos, configs) se sube vía
-`POST /api/media/upload`, que la compacta a WebP (máx 1600px, q80) y la guarda
-en disco persistente (`/app/data/uploads`). En DB solo se guarda la URL
-(`/uploads/...`). Prohibido persistir `data:` URLs en Postgres.
-Si la subida falla, la operación se bloquea con error visible: jamás se
-conserva ni se guarda el dataURL como fallback ("nada de esquema viejo").
+## 3. SEGURIDAD Y PRIVACIDAD (MURO DE FUEGO)
+- **Ofuscación Absoluta:** El número de WhatsApp del bot y los números de los comercios JAMÁS deben estar expuestos (`hardcoded`) en el frontend. Toda redirección debe pasar por rutas puente en el servidor (ej. `/api/go/pedir` o `/c/:ofertaId`).
+- **Antifraude de Leads:** Todo lead o clic facturable debe validarse en Postgres para evitar cobros dobles al comercio por el mismo usuario interactuando con la misma oferta en un lapso de 24 horas.
+- **Separación de Roles:** Un número de teléfono no puede ser Usuario Consumidor y Comercio a la vez. El backend debe verificar la tabla `merchants` antes que `audience_users`.
 
-### III. Deploys no borran data
-`docker-entrypoint.sh` aplica schema (`drizzle-kit push`, solo aditivo) antes
-de arrancar. Ningún deploy borra ofertas, usuarios, comercios, banners,
-configs, estadísticas ni sesión de WhatsApp. Volúmenes persistentes:
-`/app/auth_info_baileys`, `/app/data`, `/app/public/videos`.
+## 4. MODERACIÓN B2B (3 CAPAS)
+Toda oferta nueva publicada por un comercio debe pasar por:
+1. **Blacklist:** Rechazo automático si incluye palabras prohibidas (iPhone, Apple, réplica, préstamo, etc.).
+2. **Guillotina de Descuento:** Si el descuento supera el 60%, pasa a revisión humana obligatoria (`en_validacion`).
+3. **Visión IA:** Gemini debe validar la calidad de la foto (rechazar capturas de pantalla, baja calidad o contenido indebido).
 
-### IV. Backend y frontend desde este repo
-La fuente de verdad es este repo (`main`), no builds congelados. `index.html`
-apunta a `/src/main.tsx`; `vite build` debe compilar la app real. Prohibido
-commitear bundles o depender de `dist/` pre-construidos.
-
-### V. WhatsApp Baileys compatible
-Motor Baileys 7.x. Al desvincular (logout o desde el teléfono) se limpia
-sesión en disco Y respaldo en DB (`whatsapp_auth_files`), evitando loops
-`loggedOut` sin QR.
+## 5. REGLAS DEL AGENTE (TUS LÍMITES)
+- **Cero instalaciones sin permiso:** Tienes prohibido ejecutar `npm install` o añadir dependencias pesadas (ej. Puppeteer, PostGIS) sin confirmación explícita del usuario.
+- **Resiliencia (Try/Catch):** Todas las llamadas a APIs externas (Gemini, Meta, Baileys) deben estar envueltas en `try/catch`. Si fallan, el servidor Node.js NUNCA debe crashear.
+- **Nomenclatura Bilingüe:** Usa inglés para la sintaxis (map, filter, width, height) y español para el dominio del negocio (ofertas, comercios, clics).
 
 ## Development Workflow
 
@@ -56,9 +41,12 @@ sesión en disco Y respaldo en DB (`whatsapp_auth_files`), evitando loops
 Esta constitución prevalece sobre atajos. Toda excepción requiere justificación
 y plan de migración. Cambios a este archivo con commit explícito.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
+**Version**: 1.2.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-18
 
 **Changelog**:
+- 1.2.0 (2026-10-18): reescritura integral a las reglas maestras (Backend First,
+  Modelo Dual PULL/PUSH, Regla de 1 Mensaje, Muro de Fuego, Moderación B2B 3 capas y
+  límites del agente). Sustituye los principios I–V previos.
 - 1.1.0 (2026-10-16): aclara el alcance del Principio I — el estado efímero de
   seguridad/rendimiento (p. ej. contadores de rate limiting) no es data de
   actores y queda fuera del mandato de persistencia. Resuelve el conflicto

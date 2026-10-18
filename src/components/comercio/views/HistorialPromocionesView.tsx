@@ -97,7 +97,7 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
   }, [ofertas, filtroEstado, busqueda, criterioOrden]);
 
   const copiarEnlaceRastreado = (o: Offer) => {
-    const url = `https://nuuvio.ai.studio/?oferta=${o.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${o.id}&event=view_offer`;
+    const url = `${window.location.origin}/?oferta=${o.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${o.id}&event=view_offer`;
     navigator.clipboard.writeText(url);
     setEnlaceCopiadoId(o.id);
     setTimeout(() => setEnlaceCopiadoId(null), 2000);
@@ -534,12 +534,12 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
                     </span>
                     <span>·</span>
                     <span>
-                      Difusión: <strong>WhatsApp Bot & nuuvio.ai.studio</strong>
+                      Difusión: <strong>WhatsApp Bot & yuddit.com</strong>
                     </span>
                   </div>
 
                   <a
-                    href={`https://nuuvio.ai.studio/?oferta=${o.id}`}
+                    href={`${window.location.origin}/?oferta=${o.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
@@ -654,7 +654,7 @@ export const HistorialPromocionesView: React.FC<HistorialPromocionesViewProps> =
                 Enlace oficial con atribución y eventos:
               </span>
               <div className="p-2 bg-white rounded-lg border border-stone-200 font-mono text-[11px] text-stone-600 break-all select-all">
-                {`https://nuuvio.ai.studio/?oferta=${promocionDetalle.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${promocionDetalle.id}&event=view_offer`}
+                {`${window.location.origin}/?oferta=${promocionDetalle.id}&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=promocion_enviada&utm_content=${promocionDetalle.id}&event=view_offer`}
               </div>
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[10px] text-stone-400">

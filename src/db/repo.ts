@@ -139,8 +139,11 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
   // Facturable solo si no hubo clic facturable en 24h y el comercio tiene saldo.
   // La ventana se ancla al último clic facturable; los no facturables no la reinician.
   const facturable = !existeClicEn24h && saldoDisponible;
-  const random4 = Math.floor(1000 + Math.random() * 9000);
-  const codigoCanje = `NV-${random4}`;
+  // Codigo de canje unico global: NV- + 6 chars de alfabeto sin ambiguos (32^6 ~ 1.07e9).
+  const _codAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let random6 = "";
+  for (let _i = 0; _i < 6; _i++) random6 += _codAlphabet[Math.floor(Math.random() * _codAlphabet.length)];
+  const codigoCanje = `NV-${random6}`;
   const id = `clk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
   try {
@@ -159,6 +162,10 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
 
   return { facturable, codigoCanje };
 }__name(registerOfferClick,"registerOfferClick");
+async function registerQualifiedLead(arg1, arg2, arg3) {
+  return registerOfferClick(arg1, arg2, arg3);
+}
+__name(registerQualifiedLead, "registerQualifiedLead");
 async function incrementOfferLikes(ofertaId) {
   try {
     const rows = await db
@@ -194,7 +201,7 @@ async function savePersistedKanban(kanbanList) {
   await saveSetting("merchants_kanban", kanbanList);
 }
 __name(savePersistedKanban, "savePersistedKanban");
-export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,incrementOfferLikes,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser,upsertAudienceUserSafe};
+export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,registerQualifiedLead,incrementOfferLikes,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser,upsertAudienceUserSafe};
 import{chatLogs}from"./schema.ts";
 async function insertChatLog(e){try{await db.insert(chatLogs).values({id:e.id||`clog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,canal:e.canal||"waha",direccion:e.direccion||"entrante",telefono:String(e.telefono||""),contenido:String(e.contenido||"").slice(0,4000),estado:e.estado||"recibido",detalles:String(e.detalles||"").slice(0,2000),timestamp:e.timestamp||new Date().toISOString()})}catch(err){console.error("[DB Repo] Error guardando chat log:",err)}}
 __name(insertChatLog,"insertChatLog");

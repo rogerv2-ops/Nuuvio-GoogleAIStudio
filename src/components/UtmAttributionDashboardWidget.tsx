@@ -326,7 +326,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
 
   // URL generada en tiempo real
   const urlGenerada = useMemo(() => {
-    const base = typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio';
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
     const params = new URLSearchParams();
     if (generadorSource) params.set('utm_source', generadorSource);
     if (generadorMedium) params.set('utm_medium', generadorMedium);
@@ -843,7 +843,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
                   </tr>
                 ) : (
                   enlacesFiltrados.map(item => {
-                    const sampleUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio'}/?ref=${item.codigoRef}`;
+                    const sampleUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com'}/?ref=${item.codigoRef}`;
                     const isCopied = enlaceCopiado === item.codigoRef;
 
                     return (

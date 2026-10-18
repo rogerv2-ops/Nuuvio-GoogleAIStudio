@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Cambia la contrasena de un usuario de nuuvio SIN escribirla a disco.
+# Cambia la contrasena de un usuario de vuuy SIN escribirla a disco.
 #
 # La clave nunca toca un archivo: se lee de forma silenciosa (read -s), viaja por
 # HTTPS con --data @- (no aparece en `ps`) y en el servidor queda hasheada con
 # scrypt en app_settings.auth_users (Postgres). En claro no se persiste en ningun lado.
 #
 # Uso:
-#   BASE_URL=https://nuuvio.sustrae.com ./scripts/set-admin-password.sh [email]
+#   BASE_URL=https://yuddit.com ./scripts/set-admin-password.sh [email]
 #
 set -u
 
-BASE_URL="${BASE_URL:-https://nuuvio.sustrae.com}"
+BASE_URL="${BASE_URL:-https://yuddit.com}"
 EMAIL="${1:-${VUUV_ADMIN_EMAIL:-}}"
 
 if [ -z "$EMAIL" ]; then read -rp "Email del usuario: " EMAIL; fi

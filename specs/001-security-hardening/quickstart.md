@@ -6,14 +6,14 @@ implementación; los detalles viven en `contracts/` y `data-model.md`.
 ## Prerrequisitos
 
 - Instancia accesible (local `http://localhost:3000` o producción
-  `https://nuuvio.sustrae.com`).
+  `https://yuddit.com`).
 - Credenciales de prueba (admin + comercio) sembradas en `app_settings.auth_users`.
 - Para webhooks: `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`,
   `WAHA_WEBHOOK_SECRET` configurados en el entorno de despliegue.
 
 Variables de conveniencia:
 ```bash
-export B="https://nuuvio.sustrae.com"
+export B="https://yuddit.com"
 export ADMIN_EMAIL="rogerv2@gmail.com"
 export ADMIN_PASS="<password>"
 export COM_EMAIL="rogerv707@gmail.com"

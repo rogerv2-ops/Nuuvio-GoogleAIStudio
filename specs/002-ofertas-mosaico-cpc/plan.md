@@ -34,7 +34,7 @@ todos los requisitos de la spec (ver Gap Analysis).
 
 **Testing**: `bun test` (suite en `tests/`), verificación black-box HTTP contra el servicio desplegado, `bun run build` obligatorio antes de push.
 
-**Target Platform**: Linux ARM64, contenedor Docker en Coolify (`https://nuuvio.sustrae.com`).
+**Target Platform**: Linux ARM64, contenedor Docker en Coolify (`https://yuddit.com`).
 
 **Project Type**: Aplicación web full-stack single-service (backend + SPA servida por el mismo proceso).
 

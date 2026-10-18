@@ -50,7 +50,7 @@ class EmailService {
     botPhone?: string;
   }): Promise<{ ok: boolean; message: string; simulated?: boolean; verificationLink?: string; whatsappLink?: string }> {
     try {
-      const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio';
+      const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
       const response = await fetch('/api/email/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -86,7 +86,7 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
   const [envVars, setEnvVars] = useState({
     geminiKeyConfigured: true,
     whatsappActiveMode: coreConfig.obtenerValor('conector_whatsapp', 'WAHA (Pruebas / Local)'),
-    appUrl: typeof window !== 'undefined' ? window.location.origin : 'https://nuuvio.ai.studio',
+    appUrl: typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com',
     puerto: 3000
   });
 
