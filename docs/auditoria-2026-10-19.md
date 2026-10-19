@@ -199,6 +199,10 @@ function registrarLoginFallido(email){const st=loginFailState.get(email)||{count
 
 **Corrección:** mover contadores a Postgres o Redis, o documentar y **enforcar** el modo single-instance. Las sesiones ya están bien resueltas en la tabla `sessions` con revocación — ese es el patrón a seguir.
 
+**Punto 8 — resuelto en lo importante (2026-10-19).** El **bloqueo por intentos fallidos de login** (el control duro) pasó a la tabla `login_failures`: el incremento y el bloqueo ocurren en **una sola sentencia** (upsert), asi que dos intentos simultaneos no se pisan, el bloqueo es el mismo para todas las instancias y **sobrevive a un reinicio** (antes un `Map` en memoria: con dos instancias el bloqueo se eludia alternando instancias y al reiniciar se borraba). El `Map` queda solo como respaldo si la base no responde.
+
+Los **rate limits** (`rateLimit(bucket, max, window)`) siguen siendo en memoria, con lo cual el limite efectivo se multiplica por el numero de instancias. Para que eso no pase en silencio, el arranque **detecta si hay otra instancia viva** (un advisory lock de Postgres en una conexion dedicada, fuera del pool) y avisa con `[Instancia] CRITICO`. Si el negocio va a escalar a mas de una instancia, el paso siguiente es mover los rate limits a Redis.
+
 ---
 
 ### 9. Sin CI
