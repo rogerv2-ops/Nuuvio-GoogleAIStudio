@@ -27,12 +27,47 @@ import { ClickPack } from '../types';
 import { SEED_CLICK_PACKS } from '../data/seedData';
 import { coreConfig } from '../core/config';
 import { coreEvents } from '../core/events';
-import {
-  debitarClicAtomico,
-  insertarClickPack,
-  listarClickPacks,
-  sembrarClickPacksSiVacio,
-} from '../db/repo';
+/**
+ * La capa de base de datos es SOLO de servidor y se carga en forma diferida.
+ *
+ * No es una preferencia de estilo: `src/db/index.ts` crea el Pool de Postgres en
+ * el ambito del modulo y usa `global`, que NO existe en el navegador. Con un
+ * `import` estatico desde aca, Vite metia el Pool, Drizzle y el esquema completo
+ * en el bundle del navegador, el error "global is not defined" ocurria al evaluar
+ * el modulo, y como es un error de carga el script entero moria: la SPA quedaba
+ * en blanco. Este modulo lo importa el panel del comercio, asi que ese `import`
+ * tumbaba el sitio completo.
+ *
+ * Con el import diferido el chunk de base solo se pide si alguna operacion de
+ * base se ejecuta de verdad, y el guard de abajo garantiza que eso nunca pase en
+ * el navegador. Los callbacks y el render siguen funcionando: el cache en memoria
+ * (arriba) nunca depende de la base.
+ */
+type CapaDeDatos = typeof import('../db/repo');
+
+let capaDeDatos: CapaDeDatos | null = null;
+let capaDeDatosEnCurso: Promise<CapaDeDatos> | null = null;
+
+function obtenerCapaDeDatos(): Promise<CapaDeDatos> {
+  if (capaDeDatos) return Promise.resolve(capaDeDatos);
+
+  if (typeof window !== 'undefined' || typeof document !== 'undefined') {
+    return Promise.reject(
+      new Error(
+        'La capa de datos de facturacion es solo de servidor y no esta disponible en el navegador. ' +
+          'El cobro y el debito de clics se resuelven en el servidor.',
+      ),
+    );
+  }
+
+  if (!capaDeDatosEnCurso) {
+    capaDeDatosEnCurso = import('../db/repo').then((modulo) => {
+      capaDeDatos = modulo;
+      return modulo;
+    });
+  }
+  return capaDeDatosEnCurso;
+}
 
 export interface ClickPackProductContribution {
   productoNombre: string;
@@ -75,7 +110,8 @@ class FacturacionModule {
         ? blobLegacy
         : (SEED_CLICK_PACKS as ClickPack[]);
     try {
-      const sembrado = await sembrarClickPacksSiVacio(semilla);
+      const capa = await obtenerCapaDeDatos();
+      const sembrado = await capa.sembrarClickPacksSiVacio(semilla);
       if (sembrado) console.log(`[Facturacion] click_packs sembrada con ${semilla.length} pack(s).`);
     } catch (e) {
       console.warn('[Facturacion] No se pudo sembrar click_packs:', e);
@@ -85,7 +121,8 @@ class FacturacionModule {
 
   public async recargarCache(): Promise<void> {
     try {
-      const packs = await listarClickPacks();
+      const capa = await obtenerCapaDeDatos();
+      const packs = await capa.listarClickPacks();
       if (packs.length === 0 && this.packs.size > 0) {
         console.warn(
           `[Facturacion] click_packs devolvio 0 filas pero el cache tiene ${this.packs.size} pack(s). ` +
@@ -120,7 +157,8 @@ class FacturacionModule {
   public async debitarClic(comercioId: string): Promise<ResultadoDebito> {
     const facturacionActiva = coreConfig.moduloActivo('campanasFacturacion');
 
-    const resultado = await debitarClicAtomico(comercioId);
+    const capa = await obtenerCapaDeDatos();
+    const resultado = await capa.debitarClicAtomico(comercioId);
 
     if (resultado.exito) {
       this.sincronizarCache(resultado.packId, resultado.saldoRestante);
@@ -200,7 +238,8 @@ class FacturacionModule {
 
     // Se persiste primero: un pack que solo existe en memoria es exactamente el
     // bug que este cambio elimina.
-    await insertarClickPack(nuevoPack);
+    const capa = await obtenerCapaDeDatos();
+    await capa.insertarClickPack(nuevoPack);
     this.packs.set(id, nuevoPack);
 
     coreEvents.emitir({
