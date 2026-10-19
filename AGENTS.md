@@ -2,6 +2,25 @@
 
 Yuddit (formerly vuuy/nuuvio): WhatsApp bot + offers platform for Lima, Peru. Single Express backend + React SPA, Postgres via Drizzle. Deployed with Docker on Coolify.
 
+## Reglas inquebrantables — enlaces a WhatsApp
+
+**Todo enlace a WhatsApp deja elegir la app, y el teléfono nunca se expone.** Salen de un incidente real (2026-10-19): **todos los botones de WhatsApp de la landing estaban muertos**. El botón pedía `/api/whatsapp/config`, que está fuera de `esRutaPublica`; el gate global de `/api` respondía 401, el cliente se quedaba sin número y hacía `return` **sin avisar**. Cero clics, cero leads, cero señal.
+
+| Regla | Cómo se cumple | Dónde |
+|---|---|---|
+| **1. Siempre se puede elegir la app** | Android: esquema nativo `whatsapp://` → el sistema muestra el selector (WhatsApp / WhatsApp Business) con **un solo toque**. iOS y web: el sistema no ofrece selector, así que lo pone la hoja de opciones (WhatsApp / WhatsApp Business / WhatsApp Web). | `src/utils/whatsappLinks.ts` (reglas puras), `src/components/WhatsAppChooser.tsx` (hoja) |
+| **2. El teléfono no se expone** | El número **no** va en el HTML, ni en el bundle, ni en un endpoint público. Se resuelve en el servidor **en el momento del clic** y se responde con el enlace ya armado (`Cache-Control: no-store`). `/api/whatsapp/config` **no** es ruta pública: sigue así. El payload público de ofertas no lleva teléfonos. | `GET /api/whatsapp/contacto` (público) |
+| **3. Todo contacto se registra y se atribuye** | El clic entra en `click_logs` **con `facturable: false`** (sin teléfono del usuario y sin firma HMAC: solo `/c/:id` con HMAC factura) y el destino elegido se guarda en `security_logs` (`accion: "whatsapp_contacto"`). El mensaje lleva el título de la oferta, su `ref` y el código de canje. | `src/db/repo.ts` (`registerOfferClick`), `server.ts` |
+| **4. Un botón que no abre, avisa** | Nunca un `return` silencioso: si el servidor no responde, la interfaz muestra el error. | `src/utils/whatsappNative.ts` |
+
+Cómo se aplica:
+
+- **Nunca reescribas una URL de WhatsApp a mano** fuera de `src/utils/whatsappLinks.ts`. Duplicar las reglas es exactamente como se rompe la elección de app.
+- **El mensaje al bot tiene que disparar su intención de "pedir ofertas"** (`esIntencionOfertas`, en `src/utils/securityGuards.ts`). La palabra va **en plural**: "quiero ver las **ofertas** de Yuddit: {título}". El mensaje viejo ("Hola quiero aprovechar esta **oferta**: …") no la disparaba, así que el bot no entendía el pedido.
+- **La landing enruta al bot, no al comercio**: así los teléfonos de los comercios no llegan al público. El lead llega al comercio por el enlace firmado `/c/:id`, que sí factura.
+- **Excepción documentada**: los enlaces `/c/:id` que el bot manda *dentro de* WhatsApp van directo al chat (la persona ya está en WhatsApp).
+- Spec completa, tablas y verificación: `docs/reglas-whatsapp.md`. Tests que vigilan las reglas: `tests/security/whatsapp-contacto.test.ts`.
+
 ## Commands
 
 ```bash
@@ -56,6 +75,7 @@ BASE_URL=http://localhost:3000 ./scripts/security-smoke.sh                      
 - `FLUJOS.md` — per-feature request/response flows, tables touched, and how to verify each one (F1–F12).
 - `INVENTARIO.md` — endpoint/DB/infra inventory and known debt. Dated snapshot (2026-10-16), so cross-check against `server.ts` before trusting.
 - `docs/cambio-dominio-yuddit.md` — domain migration runbook; `docs/flujo-consulta-ofertas.md` — offers query flow.
+- `docs/reglas-whatsapp.md` — spec of the WhatsApp links: app choice per platform, endpoint, tracking tables, security rules, how to verify.
 
 ## Deploy
 
