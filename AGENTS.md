@@ -47,6 +47,8 @@ BASE_URL=http://localhost:3000 ./scripts/security-smoke.sh                      
 - Brand was renamed `vuuy` -> `Yuudit` -> `Yuddit`, but the legacy `VUUV_*` env vars, `vuuy_sesion` cookie, and `vuuy` socket name are intentional. Do not rename them.
 - Secrets: passwords are scrypt-hashed in `app_settings.auth_users`; never write plaintext credentials to files. `.env` is gitignored, `.env.example` documents the contract (`APP_URL` > `PUBLIC_URL` > `COOLIFY_URL` > `COOLIFY_FQDN`).
 - Billing/security invariants exist because they were bugs: click `/c/:id` only bills when the link carries a valid HMAC (`registerOfferClick`); one billable click per 24 h window per (offer, phone); likes never bill; webhooks fail closed; `imageUrl` passes an SSRF allowlist. Preserve these.
+- **Billing decision (2026-10-19):** `registerOfferClick` is deliberately **fail-closed**. If the 24 h dedup read fails or the `click_logs` insert fails, `facturable` is `false` and the click is not billed (the user still gets redirected). Do not "fix" this into a retry-or-bill path without reading `docs/auditoria-2026-10-19.md` point 1.
+- **`VUUV_PII_KEY` is required in any environment holding real user data.** Without it, `piiHabilitado()` is false and all PII is stored in **plaintext** with only a `console.error` at boot. 32 bytes, hex (64 chars) or base64. Losing or changing the key makes already-encrypted rows permanently unreadable (`descifrarCampo` returns the raw blob). Local tests set it themselves (`tests/security/pii.test.ts`).
 
 ## Repo docs (hand-written, Spanish)
 
