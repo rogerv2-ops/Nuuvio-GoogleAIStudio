@@ -119,32 +119,6 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
   const hace24Horas = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const cleanPhone = telefono.replace(/\D/g, "") || telefono || "anonimo";
 
-  // Busca en clickLogs si existe un clic de ese teléfono para esa oferta en las últimas 24h
-  let existeClicEn24h = false;
-  let ventanaVerificada = false;
-  try {
-    const rows = await db
-      .select()
-      .from(clickLogs)
-      .where(
-        and(
-          eq(clickLogs.ofertaId, ofertaId),
-          eq(clickLogs.usuarioTelefono, cleanPhone),
-          eq(clickLogs.facturable, true),
-          gte(clickLogs.creadoEn, hace24Horas)
-        )
-      );
-    existeClicEn24h = !!(rows && rows.length > 0);
-    ventanaVerificada = true;
-  } catch (err) {
-    console.error("[DB Repo] Error consultando clickLogs en PostgreSQL (no se factura):", err);
-  }
-
-  // Facturable solo si no hubo clic facturable en 24h y el comercio tiene saldo.
-  // La ventana se ancla al último clic facturable; los no facturables no la reinician.
-  // Fail-closed: si falla la lectura no se puede afirmar que la ventana esté libre,
-  // así que no se factura. Nunca facturar por encima de un error de base de datos.
-  const facturable = ventanaVerificada && !existeClicEn24h && saldoDisponible;
   // Codigo de canje unico global: NV- + 6 chars de alfabeto sin ambiguos (32^6 ~ 1.07e9).
   const _codAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let random6 = "";
@@ -152,20 +126,60 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
   const codigoCanje = `NV-${random6}`;
   const id = `clk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+  // Consultar la ventana de 24h y dejar el registro son UNA sola operación.
+  //
+  // Antes eran un SELECT y después un INSERT, con una ventana entre los dos: dos
+  // clics concurrentes del mismo (oferta, teléfono) veían los dos la ventana libre,
+  // los dos devolvían facturable:true, y el llamador debitaba el pack dos veces.
+  // Medido antes del arreglo: 12 de 20 clics concurrentes facturaban.
+  //
+  // No alcanza con un índice único en (oferta_id, telefono): la ventana es móvil de
+  // 24h, así que ese índice bloquearía para siempre el segundo cobro legítimo. Y un
+  // índice parcial no puede llevar now() en el predicado, porque los predicados de
+  // índice tienen que ser inmutables.
+  //
+  // El lock es por (oferta, teléfono): serializa solo los clics que compiten por la
+  // misma ventana. Teléfonos distintos u ofertas distintas no se esperan entre sí.
+  // Con el lock ya tomado, el SELECT ve lo que el otro clic commiteó, y el INSERT
+  // ocurre dentro de la misma transacción.
+  //
+  // Fail-closed: si algo falla no se commitea ni la decisión ni el registro, así que
+  // no se factura. Nunca facturar por encima de un error de base de datos.
+  let facturable = false;
   let registroPersistido = false;
   try {
-    await db.insert(clickLogs).values({
-      id,
-      ofertaId,
-      comercioId,
-      usuarioTelefono: cleanPhone,
-      codigoCanje,
-      facturable,
-      creadoEn: now
-    } as any);
+    facturable = await db.transaction(async (tx: any) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${"clic:" + ofertaId + ":" + cleanPhone})::bigint)`
+      );
+      const rows = await tx
+        .select()
+        .from(clickLogs)
+        .where(
+          and(
+            eq(clickLogs.ofertaId, ofertaId),
+            eq(clickLogs.usuarioTelefono, cleanPhone),
+            eq(clickLogs.facturable, true),
+            gte(clickLogs.creadoEn, hace24Horas)
+          )
+        );
+      // La ventana se ancla al último clic facturable; los no facturables no la reinician.
+      const existeClicEn24h = !!(rows && rows.length > 0);
+      const debeFacturar = !existeClicEn24h && saldoDisponible;
+      await tx.insert(clickLogs).values({
+        id,
+        ofertaId,
+        comercioId,
+        usuarioTelefono: cleanPhone,
+        codigoCanje,
+        facturable: debeFacturar,
+        creadoEn: now
+      } as any);
+      return debeFacturar;
+    });
     registroPersistido = true;
   } catch (dbErr) {
-    console.error("[DB Repo] Error insertando registro en clickLogs:", dbErr);
+    console.error("[DB Repo] Error registrando el clic en click_logs (no se factura):", dbErr);
   }
 
   if (!registroPersistido) {
