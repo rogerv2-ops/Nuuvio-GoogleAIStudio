@@ -1,0 +1,179 @@
+# CI de Yuddit.
+#
+# Que resuelve esto (punto 9 de docs/auditoria-2026-10-19.md): antes no habia
+# ninguna señal automatica de que algo se rompio. Los tres scripts de
+# verificacion (`bun test tests/security`, `scripts/security-smoke.sh`,
+# `scripts/ofertas-tests.sh`) eran manuales, y dos de los tres se saltaban
+# solos cuando el servidor no estaba levantado.
+#
+# El detalle que importa: los tests de este repo son black-box con
+# `describe.skipIf`. Medido el 2026-10-19:
+#
+#   servidor arriba + credenciales -> 88 tests, 0 saltados
+#   servidor caido                 -> 91 tests, 23 saltados, 0 fallos
+#
+# O sea, una suite "verde" puede no haber corrido nada. Por eso este workflow
+# no se limita a correr los tests: ademas EXIGE que no haya tests saltados y
+# que se ejecute una cantidad minima de tests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  # Sin filtro de ramas: el repo trabaja con PRs encadenados (un PR con base
+  # `auditoria/fase-4-ventana-24h`, otro con base `main`). Con
+  # `branches: [main]` el workflow NO se disparaba para el PR encadenado y
+  # la CI no corria nunca.
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Credenciales de prueba. Son ficticias y viven en una base efimera del
+  # runner: la app siembra estos usuarios al arrancar porque la tabla de
+  # credenciales arranca vacia. Sin ellas, los tests de sesion se saltan.
+  VUUV_ADMIN_EMAIL: admin@ci.yuddit.test
+  VUUV_ADMIN_PASSWORD: AdminCiPass123!
+  VUUV_COMMERCE_EMAIL: comercio@ci.yuddit.test
+  VUUV_COMMERCE_PASSWORD: ComercioCiPass123!
+  # Clave de cifrado de PII ficticia (64 hex). La real vive en Coolify; si
+  # faltara, la app degrada a texto plano con un unico console.error.
+  VUUV_PII_KEY: "60b095f6d395439248dfc75b35693692aea0d37577e62ae1cb856a063d050f94"
+  WHATSAPP_VERIFY_TOKEN: ci-verify-token
+  TEST_BASE_URL: http://127.0.0.1:3000
+
+jobs:
+  verificacion:
+    name: Tipos, build y tests de contrato
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Base de la app. Solo existe dentro del runner.
+      SQL_HOST: 127.0.0.1
+      SQL_USER: postgres
+      SQL_PASSWORD: test
+      SQL_DB_NAME: yuddit_ci_app
+      # Base aparte para los tests de facturacion: esos tests dropean y recrean
+      # `click_packs` con su propia forma, y no pueden tocar la base de la app.
+      TEST_SQL_HOST: 127.0.0.1
+      TEST_SQL_USER: postgres
+      TEST_SQL_PASSWORD: test
+      TEST_SQL_DB_NAME: yuddit_ci_billing
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: yuddit_ci_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d yuddit_ci_app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Version fijada: es la verificada contra este repo. `oven/bun:1` (la
+          # imagen del Dockerfile) si flota a la ultima 1.x.
+          bun-version: "1.4.3"
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Gate de tipos (falla solo ante errores NUEVOS)
+        run: npm run lint
+
+      - name: Build del SPA
+        # El `test -f dist/index.html` es el mismo assertion del Dockerfile:
+        # si el build falla, el deploy tiene que caerse, no servir una imagen
+        # sin SPA.
+        run: npm run build && test -f dist/index.html
+
+      - name: Crear la base descartable de los tests de facturacion
+        run: bun scripts/ci/create-test-db.mjs
+
+      - name: Aplicar el esquema
+        run: yes "" | bunx drizzle-kit push --config=src/db/drizzle.config.ts
+
+      - name: Tests de contrato contra el servidor levantado
+        run: ./scripts/ci/run-contract-tests.sh
+
+      - name: Tests de facturacion (base descartable aparte)
+        run: bun test tests/billing --reporter=junit --reporter-outfile=results/billing.xml
+
+      - name: Exigir que los tests se ejecutaron de verdad
+        # Minimos medidos el 2026-10-19: 90 en security y 21 en billing (en
+        # `main`, sin el PR #6, son 88 y 15; el piso vale para las dos ramas).
+        # Si alguien borra o desactiva una suite, esto se entera.
+        run: |
+          bun scripts/ci/assert-tests-ran.mjs results/security.xml --min 80
+          bun scripts/ci/assert-tests-ran.mjs results/billing.xml --min 12
+
+      - name: Subir el reporte de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-tests
+          path: results/
+          if-no-files-found: warn
+
+  imagen:
+    name: Build de la imagen de produccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: yuddit_ci_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d yuddit_ci_app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen (el mismo Dockerfile que usa Coolify)
+        # Valida el camino de deploy completo: `bun install --frozen-lockfile`
+        # (si bun.lock se desincroniza, esto cae y el deploy tambien),
+        # `bun run build` y el assertion `test -f dist/index.html`.
+        run: docker build -t yuddit:ci .
+
+      - name: Levantar la imagen y comprobar que responde
+        run: |
+          docker run -d --name yuddit-ci --network host \
+            -e SQL_HOST=127.0.0.1 \
+            -e SQL_USER=postgres \
+            -e SQL_PASSWORD=test \
+            -e SQL_DB_NAME=yuddit_ci_app \
+            -e VUUV_PII_KEY \
+            yuddit:ci
+          for i in $(seq 1 60); do
+            if curl -sf -m 2 http://127.0.0.1:3000/api/version > /dev/null; then
+              echo "la imagen respondio en ${i}s"
+              curl -s http://127.0.0.1:3000/api/version
+              echo
+              docker rm -f yuddit-ci
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "la imagen no respondio en 60s"
+          docker logs yuddit-ci || true
+          docker rm -f yuddit-ci || true
+          exit 1
