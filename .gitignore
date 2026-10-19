@@ -40,3 +40,7 @@ __pycache__/
 # Archivos de credenciales en claro (no deben existir: la clave va hasheada en la DB)
 *credentials*.txt
 *.secret
+
+# Indices y artefactos de herramientas (no versionar: se regeneran solos)
+.codegraph/
+.atl/
