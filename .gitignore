@@ -44,3 +44,6 @@ __pycache__/
 # Indices y artefactos de herramientas (no versionar: se regeneran solos)
 .codegraph/
 .atl/
+
+# Artefactos de CI (reportes JUnit y log del servidor del runner)
+results/
