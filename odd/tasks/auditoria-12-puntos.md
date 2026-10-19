@@ -27,7 +27,7 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 | T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **hecho** — `f57c35f` |
 | T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | **hecho** — `7460180` |
 | T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | **hecho** — `4f5605a` (gate con baseline; ver L8) |
-| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **hecho** — `2ca8e41` (ver L11) |
+| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **hecho, en PR** — `2ca8e41` + correcciones `29a019d` (ver L11, L12, L13); **PR #3** |
 | T5 | S12 | `auth_users` y `click_packs` fuera de `app_settings` | inline | listo (absorbe parte de T4) |
 | T6 | S2 | Atomicidad de la ventana de 24 h | inline | **bloqueado**: auditar duplicados en `click_logs` |
 | T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **bloqueado**: verificar Coolify (¿cifrado ya apagado?) |
@@ -94,3 +94,9 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
   - **Sondas del verificador commiteadas como tests de regresión**: `tests/billing/click-packs-invariants.test.ts` (7 tests), con el caso "sin guard el saldo sí queda negativo" incluido a propósito, para que nadie borre el guard creyendo que es redundante.
   - **Estado final**: `tsc` 50 (base 51), **15 tests** en `tests/billing` verdes, suite por defecto 65 pass / 23 skip / 0 fail, y 7/7 sondas de los arreglos. Documentación actualizada donde había quedado mintiendo: `AGENTS.md` (los packs ya no son estado en memoria), `FLUJOS.md` (F-COM: débito en `click_packs`) e `INVENTARIO.md`.
   - **Nota para el próximo revisor**: en esta rama la capa React **no se typechequea**. Cualquier cambio de firma en un módulo que consuma el frontend puede romper el panel sin que `tsc` ni el gate digan nada. Es un argumento a favor de T11 (CI con build real) y de cerrar el punto 11 del todo.
+- **L13** (2026-10-19) — **Fase 3 pusheada y PR abierto.** El usuario autorizó el push.
+  - **PR #3** → https://github.com/rogerv2-ops/Nuuvio-GoogleAIStudio/pull/3 (rama `auditoria/fase-3-click-packs` → base `auditoria/fase-1-facturacion`, no `main`). Estado `OPEN`, `MERGEABLE`, 14 archivos, +683/−102.
+  - 5 commits sobre la rama de fase 1: `27d02f9` (evidencia en producción), `548f417` (correcciones de `AGENTS.md`), `2ca8e41` (T4), `84e3684` (registro del plan), `29a019d` (arreglos de la verificación).
+  - **`main` verificada intacta**: `origin/main` == local == `6e3e00e`. **Ningún deploy disparado.**
+  - **Falta la decisión del usuario sobre el merge**, y no es un merge cualquiera: al mergear, el deploy corre `drizzle-kit push` y **crea `click_packs` en producción** (aditivo, no altera nada existente, pero es un cambio de esquema y queda explicitado). Por eso el PR apunta a fase 1 y no a `main`.
+  - **Bloqueo de PII sigue abierto y es del usuario**: `printenv VUUV_PII_KEY` sigue vacío en el contenedor y un restart **no alcanza** — hace falta un redeploy en Coolify para que la variable llegue al arranque.
