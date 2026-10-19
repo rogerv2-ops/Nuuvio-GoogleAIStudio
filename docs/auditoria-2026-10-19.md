@@ -207,6 +207,10 @@ function registrarLoginFallido(email){const st=loginFailState.get(email)||{count
 
 **Corrección:** un workflow que instale Bun, levante la app contra un Postgres efímero y corra los tests de contrato. Con `TEST_BASE_URL` apuntando al servidor levantado, para que los `describe.skipIf` no se activen (ver punto 7 del documento de gotchas en `AGENTS.md`).
 
+**Punto 9 — resuelto y verificado (2026-10-19).** `.github/workflows/ci.yml`, con dos jobs: (a) gate de tipos, build, tests de contrato contra un servidor levantado y tests de facturación; (b) build y arranque de la imagen de producción (el mismo Dockerfile que usa Coolify).
+
+La corrección propuesta —"levantar el servidor para que los `describe.skipIf` no se activen"— **no alcanza por sí sola**. Medido el 2026-10-19 en este repo: con el servidor caído, `tests/security` reporta **91 tests, 23 saltados, 0 fallos**: la suite queda **verde y vacía**. Por eso CI no se limita a correr los tests, además **exige** cero tests saltados y una cantidad mínima de tests realmente ejecutados (`scripts/ci/assert-tests-ran.mjs`, con el reporte JUnit de `bun test`).
+
 ---
 
 ## P3 — Estructura
