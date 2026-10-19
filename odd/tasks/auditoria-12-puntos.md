@@ -24,9 +24,9 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 
 | ID | Spec | Tarea | Ruta | Estado |
 |---|---|---|---|---|
-| T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **listo para empezar** |
-| T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | listo |
-| T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | listo |
+| T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **hecho** — `f57c35f` |
+| T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | **hecho** — `7460180` |
+| T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | **listo, con alcance mayor al previsto**: hay 51 errores de tipos preexistentes que el `\|\| true` viene ocultando (ver auditoría, punto 11) |
 | T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | listo (coordinado con T8) |
 | T5 | S12 | `auth_users` y `click_packs` fuera de `app_settings` | inline | listo (absorbe parte de T4) |
 | T6 | S2 | Atomicidad de la ventana de 24 h | inline | **bloqueado**: auditar duplicados en `click_logs` |
@@ -43,3 +43,10 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 - **L2** (2026-10-19) — Diagnóstico escrito en `docs/auditoria-2026-10-19.md` con 12 hallazgos y evidencia `archivo:línea`. Red de seguridad tomada antes de tocar nada: `pg_dump -Fc` de `nuuviopsg` en `/home/ubuntu/backups/nuuvio/nuuviopsg-2026-10-19-pre-auditoria.dump` (303 KB, modo 600), verificado con `pg_restore -l` → 11 tablas con datos. Es local, no off-site: cubre esta auditoría, no la pérdida del host.
 - **L3** (2026-10-19) — Hallazgo que cambia el punto 10: el `server.ts` legible **no está perdido**, está en el historial. Última versión legible `938a8a8` (2026-10-15, 3294 líneas, máx. 287 chars/línea); la minificación entró en `c9a2fa6` (2026-10-16, *"refactor: remove monolithic boilerplate and unused modules"*), que lo bajó a 314 líneas con máx. 25 039 chars. La brecha `938a8a8 → HEAD` contiene seguridad, MFA, CPC/mosaico y rebrands: es reconciliación, no revert. Decisión pendiente (opción A o B).
 - **L4** (2026-10-19) — Contexto operativo relevante: **producción corre en esta máquina** (app `pnpsnjshl9otauk7y7m5dqtf-...` y Postgres `oa0t0nzguh49o1fim0juu5nj` vivos, vía `sudo -n docker`). Cualquier cambio de datos toca usuarios reales. No hay `psql`/`pg_dump` en el host: todo pasa por `docker exec`. Base `nuuviopsg` = 9.5 MB.
+- **L5** (2026-10-19) — Estrategia de entrega elegida por el usuario: **rama + PR por fase**. Rama `auditoria/12-puntos` creada desde `main`. Nada se pushea sin autorización explícita.
+- **L6** (2026-10-19) — T1 y T2 cerrados y verificados.
+  - T1 `f57c35f`: RED observado primero (los dos casos devolvían `facturable: true`), luego GREEN. Suite completa: 65 pass / 23 skip / 0 fail. Se aisló la DB con `mock.module` sobre `src/db/index.ts` — es el primer test del repo que mockea; el resto son unit puros o contratos HTTP.
+  - T2 `7460180`: verificado en ambas direcciones moviendo `dist/` (con dist pasa, sin dist falla).
+  - Verificación positiva: las credenciales filtradas (`Pasion2271`, `rogerv707@gmail.com`, `vuuy_verify_secret_2026`, `vuuy-dev-fallback-secret`) **ya no están** en `src/`, `server.ts` ni `dist/`. La limpieza funcionó.
+  - **Corrección de la auditoría**: el punto 11 estaba mal escrito. `tsc` **sí** revisa `src/` (por transitividad de imports desde `server.ts`); lo que queda fuera es la capa React. Y hay **51 errores de tipos** preexistentes que `npm run lint` reporta como éxito (`tsc` exit 2, `lint` exit 0). T3 es más grande de lo previsto: sacar el `|| true` exige resolver o baselinar esos 51.
+- **L7** (2026-10-19) — Pendiente de decisión del usuario antes de seguir: T3 (alcance de los 51 errores), T4/T5 (tocan el esquema de producción), T7 (verificar Coolify), T9 (destino off-site), T10 (¿cuántas instancias?), T12 (opción A u B), y autorización para pushear.
