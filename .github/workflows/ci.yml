@@ -20,8 +20,11 @@ name: CI
 on:
   push:
     branches: [main]
+  # Sin filtro de ramas: el repo trabaja con PRs encadenados (un PR con base
+  # `auditoria/fase-4-ventana-24h`, otro con base `main`). Con
+  # `branches: [main]` el workflow NO se disparaba para el PR encadenado y
+  # la CI no corria nunca.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
