@@ -19,9 +19,15 @@ function recorrer(dir: string): string[] {
 }
 
 describe("US1 - el bundle no contiene credenciales", () => {
-  test("dist/ no incluye secretos hardcodeados", () => {
+  test("dist/ existe y no incluye secretos hardcodeados", () => {
     const archivos = recorrer(DIST);
-    if (archivos.length === 0) return;
+    // Antes esto era `if (archivos.length === 0) return;`: en un clon limpio dist/ no
+    // existe (esta en .gitignore), asi que el test pasaba sin escanear nada y reportaba
+    // verde. Un guard que se auto-anula no verifica: si no hay bundle, falla.
+    expect(
+      archivos.length,
+      "No hay bundle en dist/ para escanear. Corre `npm run build` antes de los tests."
+    ).toBeGreaterThan(0);
     const hallazgos: string[] = [];
     for (const f of archivos) {
       const contenido = fs.readFileSync(f, "utf8");
