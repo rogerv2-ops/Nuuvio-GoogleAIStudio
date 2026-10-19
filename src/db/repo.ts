@@ -237,4 +237,21 @@ async function insertSecurityLog(e){try{await db.insert(securityLogs).values({id
 __name(insertSecurityLog,"insertSecurityLog");
 async function getRecentSecurityLogs(l){try{const rows=await db.select().from(securityLogs).orderBy(desc(securityLogs.createdAt)).limit(l||100);return rows.map(r=>({id:r.id,operadorId:r.operadorId,operadorNombre:r.operadorNombre,accion:r.accion,entidad:r.entidad,entidadId:r.entidadId,detalles:r.detalles,createdAt:r.createdAt}))}catch(err){console.error("[DB Repo] Error obteniendo security logs:",err);return[]}}
 __name(getRecentSecurityLogs,"getRecentSecurityLogs");
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia};
+import{clickPacks}from"./schema.ts";import type{ClickPack}from"../types";
+async function listarClickPacks():Promise<ClickPack[]>{try{const rows=await db.select().from(clickPacks).orderBy(clickPacks.compradoEn,clickPacks.id);return rows.map(r=>({id:r.id,comercioId:r.comercioId,totalClics:r.totalClics,saldoClics:r.saldoClics,precioUnitario:Number(r.precioUnitario),montoTotal:Number(r.montoTotal),estado:r.estado==="agotado"?"agotado":"activo",compradoEn:r.compradoEn}))}catch(err){console.warn("[Cloud SQL] Error listando packs de clics:",err);return[]}}__name(listarClickPacks,"listarClickPacks");
+async function sembrarClickPacksSiVacio(lista){try{const ya=await db.select({id:clickPacks.id}).from(clickPacks).limit(1);if(ya.length>0)return false;if(!Array.isArray(lista)||lista.length===0)return false;for(const p of lista){await db.execute(sql`insert into click_packs (id,comercio_id,total_clics,saldo_clics,precio_unitario,monto_total,estado,comprado_en) values (${p.id},${p.comercioId},${p.totalClics},${p.saldoClics},${String(p.precioUnitario)},${String(p.montoTotal)},${p.estado||"activo"},${p.compradoEn||new Date().toISOString()}) on conflict (id) do nothing`)}return true}catch(err){console.error("[Cloud SQL] Error sembrando packs de clics:",err);return false}}__name(sembrarClickPacksSiVacio,"sembrarClickPacksSiVacio");
+async function insertarClickPack(pack){await db.execute(sql`insert into click_packs (id,comercio_id,total_clics,saldo_clics,precio_unitario,monto_total,estado,comprado_en) values (${pack.id},${pack.comercioId},${pack.totalClics},${pack.saldoClics},${String(pack.precioUnitario)},${String(pack.montoTotal)},${pack.estado||"activo"},${pack.compradoEn||new Date().toISOString()}) on conflict (id) do update set saldo_clics=${pack.saldoClics},estado=${pack.estado||"activo"},updated_at=now()`)}__name(insertarClickPack,"insertarClickPack");
+async function debitarClicAtomico(comercioId){const consulta=sql`
+    UPDATE click_packs
+       SET saldo_clics = saldo_clics - 1,
+           estado = CASE WHEN saldo_clics - 1 <= 0 THEN 'agotado' ELSE estado END,
+           updated_at = now()
+     WHERE id = (
+       SELECT id FROM click_packs
+        WHERE comercio_id = ${comercioId} AND saldo_clics > 0
+        ORDER BY comprado_en ASC, id ASC
+        LIMIT 1
+     )
+       AND saldo_clics > 0
+    RETURNING id, saldo_clics`;for(let intento=0;intento<2;intento++){const resultado=await db.execute(consulta);const filas=(resultado&&resultado.rows)?resultado.rows:(Array.isArray(resultado)?resultado:[]);if(filas.length>0){return{exito:true,saldoRestante:Number(filas[0].saldo_clics),packId:filas[0].id}}}return{exito:false,saldoRestante:0,packId:null}}__name(debitarClicAtomico,"debitarClicAtomico");
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico};
