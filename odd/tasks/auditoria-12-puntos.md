@@ -31,7 +31,7 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 | T5 | S12 | `auth_users` fuera de `app_settings` | inline | **implementado** — tabla `auth_users` + SQL puntual en los 9 sitios de escritura; ver L20 |
 | T6 | S2 | Atomicidad de la ventana de 24 h | inline | **desplegado** — PR #6 (`6e1ba27`); 20 clics concurrentes → **1 facturable** (antes: 12); ver L15 y L19 |
 | T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **desplegado y verificado** — PII **activo** en producción: variable renombrada + redeploy; la fila que estaba en texto plano quedó cifrada (`enc:v1:`, 62 chars); ver L14 |
-| T8 | S5 | Migraciones versionadas en vez de `push` en el arranque | inline | depende de T5 |
+| T8 | S5 | Migraciones versionadas en vez de `push` en el arranque | inline | **implementado** — migración base versionada + `migrate` en el entrypoint; ver L21 |
 | T9 | S4 | Backup off-site + restore probado | inline | **pospuesto por el usuario** hasta validar costos de destino |
 | T10 | S8 | Contadores persistentes o single-instance enforzado | por definir | **bloqueado**: ¿cuántas instancias? |
 | T11 | S9 | CI que levante la app y corra los tests | inline | **desplegado** — PR #8 (`abd500d`); verde en GitHub con 90+21 tests y 0 saltados; ver L17, L18 y L19 |
@@ -165,3 +165,15 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
   - **Verificación local**: migración al arrancar (`[Auth] 2 usuario(s) migrados...`), login del admin contra la tabla, crear/entrar/cambiar clave/editar/borrar contra la tabla, **5 altas concurrentes sin perder ninguna** (con el blob se perdían), y el código de respaldo usado dos veces (la segunda, 401).
   - **Hallazgo colateral, para el punto 8**: el límite de `/api/auth/login` es de **10 intentos por IP cada 5 minutos**. En el runner (y en cualquier red con CGNAT, que en Perú es lo normal) eso deja fuera a usuarios legítimos: el archivo de test nuevo tiene que mandar su propio `X-Forwarded-For` para no comer el cupo del resto de la suite. **Conviene revisar ese límite cuando se ataque el punto 8** (los contadores en memoria).
   - **Baseline de tipos**: 59 → 59. Lo único que cambió es el **texto** de un mensaje preexistente (`revokedAt` en `sessions`): al agregar una tabla, TypeScript renderiza las propiedades del tipo en otro orden. Se regeneró la baseline y se revisó el diff: una sola línea, mismo error, misma cantidad.
+- **L21** (2026-10-19) — **T8 (S5) implementado: el esquema se aplica con migraciones versionadas, no con `push` en cada arranque.**
+  - **El riesgo que se elimina**: `drizzle-kit push` compara el esquema del código contra la base y lo ALTERA en el arranque, en cada deploy, **sin que nadie lo revise**. Bastaba un cambio de columna sin querer en el código para que se aplicara solo en producción.
+  - **Lo que hay ahora**: `src/db/migrations/0000_baseline.sql` (las 13 tablas) + `meta/`, generadas con `drizzle-kit generate`. El entrypoint hace `drizzle-kit migrate`, que aplica **solo lo que falta**.
+  - **Cómo se cambia el esquema de aquí en adelante**: editar `src/db/schema.ts` → `bunx drizzle-kit generate --config=src/db/drizzle.config.ts --name=lo_que_sea` → **revisar el SQL** → commitear el `.sql` y `meta/`. Queda escrito en `AGENTS.md`.
+  - **La migración base de producción (0000) ya está aplicada**, pero en producción el esquema venía de `push` (que no deja registro). Se marcó con `scripts/mark-migrations-applied.mjs`, que **antes de marcar comprueba que las tablas existan**: marcarla sobre una base vacía dejaría el esquema sin crear para siempre, y eso es exactamente el fallo que se quiere evitar.
+  - **Cómo decide drizzle qué aplicar** (importante y no intuitivo): el migrator lee **solo la última fila** de `drizzle.__drizzle_migrations` (`order by created_at desc limit 1`) y aplica toda migración cuyo `when` del journal sea MAYOR. **No compara el hash**. Por eso el `created_at` de la fila marcada tiene que ser el del journal.
+  - **Verificación**:
+    - Base **nueva** y vacía → `drizzle-kit migrate` crea las **13 tablas** y registra la migración ✓.
+    - Base **existente** (esquema puesto con `push`) → marcar la base y luego `migrate` = **no-op**, las 13 tablas y los datos intactos ✓.
+    - Migración **nueva** de prueba (una columna) → `drizzle-kit generate` produjo **solo** el `ALTER TABLE` de esa columna, y `migrate` la aplicó sin tocar nada más ✓ (después se revirtió).
+    - `bun test tests/security` → **114 pass / 0 fail** (24 archivos, 4 nuevos).
+  - **Tests que lo vigilan** (`tests/security/migrations-versionadas.test.ts`): el entrypoint no ejecuta `push`; la migración base cubre **todas** las tablas del esquema (si alguien agrega una tabla y no genera la migración, el test falla); y sobre una base nueva, `migrate` crea el esquema completo.
