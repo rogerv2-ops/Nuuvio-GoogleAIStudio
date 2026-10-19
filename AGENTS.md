@@ -8,7 +8,7 @@ Yuddit (formerly vuuy/nuuvio): WhatsApp bot + offers platform for Lima, Peru. Si
 npm run dev      # tsx server.ts — the ONLY dev server (API + bot + static SPA), port 3000
 npm run build    # vite build -> dist/  (server serves dist/ statically)
 npm test         # bun test tests/security
-npm run lint     # tsc --noEmit
+npm run lint     # type gate: fails only on NEW type errors (baselined)
 ```
 
 Focused runs:
@@ -22,9 +22,10 @@ BASE_URL=http://localhost:3000 ./scripts/security-smoke.sh                      
 
 ## Verification gotchas (read before trusting a green run)
 
-- `npm run lint` and `npm run build` both end in `|| true` — they **cannot fail**. And `tsconfig.json` only has `include: ["server.ts"]`, so `tsc --noEmit` typechecks a single file and ignores `src/`. Treat a passing lint/build as meaningless; verify otherwise.
+- `npm run lint` is **not** a plain `tsc`. It runs `scripts/typecheck-baseline.mjs`, a type gate that freezes the pre-existing errors in `typecheck-baseline.json` (60 at the time of writing) and exits 1 only when a **new** error appears. `npm run typecheck` is the raw `tsc --noEmit`; `npm run typecheck:baseline` regenerates the baseline (review that diff). `npm run build` is a bare `vite build`, and the Dockerfile asserts `dist/index.html` exists, because `dist` is in `.dockerignore` and a failed Vite build used to ship an image that served no SPA. **Do not re-add `|| true`.**
+- `tsconfig.json` has `include: ["server.ts", "src/**/*.ts", "src/**/*.tsx"]`. `tsc` would follow imports from `server.ts` anyway, but the explicit globs are what pull in the React layer and the modules unreachable from the server. Without them, 10 real errors were invisible.
 - Tests are **black-box HTTP contract tests**. They `describe.skipIf(...)` when the server is unreachable (`TEST_BASE_URL`, default `http://localhost:3000`) or when credentials are missing. A fully green suite can mean nothing ran. Start the server and export `VUUV_ADMIN_EMAIL` / `VUUV_ADMIN_PASSWORD` (and `VUUV_COMMERCE_*` for role tests) before relying on results.
-- `bun` is required by the test script and is **not installed** in this environment (`node`/`npm` only). `tsx` and `vite` are available via `node_modules/.bin`.
+- `bun` is installed at `/root/.bun/bin/bun` but is **not on `PATH`**, so `npm test` (which runs `bun test tests/security`) fails with `exit 127`. Run it as `$HOME/.bun/bin/bun test tests/security`, or put bun on `PATH`. `tsx` and `vite` are available via `node_modules/.bin`.
 - `tests/ofertas/` is not covered by `npm test`; it needs DB fixtures seeded, an app **restart** (offers and click packs are loaded in memory), then cleanup — `scripts/ofertas-tests.sh` orchestrates all of that with a `trap EXIT`.
 
 ## Architecture
