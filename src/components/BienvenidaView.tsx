@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { AudienceUser } from '../types';
 import { usuariosModule } from '../modules/usuarios';
-import { generarLinksWhatsApp } from '../utils/whatsappNative';
+import { alPulsarBotonWhatsApp } from '../utils/whatsappNative';
+import { WhatsAppChooser } from './WhatsAppChooser';
 
 interface BienvenidaViewProps {
   onVolverAWeb: () => void;
@@ -86,8 +87,12 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
     }
   }, []);
 
-  // Enlace directo a WhatsApp (sin página intermedia); el número del bot ya viene en las props.
-  const whatsappRedirectUrl = botPhone ? generarLinksWhatsApp(botPhone, 'Ofertas').nativeUrl : '#';
+  // Enlace a WhatsApp. El destino (telefono y mensaje) lo resuelve el
+  // servidor en el momento del clic: el numero del bot nunca viaja en el
+  // HTML ni en el bundle. En Android un toque y el sistema muestra el
+  // selector de app; en iOS y web se abre la hoja de opciones.
+  const [chooserAbierto, setChooserAbierto] = useState(false);
+  const [errorWhatsApp, setErrorWhatsApp] = useState<string | null>(null);
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6">
@@ -177,18 +182,21 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
                   Haz clic en el botón a continuación para abrir WhatsApp. Se incluirá la palabra <strong>"Ofertas"</strong> preescrita; solo presiona enviar y te responderemos al instante con las promociones cercanas a ti.
                 </p>
 
-                {/* BOTÓN OFICIAL A WHATSAPP CON MENSAJE PREESCRITO "Ofertas" */}
+                {/* BOTÓN OFICIAL A WHATSAPP (el destino lo resuelve el servidor) */}
                 {whatsappConectado ? (
-                  <a
-                    href={whatsappRedirectUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all"
+                  <button
+                    onClick={() =>
+                      alPulsarBotonWhatsApp({
+                        onAbrirSelector: () => setChooserAbierto(true),
+                        onError: (mensaje) => setErrorWhatsApp(mensaje)
+                      })
+                    }
+                    className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 shadow-md shadow-emerald-900/10 hover:shadow-lg transition-all cursor-pointer"
                   >
                     <MessageCircle className="w-5 h-5 fill-white" />
                     <span>Abrir WhatsApp y enviar "Ofertas"</span>
                     <ExternalLink className="w-4 h-4 opacity-90" />
-                  </a>
+                  </button>
                 ) : (
                   <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-1">
                     <p className="text-xs font-bold text-amber-900">
@@ -305,6 +313,20 @@ export const BienvenidaView: React.FC<BienvenidaViewProps> = ({
 
         </div>
       </div>
+
+      {/* Hoja de eleccion de app para WhatsApp (iOS y web) */}
+      <WhatsAppChooser
+        abierto={chooserAbierto}
+        onCerrar={() => setChooserAbierto(false)}
+        titulo="Abrir en WhatsApp"
+      />
+
+      {errorWhatsApp && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] bg-red-50 text-red-800 px-4 py-3 rounded-2xl border border-red-200 shadow-lg flex items-center gap-2 max-w-[90vw]">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-[11px] font-semibold">{errorWhatsApp}</p>
+        </div>
+      )}
     </div>
   );
 };

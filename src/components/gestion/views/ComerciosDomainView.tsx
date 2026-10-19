@@ -9,7 +9,8 @@ import { comerciosModule, ValidationChecklist } from '../../../modules/comercios
 import { ofertasModule } from '../../../modules/ofertas';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { facturacionModule } from '../../../modules/facturacion';
-import { abrirWhatsAppNativo } from '../../../utils/whatsappNative';
+import { alPulsarBotonWhatsApp } from '../../../utils/whatsappNative';
+import { WhatsAppChooser } from '../../WhatsAppChooser';
 import { Merchant, KanbanStage, Offer } from '../../../types';
 import { DISTRITOS_LIMA, CATEGORIAS_OFERTAS } from '../../../data/seedData';
 import { CrmVentasView } from '../../CrmVentasView';
@@ -47,12 +48,14 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
   // Ficha 360 de comercio (modal / drawer)
   const [comercioFicha360Id, setComercioFicha360Id] = useState<string | null>(() => {
     // Si la subruta es /gestion/comercios/:id
-    if (subruta && subruta.startsWith('/gestion/comercios/') && 
+    if (subruta && subruta.startsWith('/gestion/comercios/') &&
         !['/gestion/comercios/pipeline', '/gestion/comercios/aprobaciones', '/gestion/comercios/activos', '/gestion/comercios/actividades', '/gestion/comercios/ventas-confirmadas'].includes(subruta)) {
       return subruta.replace('/gestion/comercios/', '');
     }
     return null;
   });
+  // Hoja de eleccion de app de WhatsApp (el panel ya conoce el numero: no va al servidor)
+  const [chooserAdminAbierto, setChooserAdminAbierto] = useState(false);
   const [notasEdicion, setNotasEdicion] = useState<string>('');
   const [guardandoNotas, setGuardandoNotas] = useState(false);
 
@@ -924,14 +927,17 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
               </div>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block">WhatsApp</span>
-                <a
-                  href={`whatsapp://send?phone=${comercioFicha360.telefono.replace(/[^0-9]/g, '')}&text=${encodeURIComponent('Ofertas')}`}
-                  onClick={(e) => { e.preventDefault(); abrirWhatsAppNativo(comercioFicha360.telefono); }}
-                  className="font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                <button
+                  onClick={() => alPulsarBotonWhatsApp({
+                    telefono: comercioFicha360.telefono,
+                    texto: 'Ofertas',
+                    onAbrirSelector: () => setChooserAdminAbierto(true)
+                  })}
+                  className="font-semibold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <MessageCircle className="w-3 h-3" />
                   <span>{comercioFicha360.telefono}</span>
-                </a>
+                </button>
               </div>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block">Distrito</span>
@@ -1171,6 +1177,16 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
           </form>
         </div>
       )}
+
+      {/* Hoja de eleccion de app de WhatsApp (iOS y web). En Android el
+          selector lo pone el sistema. */}
+      <WhatsAppChooser
+        abierto={chooserAdminAbierto}
+        onCerrar={() => setChooserAdminAbierto(false)}
+        telefono={comercioFicha360?.telefono || null}
+        texto="Ofertas"
+        titulo="Contactar al comercio"
+      />
     </div>
   );
 };

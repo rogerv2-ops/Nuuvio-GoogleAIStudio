@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Search, MapPin, MessageCircle, ThumbsUp, ChevronRight,
-  Sparkles, CheckCircle2, Copy, Check, Filter, Info, Shield, 
-  Store, UserCheck, X, ExternalLink, Lock, LogOut
+  Sparkles, CheckCircle2, Copy, Check, Filter, Info, Shield,
+  Store, UserCheck, X, ExternalLink, Lock, LogOut, AlertTriangle
 } from 'lucide-react';
 import { Offer, AudienceUser } from '../types';
 import { DISTRITOS_LIMA } from '../data/seedData';
@@ -15,7 +15,8 @@ import { capturarAtribucionDeUrl } from '../utils/attribution';
 import { coreEvents } from '../core/events';
 import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
 import { esOfertaNueva } from '../utils/ofertaUtils';
-import { abrirWhatsAppNativo } from '../utils/whatsappNative';
+import { alPulsarBotonWhatsApp } from '../utils/whatsappNative';
+import { WhatsAppChooser } from './WhatsAppChooser';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -35,6 +36,10 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   const [ofertaObjetivoFunnel, setOfertaObjetivoFunnel] = useState<Offer | null>(null);
   const [motivoFunnel, setMotivoFunnel] = useState<'whatsapp' | 'general'>('whatsapp');
   const [toastVerificacion, setToastVerificacion] = useState<string | null>(null);
+  // Selector de app de WhatsApp (iOS y web) + error de apertura
+  const [chooserAbierto, setChooserAbierto] = useState(false);
+  const [ofertaParaWhatsApp, setOfertaParaWhatsApp] = useState<Offer | null>(null);
+  const [errorWhatsApp, setErrorWhatsApp] = useState<string | null>(null);
 
   // Modales adicionales
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
@@ -202,18 +207,18 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
       }
     });
 
-    // "Lo quiero" siempre abre el WhatsApp del bot directamente (sin pagina intermedia).
-    const ref = oferta?.codigoUrl || oferta?.id || '';
-    const mensajeWo = oferta?.titulo
-      ? `Hola quiero aprovechar esta oferta: ${oferta.titulo}${ref ? ` (ref ${ref})` : ''}`.trim()
-      : 'Hola, quiero ver las ofertas de Yuddit';
-    fetch('/api/whatsapp/config')
-      .then((r) => r.json())
-      .then((cfg) => {
-        const botPhone = String(cfg?.botPhone || '').replace(/\D/g, '');
-        if (botPhone) abrirWhatsAppNativo(botPhone, mensajeWo);
-      })
-      .catch(() => {});
+    // El destino (telefono y mensaje) lo resuelve el servidor en el momento
+    // del clic: el numero no esta en el HTML ni en el bundle, y el servidor
+    // deja registrado el clic atribuido a la oferta.
+    // En Android un toque y el sistema muestra el selector de app; en iOS y web
+    // se abre la hoja de opciones (WhatsApp / WhatsApp Business / WhatsApp Web).
+    setErrorWhatsApp(null);
+    setOfertaParaWhatsApp(oferta || null);
+    alPulsarBotonWhatsApp({
+      ofertaId: oferta?.id || null,
+      onAbrirSelector: () => setChooserAbierto(true),
+      onError: (mensaje) => setErrorWhatsApp(mensaje)
+    });
   };
 
   // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.
@@ -300,6 +305,23 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               title="Cerrar notificación"
             >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Error al abrir WhatsApp (por ejemplo, si la peticion al servidor fallo) */}
+        {errorWhatsApp && (
+          <div className="bg-red-50 text-red-800 p-3.5 rounded-2xl border border-red-200 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-semibold leading-snug">{errorWhatsApp}</p>
+            </div>
+            <button
+              onClick={() => setErrorWhatsApp(null)}
+              className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-100"
+              title="Cerrar aviso"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -564,6 +586,15 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
           </p>
         </footer>
       </div>
+
+      {/* Hoja de eleccion de app para WhatsApp (iOS y web). En Android el
+          selector de app lo pone el sistema y esta hoja no se abre. */}
+      <WhatsAppChooser
+        abierto={chooserAbierto}
+        onCerrar={() => setChooserAbierto(false)}
+        ofertaId={ofertaParaWhatsApp?.id || null}
+        titulo={ofertaParaWhatsApp ? 'Contactar por WhatsApp' : 'Pedir ofertas por WhatsApp'}
+      />
 
       {/* MODAL: Ficha Completa de Oferta (/o/[id]) con carrusel de 3 fotos */}
       {fichaOferta && (
