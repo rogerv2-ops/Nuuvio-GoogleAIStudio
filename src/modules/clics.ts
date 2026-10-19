@@ -62,7 +62,7 @@ class ClicsAtribucionModule {
     usuarioId: string;
     usuarioCodigoRef?: string;
     canal: 'whatsapp' | 'web';
-  }): { ok: boolean; waUrl: string; waUrlWeb: string; codigoPersonal: string; facturable: boolean } {
+  }): Promise<{ ok: boolean; waUrl: string; waUrlWeb: string; codigoPersonal: string; facturable: boolean }> {
     const oferta = ofertasModule.obtenerOferta(params.ofertaId);
     if (!oferta) {
       return { ok: false, waUrl: '', waUrlWeb: '', codigoPersonal: '', facturable: false };
