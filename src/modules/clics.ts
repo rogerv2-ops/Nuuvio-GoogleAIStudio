@@ -57,7 +57,7 @@ class ClicsAtribucionModule {
    * Registro de clic en "Contactar comercio" (F-AUD-06):
    * Deduplicación de 24 horas por usuario/oferta (antifraude).
    */
-  public registrarClicContactar(params: {
+  public async registrarClicContactar(params: {
     ofertaId: string;
     usuarioId: string;
     usuarioCodigoRef?: string;
@@ -104,7 +104,7 @@ class ClicsAtribucionModule {
     if (facturable) {
       oferta.leadsCalificados += 1;
       // Débito atómico del paquete de clics (F-COM-04)
-      facturacionModule.debitarClic(oferta.comercioId);
+      await facturacionModule.debitarClic(oferta.comercioId);
     }
 
     coreEvents.emitir({
