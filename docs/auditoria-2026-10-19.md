@@ -303,6 +303,8 @@ Ya existe el patrón correcto en el mismo repo: la tabla `sessions` con `revokeS
 
 **Corrección:** promever a tablas reales los blobs que se modifican bajo concurrencia, empezando por `auth_users` y `click_packs` (este último lo comparte el punto 3). `app_settings` puede quedar para configuración que se escribe rara vez.
 
+**Punto 12 — resuelto (2026-10-19).** `auth_users` pasó a ser una tabla propia (`src/db/schema.ts`) y los **9 sitios** que reescribían el array completo (`saveSetting("auth_users", list)`) son ahora sentencias SQL puntuales: `crearAuthUser`, `actualizarAuthUser`, `eliminarAuthUser` y `consumirHashRespaldo` (esta última consume el código de respaldo en un único `UPDATE ... WHERE hashes @> hash`, atómico: dos usos simultáneos del mismo código, solo uno pasa). `click_packs` ya era tabla (punto 3). El blob queda congelado como respaldo y la app tiene un modo degradado: si la tabla no está disponible, lee el blob para que nadie quede sin entrar, pero no escribe. Tests: `tests/security/auth-users-table.test.ts` (incluye altas concurrentes).
+
 ---
 
 ## No verificado
