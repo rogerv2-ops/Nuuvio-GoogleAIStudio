@@ -136,6 +136,24 @@ Si algún día se quiere que el botón de una oferta vaya directo al comercio, h
 | `server.ts` | `GET /api/whatsapp/contacto` + su registro en `esRutaPublica`. |
 | `tests/security/whatsapp-contacto.test.ts` | Tests que vigilan las 4 reglas. |
 
+## Verificación en dispositivos reales
+
+El CI verifica **URLs**, no lo que ve la persona. Por eso, un cambio que toca un enlace a WhatsApp **no está cerrado hasta que se probó en un dispositivo de verdad**.
+
+| Plataforma | Qué tiene que pasar con un toque | Estado (2026-10-19) |
+|---|---|---|
+| **Android** | Se abre el **selector del sistema** con WhatsApp y WhatsApp Business. Un toque, sin hoja intermedia. | ✅ **verificado** por el dueño en su Android |
+| **iPhone / iPad** | Se abre **la hoja de Yuddit** con las tres opciones (WhatsApp / WhatsApp Business / WhatsApp Web). En iOS el sistema no da selector para esquemas propios: por eso la hoja es nuestra. | ⏳ **pendiente** (falta un iPhone) |
+| **Escritorio / web** | Se abre **la hoja de Yuddit** con las tres opciones. | ✅ **verificado** por el dueño |
+
+Qué mirar en cada prueba, más allá de que "funcione":
+
+1. Que se abra **WhatsApp** (o WhatsApp Business, si se elige esa opción) y no otra app.
+2. Que el chat llegue **con el mensaje escrito** ("Hola, quiero ver las ofertas de Yuddit: {titulo}").
+3. Que en la página **no se vea ningun numero** (el numero lo resuelve el servidor en el momento del clic).
+4. En Android: que aparezca el **selector del sistema** y no nuestra hoja.
+5. Si algo falla: que se vea el **aviso de error**, no un silencio.
+
 ## Verificación
 
 ```bash

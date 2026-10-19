@@ -19,6 +19,17 @@ Cómo se aplica:
 - **El mensaje al bot tiene que disparar su intención de "pedir ofertas"** (`esIntencionOfertas`, en `src/utils/securityGuards.ts`). La palabra va **en plural**: "quiero ver las **ofertas** de Yuddit: {título}". El mensaje viejo ("Hola quiero aprovechar esta **oferta**: …") no la disparaba, así que el bot no entendía el pedido.
 - **La landing enruta al bot, no al comercio**: así los teléfonos de los comercios no llegan al público. El lead llega al comercio por el enlace firmado `/c/:id`, que sí factura.
 - **Excepción documentada**: los enlaces `/c/:id` que el bot manda *dentro de* WhatsApp van directo al chat (la persona ya está en WhatsApp).
+
+Lo que **tiene que ver la persona** (si no, no está bien):
+
+| Plataforma | Qué tiene que pasar con un toque |
+|---|---|
+| **Android** | Se abre el **selector del sistema** con WhatsApp y WhatsApp Business. Un toque, sin hoja intermedia. |
+| **iPhone / iPad** | Se abre **la hoja de Yuddit** con las tres opciones (WhatsApp / WhatsApp Business / WhatsApp Web). En iOS el sistema no da selector para esquemas propios: por eso la hoja es nuestra. |
+| **Escritorio / web** | Se abre **la hoja de Yuddit** con las tres opciones. |
+
+**Estado de la verificación en dispositivos reales** (2026-10-19): **Android ✅** y **web ✅** (probados por el dueño). **iPhone ⏳ pendiente.** Por eso: **ningún cambio que toque un enlace a WhatsApp se da por cerrado sin probarlo en un Android y en la web** — el CI no alcanza, porque verifica URLs, no lo que ve la persona.
+
 - Spec completa, tablas y verificación: `docs/reglas-whatsapp.md`. Tests que vigilan las reglas: `tests/security/whatsapp-contacto.test.ts`.
 
 ## Commands
