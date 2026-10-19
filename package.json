@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build || true",
+    "build": "vite build",
     "start": "tsx server.ts",
     "test": "bun test tests/security",
-    "lint": "tsc --noEmit || true"
+    "lint": "node scripts/typecheck-baseline.mjs",
+    "typecheck": "tsc --noEmit",
+    "typecheck:baseline": "node scripts/typecheck-baseline.mjs --update"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",
