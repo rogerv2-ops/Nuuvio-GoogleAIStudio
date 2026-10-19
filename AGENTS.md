@@ -79,9 +79,21 @@ bun scripts/ci/assert-tests-ran.mjs results/security.xml --min 80   # fails if t
 - **La siembra nunca pisa credenciales existentes**: solo siembra si la tabla **y** el blob están vacíos. En producción no hay `VUUV_ADMIN_PASSWORD`, así que una siembra sobre un blob con usuarios dejaría al administrador con una clave aleatoria.
 - **Migrar antes de desplegar**: `bun scripts/migrate-auth-users.mjs` (con `--dry-run` para ver) mueve los usuarios a la tabla y verifica que las claves coincidan. La app también migra al arrancar, pero en producción conviene hacerlo a mano y comprobarlo.
 
+## Reglas inquebrantables — el esquema de la base
+
+- **El esquema se cambia con migraciones versionadas, nunca con `push`.** El entrypoint ya no hace `drizzle-kit push` (que alteraba producción en cada deploy sin que nadie lo revisara): hace `drizzle-kit migrate`.
+- **Cómo se cambia el esquema** (en este orden, en el mismo PR):
+  1. Se edita `src/db/schema.ts`.
+  2. `bunx drizzle-kit generate --config=src/db/drizzle.config.ts --name=lo_que_sea` → genera `src/db/migrations/00NN_*.sql` + `meta/`.
+  3. **Se revisa el SQL generado** (es lo que se va a ejecutar en producción).
+  4. Se commitea el `.sql` **y** la carpeta `meta/`.
+- **Nunca edites a mano** `src/db/migrations/*.sql` ni `meta/_journal.json`: drizzle compara el esquema contra el último snapshot, y tocarlo a mano desincroniza la generación siguiente.
+- **La migración base (`0000_baseline`) ya está aplicada en producción.** Se marcó con `scripts/mark-migrations-applied.mjs` (que además **verifica que las tablas existan** antes de marcar nada: marcarla sobre una base vacía dejaría el esquema sin crear para siempre). Las migraciones nuevas se aplican solas en el siguiente deploy.
+- **Un cambio de esquema sin migración es un bug**: en un entorno nuevo la tabla no existiría. El test `tests/security/migrations-versionadas.test.ts` lo detecta (compara las tablas del esquema con las de las migraciones).
+
 ## Data & persistence
 
-- Postgres via Drizzle. `src/db/schema.ts` is the source of truth; there are **no migration files** (`drizzle.config.ts` points at `./src/db/migrations`, which does not exist). Schema is applied with `drizzle-kit push` by `docker-entrypoint.sh` before the app starts.
+- Postgres via Drizzle. `src/db/schema.ts` is the source of truth. The schema is applied by **versioned migrations** in `src/db/migrations` (`drizzle-kit migrate`, run by `docker-entrypoint.sh` before the app starts). **There is no `drizzle-kit push` anymore** — see "Reglas inquebrantables — el esquema de la base" for how to change the schema.
 - `docker-entrypoint.sh` rewrites `SQL_HOST` for the known production container and reads `SQL_ADMIN_USER`/`SQL_ADMIN_PASSWORD` (falling back to `SQL_USER`/`SQL_PASSWORD`); without them it skips the push and still starts.
 - Runtime state is partly in memory (offers, the click-pack read cache, WAHA session, login lockout, rate-limit buckets) — restart the app after changing DB rows that the app caches. Pack balances live in the `click_packs` table, the source of truth; `app_settings.click_packs_list` is frozen legacy data read once, only to seed an empty table. The debit is a single atomic `UPDATE ... RETURNING` (`debitarClicAtomico` in `src/db/repo.ts`), so that read cache only affects what is *shown*, never what is *billed*.
 

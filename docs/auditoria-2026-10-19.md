@@ -132,6 +132,8 @@ yes "" | timeout 120 bunx drizzle-kit push --config=src/db/drizzle.config.ts \
 
 **Corrección:** migraciones generadas y revisadas (`drizzle-kit generate` → revisar el SQL → `migrate`). Como paso intermedio, sacar el `push` del arranque y convertirlo en un paso explícito y manual del deploy. `src/db/schema.ts` es hoy la única fuente de verdad y no hay ningún archivo de migración en el repo (`drizzle.config.ts` apunta a `./src/db/migrations`, que no existe).
 
+**Punto 5 — resuelto (2026-10-19).** El esquema se aplica con **migraciones versionadas y revisadas**: `src/db/migrations/0000_baseline.sql` (las 13 tablas) + `meta/`, generadas con `drizzle-kit generate` y revisadas en el pull request. El entrypoint ya no hace `drizzle-kit push` (que comparaba el esquema del código contra la base y lo alteraba en cada deploy, sin revisión): hace `drizzle-kit migrate`, que solo aplica lo que falta. La migración base de producción (que tenía el esquema puesto con `push`) se marcó como aplicada con `scripts/mark-migrations-applied.mjs`, que **verifica antes que las tablas existan** (marcarla sobre una base vacía dejaría el esquema sin crear para siempre). Tests: `tests/security/migrations-versionadas.test.ts` (el entrypoint no hace push; la migración base cubre todas las tablas del esquema; sobre una base nueva, `migrate` crea el esquema completo).
+
 ---
 
 ## P2 — Seguridad
