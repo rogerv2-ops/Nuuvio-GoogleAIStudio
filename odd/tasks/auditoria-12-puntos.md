@@ -24,18 +24,18 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 
 | ID | Spec | Tarea | Ruta | Estado |
 |---|---|---|---|---|
-| T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **hecho** — `f57c35f` |
-| T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | **hecho** — `7460180` |
-| T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | **hecho** — `4f5605a` (gate con baseline; ver L8) |
-| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **hecho, en PR** — `2ca8e41` + correcciones `29a019d` (ver L11, L12, L13); **PR #3** |
-| T5 | S12 | `auth_users` y `click_packs` fuera de `app_settings` | inline | listo (absorbe parte de T4) |
-| T6 | S2 | Atomicidad de la ventana de 24 h | inline | **bloqueado**: auditar duplicados en `click_logs` |
-| T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **bloqueado**: verificar Coolify (¿cifrado ya apagado?) |
-| T8 | S5 | Migraciones versionadas en vez de `push` en el arranque | inline | depende de T4/T5 (no versionar el esquema viejo) |
-| T9 | S4 | Backup off-site + restore probado | inline | **bloqueado**: destino y credenciales |
+| T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **desplegado** — `f57c35f` (PR #1, en `main`) |
+| T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | **desplegado** — `7460180` (PR #1, en `main`) |
+| T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | **desplegado** — `4f5605a` (PR #2, en `main`; gate con baseline, ver L8) |
+| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **desplegado** — `2ca8e41` + `29a019d` (PR #3, en `main`); tabla creada y sembrada en producción, ver L14 |
+| T5 | S12 | `auth_users` fuera de `app_settings` | inline | **siguiente** (T4 ya desplegado; ver L9 para el alcance real) |
+| T6 | S2 | Atomicidad de la ventana de 24 h | inline | **listo para implementar**: `click_logs` tiene cero pares duplicados (L9) |
+| T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **en curso**: cifrado confirmado apagado por un typo de nombre, variable ya renombrada; falta redesplegar (L14) |
+| T8 | S5 | Migraciones versionadas en vez de `push` en el arranque | inline | depende de T5 |
+| T9 | S4 | Backup off-site + restore probado | inline | **pospuesto por el usuario** hasta validar costos de destino |
 | T10 | S8 | Contadores persistentes o single-instance enforzado | por definir | **bloqueado**: ¿cuántas instancias? |
-| T11 | S9 | CI que levante la app y corra los tests | por definir | depende de T3 |
-| T12 | S10 | Estructura de `server.ts` (opción A u B) | por definir | **bloqueado**: decisión del dueño |
+| T11 | S9 | CI que levante la app y corra los tests | por definir | depende de T3 (ya desplegado) |
+| T12 | S10 | Estructura de `server.ts` (opción A u B) | por definir | **bloqueado**: decisión del dueño (opción B elegida, L8) |
 
 ## Log
 
@@ -100,3 +100,17 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
   - **`main` verificada intacta**: `origin/main` == local == `6e3e00e`. **Ningún deploy disparado.**
   - **Falta la decisión del usuario sobre el merge**, y no es un merge cualquiera: al mergear, el deploy corre `drizzle-kit push` y **crea `click_packs` en producción** (aditivo, no altera nada existente, pero es un cambio de esquema y queda explicitado). Por eso el PR apunta a fase 1 y no a `main`.
   - **Bloqueo de PII sigue abierto y es del usuario**: `printenv VUUV_PII_KEY` sigue vacío en el contenedor y un restart **no alcanza** — hace falta un redeploy en Coolify para que la variable llegue al arranque.
+- **L14** (2026-10-19) — **Las tres fases mergeadas y desplegadas, cada deploy verificado. `main` = `d49d675`.**
+  - **Orden elegido y por qué**: `#2` (gate de tipos) primero, porque es el único que puede *hacer fallar un deploy* — el Dockerfile ahora exige `dist/index.html` — y quería enterarme en un deploy donde no hubiera nada más en juego. Después `#1` (facturación fail-closed), y `#3` último (esquema + camino de cobro) para poder revertirlo solo, sin arrastrar los otros dos.
+  - **Red de seguridad**: `pg_dump -Fc` fresco antes de empezar → `/home/ubuntu/backups/nuuvio/nuuviopsg-20261019T023242Z-pre-merges.dump` (309 KB, modo 600, 11 tablas con datos verificadas con `pg_restore -l`).
+  - **Verificación previa al merge de `#2`**: se confirmó que producción **ya** servía el SPA (`/app/dist/index.html` + assets, `yuddit.com` 200 con el bundle), o sea que la nueva assertion del Dockerfile iba a pasar. Y se corrió el gate: `OK: 60 errores preexistentes, 0 nuevos`.
+  - **Verificación previa al merge de `#3` (la que evitó un falso positivo de seguridad)**: se probó el comportamiento real del push del entrypoint contra una base descartable recién creada. `yes "" | drizzle-kit push` imprime `[✓] Changes applied` y crea **todas** las tablas, incluida `click_packs`, **sin pedir confirmación**. La duda existía porque si el prompt pidiera un "y" explícito, la tabla no se crearía y el débito fallaría **en silencio** (`debitarClic` está dentro de un `try/catch` que solo loguea). Después se corrieron los 15 tests de `tests/billing` contra esa base nueva: **15 pass, 0 fail**.
+  - **Verificación de cada deploy** (el contenedor nuevo se detecta filtrando `docker ps` por el uuid de la app; el build + swap tarda ~75 s y el contenedor viejo se borra solo):
+    - `#2` (`08eb905`): `/app/scripts/typecheck-baseline.mjs` y `typecheck-baseline.json` presentes, `package.json` sin `|| true`, `tsconfig.json` con los globs de `src/**`, SPA intacto.
+    - `#1` (`b19f3e2`): `AGENTS.md`, `docs/auditoria-2026-10-19.md` y `odd/tasks/auditoria-12-puntos.md` dentro del contenedor, `registerOfferClick` con `facturable: false`.
+    - `#3` (`d49d675`): log `[✓] Changes applied` + `[entrypoint] schema OK` + `[Facturacion] click_packs sembrada con 3 pack(s)`; **`click_packs` creada y sembrada con los saldos reales** (`merch_01` 80/100, `merch_02` 71/100, `merch_03` 34/50); el blob `app_settings.click_packs_list` quedó congelado en `80/71/34`; **cero** `Error debitando clic`; `/api/ofertas` → 6 y `/api/ofertas/publicas` → 3, lo que prueba que el cache de saldo se pobló bien desde la tabla nueva y que el defecto del Blocker 2 (todas las ofertas desaparecidas) no reaparece; sitio 200 en 66 ms; WhatsApp reconectó.
+  - **Trampa del encadenado, registrada para no repetirla**: el PR `#3` apuntaba a la rama `auditoria/fase-1-facturacion`. `gh pr edit --base main` **falla en silencio** (devuelve un error de GraphQL sobre "Projects classic" y **no aplica el cambio**). Hay que forzarlo con `gh api -X PATCH repos/<org>/<repo>/pulls/<n> -f base=main`. Sin eso, mergear `#3` se fusiona en una rama ya muerta y **no llega nada a `main`**.
+  - **Lección de documentación**: al mergear solo `#1`, `main` quedó con un `AGENTS.md` que **mentía** — decía que `lint` y `build` terminan en `|| true` y que `tsconfig` tiene `include: ["server.ts"]`, las dos cosas ya falsas desde `#2`. La versión corregida llega recién con `#3` (commit `548f417`). **El documento que describe un mecanismo tiene que viajar en la misma rama que lo cambia.**
+  - **Hallazgo de seguridad, con corrección de una afirmación propia**: en L13 quedó escrito que el redeploy iba a encender el cifrado de PII. **Es falso, y se comprobó dos veces.** La causa es un **typo de un carácter**: en Coolify la variable se llamaba `VUU_PII_KEY` y el código busca `VUUV_PII_KEY` (cuatro letras: V-U-U-V, por la marca legacy `vuuy`). El valor estaba cargado y marcado como runtime; solo el nombre estaba mal. Como la app **degrada en silencio a texto plano** con un único `console.error`, esto podía quedar así indefinidamente. Había **dos** filas con el nombre mal escrito en `environment_variables` de la base `coolify` (ids 87 y 88, `is_preview` `f` y `t` respectivamente, ambas de la aplicación id 5). Renombradas ambas a `VUUV_PII_KEY` preservando el valor cifrado; ver `docs/auditoria-2026-10-19.md` punto 6.
+  - **Estado de los puntos**: 1, 3, 7 y 11 desplegados en producción. El punto 6 (PII) queda con la variable renombrada y **pendiente de un redeploy que lo active de verdad** — hasta entonces sigue en texto plano.
+  - **Decisión del usuario**: el punto 4 (backup off-site) queda **explícitamente pospuesto** hasta validar costos de destino. Consecuencia a tener presente: al activar el cifrado de PII, los backups pasan a depender de la clave, así que la ventana entre activarlo y tener un backup off-site es la de mayor riesgo de irrecuperabilidad.
