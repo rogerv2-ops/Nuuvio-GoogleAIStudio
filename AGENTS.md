@@ -40,7 +40,7 @@ BASE_URL=http://localhost:3000 ./scripts/security-smoke.sh                      
 
 - Postgres via Drizzle. `src/db/schema.ts` is the source of truth; there are **no migration files** (`drizzle.config.ts` points at `./src/db/migrations`, which does not exist). Schema is applied with `drizzle-kit push` by `docker-entrypoint.sh` before the app starts.
 - `docker-entrypoint.sh` rewrites `SQL_HOST` for the known production container and reads `SQL_ADMIN_USER`/`SQL_ADMIN_PASSWORD` (falling back to `SQL_USER`/`SQL_PASSWORD`); without them it skips the push and still starts.
-- Runtime state is partly in memory (offers, click packs, WAHA session, login lockout, rate-limit buckets) — restart the app after changing DB rows that the app caches.
+- Runtime state is partly in memory (offers, the click-pack read cache, WAHA session, login lockout, rate-limit buckets) — restart the app after changing DB rows that the app caches. Pack balances live in the `click_packs` table, the source of truth; `app_settings.click_packs_list` is frozen legacy data read once, only to seed an empty table. The debit is a single atomic `UPDATE ... RETURNING` (`debitarClicAtomico` in `src/db/repo.ts`), so that read cache only affects what is *shown*, never what is *billed*.
 
 ## Conventions
 

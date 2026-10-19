@@ -86,11 +86,27 @@ class FacturacionModule {
   public async recargarCache(): Promise<void> {
     try {
       const packs = await listarClickPacks();
+      if (packs.length === 0 && this.packs.size > 0) {
+        console.warn(
+          `[Facturacion] click_packs devolvio 0 filas pero el cache tiene ${this.packs.size} pack(s). ` +
+            'Se conserva el cache a proposito: vaciarlo dejaria a TODOS los comercios sin saldo y ' +
+            'sus ofertas desaparecerian del mosaico. Esto solo afecta lo que se MUESTRA, nunca un cobro. ' +
+            'Si la tabla esta vacia de verdad, hay que revisar la migracion.',
+        );
+        return;
+      }
       this.packs.clear();
       packs.forEach(p => this.packs.set(p.id, p));
       this.notificar();
     } catch (e) {
-      console.warn('[Facturacion] No se pudo recargar el cache de packs:', e);
+      // Si la tabla no existe o la base no responde, se CONSERVA el cache previo
+      // (el seed del constructor). Antes de esto, un listado fallido devolvia []
+      // y vaciaba el cache: todos los comercios quedaban sin saldo y el mosaico
+      // se vaciaba. La lectura nunca debe degradar a "nadie tiene ofertas".
+      console.warn(
+        '[Facturacion] No se pudo leer click_packs; se conserva el cache anterior:',
+        e,
+      );
     }
   }
 

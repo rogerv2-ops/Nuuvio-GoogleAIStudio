@@ -26,14 +26,21 @@ export const CampanasComercioView: React.FC<CampanasComercioViewProps> = ({
     { clics: 500, precio: 250, nombre: 'Empresarial', ahorro: 'Ahorras S/ 50' }
   ];
 
-  const handleComprarPack = () => {
-    const pack = facturacionModule.comprarPack({
-      comercioId: comercio.id,
-      cantidadClics: packSeleccionado,
-      metodoPago: 'yape_plin'
-    });
+  const handleComprarPack = async () => {
+    try {
+      const pack = await facturacionModule.comprarPack({
+        comercioId: comercio.id,
+        cantidadClics: packSeleccionado,
+        metodoPago: 'yape_plin'
+      });
 
-    setMensajeRecarga(`¡Recarga exitosa! Se agregaron ${pack.totalClics} clics a tu saldo para ${comercio.nombreComercial}.`);
+      setMensajeRecarga(`¡Recarga exitosa! Se agregaron ${pack.totalClics} clics a tu saldo para ${comercio.nombreComercial}.`);
+    } catch (e) {
+      // comprarPack ahora persiste: si la escritura falla, el comercio no debe
+      // ver un "¡Recarga exitosa!" que nunca se acredito.
+      console.error('[Campanas] No se pudo acreditar el pack de clics:', e);
+      setMensajeRecarga('No pudimos acreditar el pack. Intenta de nuevo o contacta a soporte.');
+    }
     setTimeout(() => setMensajeRecarga(null), 5000);
   };
 

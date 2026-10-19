@@ -50,23 +50,29 @@ export const CrmPlanesView: React.FC = () => {
     setTimeout(() => setNotificacion(null), 4000);
   };
 
-  const handleComprarPackSubmit = (e: React.FormEvent) => {
+  const handleComprarPackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formPack.comercioId) return;
 
-    facturacionModule.comprarPack({
-      comercioId: formPack.comercioId,
-      cantidadClics: formPack.cantidadClics,
-      metodoPago: formPack.metodoPago,
-      aporteProductos: formPack.metodoPago === 'aporte_productos' ? {
-        productoNombre: formPack.productoNombre || 'Vale o Producto Comercial',
-        valorEstimado: Number(formPack.valorEstimado),
-        unidadesAportadas: Number(formPack.unidadesAportadas)
-      } : undefined
-    });
+    try {
+      await facturacionModule.comprarPack({
+        comercioId: formPack.comercioId,
+        cantidadClics: formPack.cantidadClics,
+        metodoPago: formPack.metodoPago,
+        aporteProductos: formPack.metodoPago === 'aporte_productos' ? {
+          productoNombre: formPack.productoNombre || 'Vale o Producto Comercial',
+          valorEstimado: Number(formPack.valorEstimado),
+          unidadesAportadas: Number(formPack.unidadesAportadas)
+        } : undefined
+      });
+
+      setNotificacion('¡Pack de clics activado y acreditado al comercio!');
+    } catch (err) {
+      console.error('[CrmPlanes] No se pudo acreditar el pack de clics:', err);
+      setNotificacion('No se pudo acreditar el pack de clics.');
+    }
 
     setModalComprarPack(false);
-    setNotificacion('¡Pack de clics activado y acreditado al comercio!');
     setTimeout(() => setNotificacion(null), 3500);
   };
 

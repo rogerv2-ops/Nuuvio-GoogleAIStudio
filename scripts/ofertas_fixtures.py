@@ -103,6 +103,27 @@ def _offer_sql(oid, comercio_id, titulo, distrito, categoria):
     )
 
 
+# El saldo de los packs vive en la tabla click_packs, NO en app_settings: al
+# pasar el debito a SQL (T4 / punto 3 de la auditoria) el blob
+# click_packs_list dejo de ser la fuente de verdad. Si estas fixtures lo
+# escribieran ahi, la app no las veria y el assert del saldo nunca pasaria.
+def _upsert_pack(saldo: int = PACK_SALDO_INICIAL) -> None:
+    psql(
+        "insert into click_packs (id, comercio_id, total_clics, saldo_clics, "
+        "precio_unitario, monto_total, estado, comprado_en) values "
+        f"('{PACK_CPC}', '{MER_CPC}', 100, {saldo}, 1.2, 120, 'activo', '{_future(-1)}') "
+        "on conflict (id) do update set saldo_clics=excluded.saldo_clics, estado='activo'"
+    )
+
+
+def _pack_saldo() -> int:
+    return int(psql(f"select saldo_clics from click_packs where id='{PACK_CPC}'") or "0")
+
+
+def _delete_pack() -> None:
+    psql(f"delete from click_packs where id='{PACK_CPC}'")
+
+
 def seed():
     merchants = [m for m in get_setting("merchants_list", []) if m.get("id") not in TEST_IDS["merchants"]]
     merchants += [
@@ -112,13 +133,7 @@ def seed():
     ]
     set_setting("merchants_list", merchants)
 
-    packs = [p for p in get_setting("click_packs_list", []) if p.get("id") not in TEST_IDS["packs"]]
-    packs.append({
-        "id": PACK_CPC, "comercioId": MER_CPC, "totalClics": 100,
-        "saldoClics": PACK_SALDO_INICIAL, "precioUnitario": 1.2,
-        "montoTotal": 120, "estado": "activo", "compradoEn": _future(-1),
-    })
-    set_setting("click_packs_list", packs)
+    _upsert_pack()
 
     psql(_offer_sql(OFF_CPC, MER_CPC, "QA CPC Oferta", "Miraflores", "Gastronomía y Café"))
     psql(_offer_sql(OFF_NS, MER_NS, "QA Sin Saldo Oferta", "Miraflores", "Gastronomía y Café"))
@@ -131,12 +146,7 @@ def seed():
 def _reset():
     for off in TEST_IDS["offers"]:
         psql(f"update offers set clics=0, leads_calificados=0, likes=0 where id='{off}'")
-    packs = get_setting("click_packs_list", [])
-    for p in packs:
-        if p.get("id") == PACK_CPC:
-            p["saldoClics"] = PACK_SALDO_INICIAL
-            p["estado"] = "activo"
-    set_setting("click_packs_list", packs)
+    _upsert_pack()
     psql(f"delete from click_logs where usuario_telefono like '{PREFIX}%'")
 
 
@@ -154,10 +164,7 @@ def assert_db():
         f"select count(*) from click_logs where oferta_id='{OFF_CPC}' "
         f"and facturable=false and usuario_telefono like '{PREFIX}%'"
     )
-    saldo = None
-    for p in get_setting("click_packs_list", []):
-        if p.get("id") == PACK_CPC:
-            saldo = int(p.get("saldoClics"))
+    saldo = _pack_saldo()
     leads = int(psql(f"select leads_calificados from offers where id='{OFF_CPC}'") or "0")
 
     if fac < 2:
@@ -181,9 +188,9 @@ def cleanup():
     psql(f"delete from click_logs where usuario_telefono like '{PREFIX}%'")
     ids = ",".join(f"'{x}'" for x in TEST_IDS["offers"])
     psql(f"delete from offers where id in ({ids})")
-    for key, field in (("merchants_list", "merchants"), ("click_packs_list", "packs")):
-        lst = [x for x in get_setting(key, []) if x.get("id") not in TEST_IDS[field]]
-        set_setting(key, lst)
+    lst = [x for x in get_setting("merchants_list", []) if x.get("id") not in TEST_IDS["merchants"]]
+    set_setting("merchants_list", lst)
+    _delete_pack()
     print("[cleanup] ok: fixtures, click_logs de prueba y pack eliminados")
 
 

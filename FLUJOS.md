@@ -43,7 +43,7 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 
 ## F5. Comercios y panel comercio
 - `GET /api/comercios` → 10 comercios DB. `POST /api/comercios/sync {comercios, kanban}` → `merchants_list` + `merchants_kanban` (settings).
-- Vistas comercio: Inicio (resumen), MisOfertas (CRUD propio), MiNegocio (datos), Resultados/Ventas (de `click_logs`+clics), Historial, Campañas. Todo vía estos endpoints + `facturacionModule.cargarDeDB` (click packs).
+- Vistas comercio: Inicio (resumen), MisOfertas (CRUD propio), MiNegocio (datos), Resultados/Ventas (de `click_logs`+clics), Historial, Campañas. Todo vía estos endpoints + `facturacionModule.inicializar` (click packs, persistidos en la tabla `click_packs`).
 **Probar:** `GET /api/comercios` 🟢 ya verificado.
 
 ## F6. Usuarios y registro
@@ -102,7 +102,7 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 - **Mosaico (bot)**: `dispatchOffersMosaic` en `server.ts`. Filtra ofertas `activa`, no vencidas, con WhatsApp válido y **saldo de clics > 0** (`comercioTieneSaldo`); ordena por plan → `likes` → fecha; toma **máximo 3**; genera `renderMosaicImage` (segmentos **1:1** numerados) y envía **un solo mensaje** (imagen + caption con título/precio/enlace `/c/:id?u=<telefono>`).
 - **Tarjeta 1:1**: `renderOfferCardImage` es **800×800** y sin corazón; la landing usa `aspect-square` y ya no repite título/descripción.
 - **Redirección CPC** `GET /c/:ofertaId?u=<telefono>` (rate limit `clicks` 20/60 s): registra el clic en `click_logs` (`registerOfferClick`), decide facturabilidad y redirige `302` a WhatsApp del comercio con título + código `NV-####`.
-- **Ventana de facturabilidad**: solo el **1.er clic facturable cada 24 h** por `(oferta, teléfono)`; la ventana se ancla al **último clic facturable** (los no facturables no la reinician). Un clic facturable debita **1** de `click_packs_list` (`debitarClic`, nunca < 0) e incrementa `leadsCalificados`; sin saldo ⇒ no facturable, sin débito, igual redirige.
+- **Ventana de facturabilidad**: solo el **1.er clic facturable cada 24 h** por `(oferta, teléfono)`; la ventana se ancla al **último clic facturable** (los no facturables no la reinician). Un clic facturable debita **1** de la tabla `click_packs` con un único `UPDATE ... WHERE saldo_clics > 0 ... RETURNING` (`debitarClicAtomico`): es una sola sentencia, así que el saldo no puede quedar negativo bajo concurrencia. El guard tiene que ir en el `UPDATE` y no solo en la subconsulta. E incrementa `leadsCalificados`; sin saldo ⇒ no facturable, sin débito, igual redirige.
 - **"Me Gusta"** `POST /api/ofertas/:id/like` (rate limit `likes` 30/60 s): **informativo, no factura**; `incrementOfferLikes` (SQL atómico) persiste en `offers.likes`. La landing muestra el conteo en vivo.
 - **Tablas:** `click_logs`. **Probar:** `GET /c/<oferta>?u=519...` (302 + código), repetir <24 h (no facturable), `POST /api/ofertas/<id>/like`. Automatizado: `./scripts/ofertas-tests.sh` (siembra fixtures, corre `tests/ofertas/`, verifica débito y limpia).
 
