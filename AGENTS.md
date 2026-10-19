@@ -71,6 +71,14 @@ bun scripts/ci/assert-tests-ran.mjs results/security.xml --min 80   # fails if t
 - Client auth is in `src/core/security.ts`: stores the session token and installs a `fetch` interceptor that adds `Authorization: Bearer <token>` to every `/api/` call.
 - **New endpoints must be registered in `esRutaPublica` in `server.ts`** if they should be public; the global `/api` gate 401s anything not allowlisted.
 
+## Reglas inquebrantables — credenciales y datos en base
+
+- **Los usuarios de autenticación viven en la tabla `auth_users`, no en un blob JSON.** Cada alta, cambio de clave, MFA y consumo de código de respaldo es una sentencia SQL puntual sobre la fila del usuario (`actualizarAuthUser`, `crearAuthUser`, `eliminarAuthUser`, `consumirHashRespaldo` en `server.ts`). **Nunca** reescribas el array completo de usuarios: eso era el read-modify-write que perdía actualizaciones concurrentes (punto 12 de la auditoría). El test `tests/security/auth-users-table.test.ts` lo vigila, incluso con altas concurrentes.
+- **El blob `app_settings.auth_users` queda congelado** como respaldo histórico, igual que `click_packs_list`. No se lee para escribir y no se vuelve a escribir.
+- **Si la tabla no está disponible, la app entra en modo degradado**: lee el blob para que nadie se quede sin poder entrar, pero **no escribe** (escribir en una tabla que no se lee deja dos copias divergentes). El modo degradado se registra con `[Auth] CRITICO` en el log.
+- **La siembra nunca pisa credenciales existentes**: solo siembra si la tabla **y** el blob están vacíos. En producción no hay `VUUV_ADMIN_PASSWORD`, así que una siembra sobre un blob con usuarios dejaría al administrador con una clave aleatoria.
+- **Migrar antes de desplegar**: `bun scripts/migrate-auth-users.mjs` (con `--dry-run` para ver) mueve los usuarios a la tabla y verifica que las claves coincidan. La app también migra al arrancar, pero en producción conviene hacerlo a mano y comprobarlo.
+
 ## Data & persistence
 
 - Postgres via Drizzle. `src/db/schema.ts` is the source of truth; there are **no migration files** (`drizzle.config.ts` points at `./src/db/migrations`, which does not exist). Schema is applied with `drizzle-kit push` by `docker-entrypoint.sh` before the app starts.
