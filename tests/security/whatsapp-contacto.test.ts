@@ -131,19 +131,37 @@ describe("WhatsApp - no exposicion de numeros", () => {
 });
 
 describe.skipIf(!online)("WhatsApp - contacto con el servidor", () => {
+  /**
+   * Si el bot no tiene numero, el endpoint responde 503 (que es lo correcto:
+   * sin destino no hay chat que abrir). Cuando pasa eso, el mensaje de error
+   * lo dice: un "Expected 200, Received 503" a secas no ayuda a nadie.
+   */
+  async function pedirContacto(query: string): Promise<{ res: Response; data: any }> {
+    const res = await fetch(`${BASE}/api/whatsapp/contacto?${query}`);
+    const data: any = await res.json().catch(() => null);
+    if (res.status === 503) {
+      throw new Error(
+        "El bot no tiene numero de WhatsApp configurado (503). Sin numero el " +
+          "endpoint no puede armar el enlace, asi que este test no verifica nada. " +
+          "En CI se siembra con `bun scripts/ci/seed-whatsapp-config.mjs`; en local, " +
+          "configura un numero en el panel de WhatsApp (o en app_settings.whatsapp_config)."
+      );
+    }
+    return { res, data };
+  }
+
   test("responde sin token (es una ruta publica)", async () => {
-    const res = await fetch(`${BASE}/api/whatsapp/contacto?dest=app`);
+    const { res, data } = await pedirContacto("dest=app");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("no-store");
-    const data: any = await res.json();
     expect(data.ok).toBe(true);
     expect(String(data.url).startsWith("whatsapp://")).toBe(true);
   });
 
   test("el destino elegido se respeta", async () => {
-    const business: any = await (await fetch(`${BASE}/api/whatsapp/contacto?dest=business`)).json();
+    const business: any = (await pedirContacto("dest=business")).data;
     expect(String(business.url).startsWith("whatsappbusiness://")).toBe(true);
-    const web: any = await (await fetch(`${BASE}/api/whatsapp/contacto?dest=web`)).json();
+    const web: any = (await pedirContacto("dest=web")).data;
     expect(String(web.url).startsWith("https://web.whatsapp.com/")).toBe(true);
   });
 
@@ -153,8 +171,7 @@ describe.skipIf(!online)("WhatsApp - contacto con el servidor", () => {
   });
 
   test("el tracking devolcido coincide con lo que se registro", async () => {
-    const res = await fetch(`${BASE}/api/whatsapp/contacto?dest=web`);
-    const data: any = await res.json();
+    const data: any = (await pedirContacto("dest=web")).data;
     expect(data.tracking).toBeDefined();
     expect(data.tracking.destino).toBe("web");
   });

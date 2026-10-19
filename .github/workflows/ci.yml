@@ -106,6 +106,12 @@ jobs:
       - name: Aplicar el esquema
         run: yes "" | bunx drizzle-kit push --config=src/db/drizzle.config.ts
 
+      - name: Sembrar el numero del bot de prueba
+        # El endpoint de contacto responde 503 si el bot no tiene numero (que
+        # es lo correcto). La app lo lee al arrancar, asi que va ANTES de
+        # levantar el servidor.
+        run: bun scripts/ci/seed-whatsapp-config.mjs
+
       - name: Tests de contrato contra el servidor levantado
         run: ./scripts/ci/run-contract-tests.sh
 
