@@ -33,7 +33,7 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 | T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **desplegado y verificado** — PII **activo** en producción: variable renombrada + redeploy; la fila que estaba en texto plano quedó cifrada (`enc:v1:`, 62 chars); ver L14 |
 | T8 | S5 | Migraciones versionadas en vez de `push` en el arranque | inline | **implementado** — migración base versionada + `migrate` en el entrypoint; ver L21 |
 | T9 | S4 | Backup off-site + restore probado | inline | **pospuesto por el usuario** hasta validar costos de destino |
-| T10 | S8 | Contadores persistentes o single-instance enforzado | por definir | **bloqueado**: ¿cuántas instancias? |
+| T10 | S8 | Contadores persistentes o single-instance enforzado | inline | **implementado** — bloqueo de login en la tabla `login_failures` + aviso de instancia duplicada al arrancar; ver L22 |
 | T11 | S9 | CI que levante la app y corra los tests | inline | **desplegado** — PR #8 (`abd500d`); verde en GitHub con 90+21 tests y 0 saltados; ver L17, L18 y L19 |
 | T12 | S10 | Estructura de `server.ts` (opción A u B) | por definir | **bloqueado**: decisión del dueño (opción B elegida, L8) |
 
@@ -177,3 +177,14 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
     - Migración **nueva** de prueba (una columna) → `drizzle-kit generate` produjo **solo** el `ALTER TABLE` de esa columna, y `migrate` la aplicó sin tocar nada más ✓ (después se revirtió).
     - `bun test tests/security` → **114 pass / 0 fail** (24 archivos, 4 nuevos).
   - **Tests que lo vigilan** (`tests/security/migrations-versionadas.test.ts`): el entrypoint no ejecuta `push`; la migración base cubre **todas** las tablas del esquema (si alguien agrega una tabla y no genera la migración, el test falla); y sobre una base nueva, `migrate` crea el esquema completo.
+- **L22** (2026-10-19) — **T10 (S8) implementado: el bloqueo por intentos fallidos de login sale de la memoria.** Tabla `login_failures` (email, failed_count, locked_until) + migración `0001_login-failures` (la **primera migración incremental** aplicada con el sistema nuevo ✓).
+  - **Lo que se arregla**: el `Map` en memoria del proceso perdia los bloqueos con dos instancias (se eludian alternando) y un reinicio los borraba. Ahora el contador esta en Postgres: es el mismo para todas las instancias y sobrevive a los reinicios. El incremento y el bloqueo ocurren en **una sola sentencia** (upsert), asi que dos intentos simultaneos no se pisan.
+  - **El `Map` queda como respaldo** (si la base no responde, se cuenta en memoria: peor, pero mejor que nada).
+  - **Deteccion de instancias duplicadas**: al arrancar se toma un advisory lock de Postgres (`pg_try_advisory_lock`) en una **conexion dedicada** (fuera del pool: una conexion del pool puede reciclarse y liberar el lock). Si otra instancia ya lo tiene, sale `[Instancia] CRITICO` con el aviso de que los rate limits (que siguen siendo por proceso) se multiplican. **El criterio de la auditoria ("arranque que falla/avisa si se detecta mas de una instancia") queda cubierto.**
+  - **Verificacion**:
+    - 4 intentos fallidos -> 401 con el contador en la base (1, 2, 3, 4) y el **5to -> 423** con la cuenta bloqueada 15 minutos ✓.
+    - **El bloqueo sobrevive al reinicio del servidor** (antes se perdia) ✓: verificado con un reinicio real del proceso.
+    - Es por correo: otra cuenta no se ve afectada ✓. Un login correcto borra el contador ✓.
+    - `bun test tests/security` -> **118 pass / 0 fail** (25 archivos, 4 nuevos).
+  - **Lo que queda en memoria y por que**: los rate limits (`rateLimit(bucket,max,window)`) siguen siendo por proceso. Moverlos a Postgres seria un write por request (el gate ya consulta la sesion en cada peticion); la salida correcta es Redis. Queda anotado con el aviso de instancia duplicada, asi que no falla en silencio.
+  - **Un bug propio que costara tiempo (y la leccion)**: la primera version de `loginBloqueadoSeg` borraba la fila del contador cada vez que consultaba y no habia bloqueo, o sea que **el contador se reiniciaba en cada intento** y nunca llegava a 5. Se manifesto como "el lockout no bloquea nunca" y solo se vio al instrumentar el flujo real (el mismo repo, llamado desde un endpoint de prueba, funcionaba: el bug estaba en el reset, no en el SQL). La leccion: **un test que pasa en el script de pruebas puede fallar en el flujo real**; hay que probar el camino completo (el endpoint de login), no solo la funcion.

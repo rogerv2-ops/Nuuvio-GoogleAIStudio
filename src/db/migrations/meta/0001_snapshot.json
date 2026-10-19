@@ -1,5 +1,5 @@
 {
-  "id": "68fa7c75-b393-4cd8-a993-b2dfc1464acd",
+  "id": "12ac4c91-9f1d-456c-8574-b119cff2084e",
   "prevId": "0cea4987-c941-40a0-8810-ee7709208a2a",
   "version": "7",
   "dialect": "postgresql",
@@ -633,6 +633,46 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.login_failures": {
+      "name": "login_failures",
+      "schema": "",
+      "columns": {
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "failed_count": {
+          "name": "failed_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.offers": {
       "name": "offers",
       "schema": "",
@@ -988,12 +1028,6 @@
         "revoked_at": {
           "name": "revoked_at",
           "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "probe": {
-          "name": "probe",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         }
