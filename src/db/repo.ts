@@ -121,6 +121,7 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
 
   // Busca en clickLogs si existe un clic de ese teléfono para esa oferta en las últimas 24h
   let existeClicEn24h = false;
+  let ventanaVerificada = false;
   try {
     const rows = await db
       .select()
@@ -133,16 +134,17 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
           gte(clickLogs.creadoEn, hace24Horas)
         )
       );
-    if (rows && rows.length > 0) {
-      existeClicEn24h = true;
-    }
+    existeClicEn24h = !!(rows && rows.length > 0);
+    ventanaVerificada = true;
   } catch (err) {
-    console.warn("[DB Repo] Error consultando clickLogs en PostgreSQL:", err);
+    console.error("[DB Repo] Error consultando clickLogs en PostgreSQL (no se factura):", err);
   }
 
   // Facturable solo si no hubo clic facturable en 24h y el comercio tiene saldo.
   // La ventana se ancla al último clic facturable; los no facturables no la reinician.
-  const facturable = !existeClicEn24h && saldoDisponible;
+  // Fail-closed: si falla la lectura no se puede afirmar que la ventana esté libre,
+  // así que no se factura. Nunca facturar por encima de un error de base de datos.
+  const facturable = ventanaVerificada && !existeClicEn24h && saldoDisponible;
   // Codigo de canje unico global: NV- + 6 chars de alfabeto sin ambiguos (32^6 ~ 1.07e9).
   const _codAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let random6 = "";
@@ -150,6 +152,7 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
   const codigoCanje = `NV-${random6}`;
   const id = `clk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+  let registroPersistido = false;
   try {
     await db.insert(clickLogs).values({
       id,
@@ -160,8 +163,15 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
       facturable,
       creadoEn: now
     } as any);
+    registroPersistido = true;
   } catch (dbErr) {
     console.error("[DB Repo] Error insertando registro en clickLogs:", dbErr);
+  }
+
+  if (!registroPersistido) {
+    // Sin fila en click_logs no existe ventana de 24h: facturar acá sería cobrar sin
+    // registro y habilitar un segundo cobro al mismo teléfono. Fail-closed.
+    return { facturable: false, codigoCanje };
   }
 
   return { facturable, codigoCanje };
