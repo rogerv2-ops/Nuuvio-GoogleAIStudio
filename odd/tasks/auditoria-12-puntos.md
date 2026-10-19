@@ -27,7 +27,7 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
 | T1 | S1 | Fail-closed en `registerOfferClick` (`src/db/repo.ts`) | inline | **hecho** — `f57c35f` |
 | T2 | S7 | Corregir el auto-skip de `tests/security/bundle-secrets.test.ts` | inline | **hecho** — `7460180` |
 | T3 | S11 | Quitar `\|\| true`, `include` con `src/**`, `test -f dist/index.html` en Dockerfile | inline | **hecho** — `4f5605a` (gate con baseline; ver L8) |
-| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **hecho** (ver L11) |
+| T4 | S3 | Tabla `click_packs` + débito atómico; sacar `FacturacionModule.packs` | inline | **hecho** — `2ca8e41` (ver L11) |
 | T5 | S12 | `auth_users` y `click_packs` fuera de `app_settings` | inline | listo (absorbe parte de T4) |
 | T6 | S2 | Atomicidad de la ventana de 24 h | inline | **bloqueado**: auditar duplicados en `click_logs` |
 | T7 | S6 | Documentar `VUUV_PII_KEY` + visibilidad de estado | inline | **bloqueado**: verificar Coolify (¿cifrado ya apagado?) |
