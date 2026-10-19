@@ -31,6 +31,7 @@ import { esIntencionOfertas } from "../../src/utils/securityGuards.ts";
 const online = await servidorOnline();
 const ROOT = path.resolve(import.meta.dir, "../..");
 const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+const LANDING = fs.readFileSync(path.join(ROOT, "src/components/PublicWeb.tsx"), "utf8");
 const FLUJO = fs.readFileSync(path.join(ROOT, "src/utils/whatsappNative.ts"), "utf8");
 
 describe("WhatsApp - reglas puras de los enlaces", () => {
@@ -99,6 +100,15 @@ describe("WhatsApp - reglas puras de los enlaces", () => {
 });
 
 describe("WhatsApp - no exposicion de numeros", () => {
+  test("la landing NO pide el numero a un endpoint protegido", () => {
+    // `/api/whatsapp/config` esta fuera de `esRutaPublica`: pedirlo desde la
+    // landing devolvia 401 y el boton quedaba muerto.
+    expect(LANDING).not.toContain("/api/whatsapp/config");
+    expect(FLUJO).not.toContain("/api/whatsapp/config");
+    // El destino se pide al endpoint publico, que lo arma en el servidor.
+    expect(FLUJO).toContain("/api/whatsapp/contacto");
+  });
+
   test("el endpoint de contacto esta declarado como ruta publica", () => {
     expect(SERVER).toContain('if(rawPath==="/api/whatsapp/contacto"&&m==="GET")return true;');
   });
