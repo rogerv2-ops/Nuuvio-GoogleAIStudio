@@ -265,6 +265,12 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
     }
   }, []);
 
+  // Recargar comercios al montar el panel: el modulo pudo haberse cargado
+  // antes del login (401 silencioso -> lista vacia) y el login no recarga la pagina.
+  useEffect(() => {
+    comerciosModule.recargar();
+  }, []);
+
   // Escuchar popstate / hashchange
   useEffect(() => {
     const handlePop = () => {
@@ -777,7 +783,12 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
             </div>
 
             {/* Vistas de Dominio */}
-            {renderContenidoDominio()}
+            {comercio ? renderContenidoDominio() : (
+              <div className="py-16 text-center">
+                <p className="text-sm font-semibold text-stone-700">Cargando tu panel...</p>
+                <p className="text-xs text-stone-400 mt-1">Si no aparece en unos segundos, recargá la página.</p>
+              </div>
+            )}
 
           </main>
         </div>
