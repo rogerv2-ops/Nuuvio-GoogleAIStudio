@@ -188,3 +188,11 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
     - `bun test tests/security` -> **118 pass / 0 fail** (25 archivos, 4 nuevos).
   - **Lo que queda en memoria y por que**: los rate limits (`rateLimit(bucket,max,window)`) siguen siendo por proceso. Moverlos a Postgres seria un write por request (el gate ya consulta la sesion en cada peticion); la salida correcta es Redis. Queda anotado con el aviso de instancia duplicada, asi que no falla en silencio.
   - **Un bug propio que costara tiempo (y la leccion)**: la primera version de `loginBloqueadoSeg` borraba la fila del contador cada vez que consultaba y no habia bloqueo, o sea que **el contador se reiniciaba en cada intento** y nunca llegava a 5. Se manifesto como "el lockout no bloquea nunca" y solo se vio al instrumentar el flujo real (el mismo repo, llamado desde un endpoint de prueba, funcionaba: el bug estaba en el reset, no en el SQL). La leccion: **un test que pasa en el script de pruebas puede fallar en el flujo real**; hay que probar el camino completo (el endpoint de login), no solo la funcion.
+
+
+## Fase SEO (anotada 2026-10-20, fuera de los 12 puntos)
+
+El dueño priorizó **SEO como critico** y decidio tratarlo como **fase propia** (no como parte de los 12 puntos de esta auditoria). Documento de control: **`odd/tasks/fase-seo-indexacion.md`**.
+
+Motivo (medido, no opinado): la landing es una SPA que sirve 1 KB de HTML (`div#root` vacio) y dibuja todo con 1.5 MB de JavaScript, con el contenido de ofertas viniendo de la base. Hallazgos verificados contra produccion: (H1) el editor SEO del panel guarda en el `localStorage` del admin y **nunca llega al servidor** (no hay endpoint) → lo que el admin edita no lo ve ningun visitante; (H2) no hay `og:image`/`twitter:image` → vistas previas sin imagen; (H3) `/robots.txt` y `/sitemap.xml` devuelven el `index.html` de la SPA; (H4) sin pre-render ni SSR, el HTML crudo no contiene ni una oferta (y WhatsApp/Facebook NO ejecutan JS); (H5) 1.5 MB de JS en la primera carga; (H6) riesgo de pantalla en blanco silencioso (ya documentado en `AGENTS.md`).
+
