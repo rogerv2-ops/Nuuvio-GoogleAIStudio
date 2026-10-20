@@ -181,7 +181,7 @@ export default function App() {
         )}
 
         {superficieActiva === 'comercio' && (
-          tieneAccesoComercio ? (
+          (tieneAccesoComercio || vistaComoId) ? (
             <MerchantPanel entrarComoId={vistaComoId} />
           ) : (
             <LoginView
