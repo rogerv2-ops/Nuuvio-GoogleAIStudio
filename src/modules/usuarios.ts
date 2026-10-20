@@ -6,6 +6,28 @@
 import { AudienceUser } from '../types';
 import { coreEvents } from '../core/events';
 
+/**
+ * Un usuario esta verificado si verifico su correo, o si entro por WhatsApp
+ * y escribio al bot desde su numero (eso ya prueba que el numero es suyo).
+ *
+ * Sin esto, TODO usuario de WhatsApp contaba como "pendiente de
+ * verificacion" para siempre y el panel mostraba 0% de tasa de conversion
+ * con la audiencia activa.
+ */
+export function estaVerificado(u: { email?: string | null; emailVerificado?: boolean; estado?: string }): boolean {
+  if (u.emailVerificado) return true;
+  const sinCorreo = !String(u.email || '').trim();
+  return sinCorreo && u.estado === 'activo';
+}
+
+/**
+ * Canal por el que la persona entro a Yuddit. Sin correo = entro por
+ * WhatsApp (el bot nunca conoce el correo de la persona).
+ */
+export function canalDeOrigen(u: { email?: string | null }): 'whatsapp' | 'correo' {
+  return String(u.email || '').trim() ? 'correo' : 'whatsapp';
+}
+
 class UsuariosModule {
   private usuarios: Map<string, AudienceUser> = new Map();
 
@@ -33,7 +55,9 @@ class UsuariosModule {
               this.usuarios.set(u.id, {
                 ...(existente || {}),
                 id: u.id,
-                email: u.email,
+                // El correo puede venir null: los usuarios de WhatsApp se
+                // identifican por su numero, no por un correo.
+                email: u.email || '',
                 nombre: u.nombre,
                 apellido: u.apellido || '',
                 telefono: u.telefono || '',

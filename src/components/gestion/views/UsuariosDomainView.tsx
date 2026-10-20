@@ -4,7 +4,7 @@ import {
   Phone, Mail, MapPin, Tag, Award, ArrowUpRight, X, Plus, 
   ExternalLink, Sparkles, RefreshCw, ShieldCheck, Trash2, Check
 } from 'lucide-react';
-import { usuariosModule } from '../../../modules/usuarios';
+import { usuariosModule, estaVerificado, canalDeOrigen } from '../../../modules/usuarios';
 import { puntosModule } from '../../../modules/puntos';
 import { AudienceUser } from '../../../types';
 import { DISTRITOS_LIMA } from '../../../data/seedData';
@@ -13,6 +13,21 @@ import { RegistrationAuditLogTable } from '../components/RegistrationAuditLogTab
 interface UsuariosDomainViewProps {
   subruta?: string;
   onNavegar: (ruta: string) => void;
+}
+
+/**
+ * Identidad visible de un usuario de la audiencia.
+ *
+ * Los usuarios que entran por WhatsApp NO tienen correo: su identidad es el
+ * numero. Antes el sistema fabricaba un correo (`<id>@<dominio>`) y el panel
+ * lo mostraba como si fuera real. Ahora, cuando no hay correo, se muestra el
+ * numero de WhatsApp como dato de contacto.
+ */
+function identidadVisible(u: { email?: string | null; telefono?: string | null }): string {
+  const email = String(u.email || '').trim();
+  if (email) return email;
+  const tel = String(u.telefono || '').trim();
+  return tel || 'Sin contacto';
 }
 
 export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta, onNavegar }) => {
@@ -59,7 +74,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
       const cumpleBusqueda = !q || 
         u.nombre.toLowerCase().includes(q) ||
         (u.apellido && u.apellido.toLowerCase().includes(q)) ||
-        u.email.toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
         (u.telefono && u.telefono.toLowerCase().includes(q)) ||
         (u.codigoRef && u.codigoRef.toLowerCase().includes(q));
 
@@ -166,20 +181,20 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
               <span className="text-[10px] text-emerald-700 font-semibold mt-1 block">Registrados en la comunidad</span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Correos Verificados</span>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Usuarios Verificados</span>
               <span className="text-2xl font-black text-emerald-700 mt-1 block">
-                {usuarios.filter(u => u.emailVerificado).length}
+                {usuarios.filter(estaVerificado).length}
               </span>
               <span className="text-[10px] text-stone-400 font-medium mt-1 block">
-                {usuarios.length > 0 ? Math.round((usuarios.filter(u => u.emailVerificado).length / usuarios.length) * 100) : 0}% de tasa de conversión
+                {usuarios.length > 0 ? Math.round((usuarios.filter(estaVerificado).length / usuarios.length) * 100) : 0}% de tasa de conversión
               </span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Pendientes Verificación</span>
-              <span className="text-2xl font-black text-amber-700 mt-1 block">
-                {usuarios.filter(u => !u.emailVerificado).length}
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Entraron por WhatsApp</span>
+              <span className="text-2xl font-black text-emerald-700 mt-1 block">
+                {usuarios.filter(u => canalDeOrigen(u) === 'whatsapp').length}
               </span>
-              <span className="text-[10px] text-amber-700/80 font-medium mt-1 block">Con enlace enviado por correo</span>
+              <span className="text-[10px] text-stone-400 font-medium mt-1 block">Su identidad es el número de WhatsApp</span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-2xs">
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Puntos Acumulados</span>
@@ -278,11 +293,13 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                       <td className="py-3 font-semibold text-stone-900">
                         <div>
                           <span>{user.nombre} {user.apellido || ''}</span>
-                          <span className="block text-[11px] text-stone-400 font-normal truncate max-w-[150px]">{user.email}</span>
+                          <span className="block text-[11px] text-stone-400 font-normal truncate max-w-[150px]">
+                            {user.email || 'Solo WhatsApp'}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 text-stone-600 font-mono text-[11px]">
-                        {user.telefono || '—'}
+                        {identidadVisible(user)}
                       </td>
                       <td className="py-3 text-stone-600">
                         {user.distrito || '—'}
@@ -444,12 +461,16 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
               </div>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block">Correo Electrónico</span>
-                <span className="font-semibold text-stone-800 truncate block">{usuarioSeleccionado.email}</span>
+                <span className="font-semibold text-stone-800 truncate block">
+                  {usuarioSeleccionado.email || 'No tiene correo (entró por WhatsApp)'}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] text-stone-400 font-bold block">Verificación de Correo</span>
-                <span className={`font-bold ${usuarioSeleccionado.emailVerificado ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {usuarioSeleccionado.emailVerificado ? 'Verificado (1 clic)' : 'Pendiente de verificación'}
+                <span className="text-[10px] text-stone-400 font-bold block">Verificación</span>
+                <span className={`font-bold ${estaVerificado(usuarioSeleccionado) ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {usuarioSeleccionado.email
+                    ? (usuarioSeleccionado.emailVerificado ? 'Verificado (1 clic)' : 'Pendiente de verificación')
+                    : 'Verificado por WhatsApp'}
                 </span>
               </div>
               <div>
@@ -530,12 +551,12 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
 
             <div className="p-3.5 bg-rose-50/80 rounded-2xl border border-rose-200 text-xs space-y-1.5">
               <div><span className="text-stone-500 font-semibold">Usuario:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.nombre} {usuarioPurgaConfirmar.apellido || ''}</strong></div>
-              <div><span className="text-stone-500 font-semibold">Correo:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.email}</strong></div>
+              <div><span className="text-stone-500 font-semibold">Correo:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.email || 'Sin correo (identificado por WhatsApp)'}</strong></div>
               <div><span className="text-stone-500 font-semibold">WhatsApp:</span> <strong className="text-stone-900">{usuarioPurgaConfirmar.telefono || 'Sin teléfono'}</strong></div>
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Esta función elimina la cuenta de PostgreSQL, borra el historial de correos enviados (`email_logs`), elimina los registros en la auditoría de registro (`registration_logs`) y limpia la sesión en el navegador (`localStorage`). El correo y número quedarán <strong>completamente libres</strong> para volver a probar el flujo de registro sin errores de duplicidad.
+              Esta función elimina la cuenta de PostgreSQL, borra el historial de correos enviados (`email_logs`), elimina los registros en la auditoría de registro (`registration_logs`) y limpia la sesión en el navegador (`localStorage`). El número de WhatsApp queda <strong>completamente libre</strong> para volver a probar el flujo de registro sin errores de duplicidad.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">

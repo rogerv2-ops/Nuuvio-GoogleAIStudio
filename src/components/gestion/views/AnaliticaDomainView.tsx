@@ -9,7 +9,7 @@ import { EstadisticasOfertasWhatsAppPanel } from '../EstadisticasOfertasWhatsApp
 import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from '../../common/DateRangeSelector';
 import { TrendBadge, helperCalcularPeriodoAnterior } from '../../common/TrendBadge';
 import { analiticaModule } from '../../../modules/analitica';
-import { usuariosModule } from '../../../modules/usuarios';
+import { usuariosModule, estaVerificado } from '../../../modules/usuarios';
 import { comerciosModule } from '../../../modules/comercios';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { DISTRITOS_LIMA } from '../../../data/seedData';
@@ -191,13 +191,13 @@ export const AnaliticaDomainView: React.FC<AnaliticaDomainViewProps> = ({ subrut
               <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/70 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-stone-500 uppercase">Correo Verificado</span>
-                  <TrendBadge actual={usuarios.filter(u => u.emailVerificado).length} anterior={Math.max(1, Math.round(usuarios.filter(u => u.emailVerificado).length * 0.82))} compact={true} size="xs" />
+                  <TrendBadge actual={usuarios.filter(estaVerificado).length} anterior={Math.max(1, Math.round(usuarios.filter(estaVerificado).length * 0.82))} compact={true} size="xs" />
                 </div>
                 <div className="text-2xl font-black text-emerald-800 mt-1">
-                  {usuarios.filter(u => u.emailVerificado).length}
+                  {usuarios.filter(estaVerificado).length}
                 </div>
                 <span className="text-[10px] text-stone-500 block">
-                  {((usuarios.filter(u => u.emailVerificado).length / Math.max(1, usuarios.length)) * 100).toFixed(0)}% de tasa de verificación
+                  {((usuarios.filter(estaVerificado).length / Math.max(1, usuarios.length)) * 100).toFixed(0)}% de tasa de verificación
                 </span>
               </div>
               <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/70 space-y-1">
