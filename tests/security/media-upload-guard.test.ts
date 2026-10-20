@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 
 describe("M2 - /api/media/upload exige sesion valida y rate limit", () => {
   test("la ruta tiene guard de rol y rate limit antes del handler", () => {

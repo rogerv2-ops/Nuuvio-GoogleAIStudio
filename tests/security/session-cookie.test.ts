@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 const CLIENT = fs.readFileSync(path.join(ROOT, "src/core/security.ts"), "utf8");
 
 describe("Fase 1 - sesion en cookie HttpOnly + anti-CSRF", () => {

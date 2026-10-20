@@ -30,7 +30,8 @@ import { esIntencionOfertas } from "../../src/utils/securityGuards.ts";
 
 const online = await servidorOnline();
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 const LANDING = fs.readFileSync(path.join(ROOT, "src/components/PublicWeb.tsx"), "utf8");
 const FLUJO = fs.readFileSync(path.join(ROOT, "src/utils/whatsappNative.ts"), "utf8");
 

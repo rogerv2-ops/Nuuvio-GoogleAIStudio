@@ -24,7 +24,8 @@ import path from "node:path";
 import pg from "pg";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 const BASE = process.env.TEST_BASE_URL || "http://localhost:3000";
 const IP_TEST = "203.0.113.66";
 

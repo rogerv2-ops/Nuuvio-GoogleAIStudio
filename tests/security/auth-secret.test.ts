@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = path.join(ROOT, "server.ts");
-const fuente = fs.readFileSync(SERVER, "utf8");
+import { leerTextoServidor } from "./server-code";
+const fuente = leerTextoServidor();
 
 describe("ISSUE 4 - secreto HMAC sin fallback hardcodeado", () => {
   test("el string de fallback hardcodeado ya no existe en el repo", () => {

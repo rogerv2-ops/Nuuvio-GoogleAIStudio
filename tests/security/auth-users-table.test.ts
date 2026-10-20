@@ -30,7 +30,8 @@ import { ADMIN } from "./_helpers.ts";
 import { codigoTotp } from "../../src/utils/totp.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 const BASE = process.env.TEST_BASE_URL || "http://localhost:3000";
 
 /** IP de documentacion (TEST-NET-3, RFC 5737): este archivo tiene su propio cupo de logins. */
