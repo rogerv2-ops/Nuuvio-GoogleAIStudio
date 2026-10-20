@@ -1,4 +1,21 @@
-# INVENTARIO nuuvio — estado al 2026-10-16 17:15 UTC
+# INVENTARIO nuuvio — ⚠️ este documento quedó desactualizado
+
+> **Aviso (2026-10-20).** Este snapshot es del **2026-10-16** y quedó atrás:
+> dice 50 endpoints (hoy hay **69**), lista endpoints que ya no existen, y describe
+> un estado que cambió (las credenciales ya no viven en un blob JSON sino en la
+> tabla `auth_users`; el bloqueo de login ya no es en memoria sino en
+> `login_failures`; las tablas son 14 y no 10).
+>
+> **El mapa verificado y vigente está en [`odd/tasks/mapa-del-sistema.md`](odd/tasks/mapa-del-sistema.md)**:
+> 69 endpoints verificados uno por uno contra producción, las 14 tablas con sus
+> filas reales, el inventario de los 28 eventos (y por qué no se persisten) y los
+> 14 hallazgos con su consecuencia de negocio.
+>
+> Lo que sigue se conserva como referencia histórica (no como estado actual).
+
+---
+
+# (snapshot) INVENTARIO nuuvio — estado al 2026-10-16 17:15 UTC
 Fuente de verdad: repo `main` + DB + contenedores. Verificado con evidencia.
 
 ## 1. Backend (server.ts — 50 endpoints, todos responden)

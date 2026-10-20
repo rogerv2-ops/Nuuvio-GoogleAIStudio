@@ -190,6 +190,12 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
   - **Un bug propio que costara tiempo (y la leccion)**: la primera version de `loginBloqueadoSeg` borraba la fila del contador cada vez que consultaba y no habia bloqueo, o sea que **el contador se reiniciaba en cada intento** y nunca llegava a 5. Se manifesto como "el lockout no bloquea nunca" y solo se vio al instrumentar el flujo real (el mismo repo, llamado desde un endpoint de prueba, funcionaba: el bug estaba en el reset, no en el SQL). La leccion: **un test que pasa en el script de pruebas puede fallar en el flujo real**; hay que probar el camino completo (el endpoint de login), no solo la funcion.
 
 
+## Mapa del sistema (anotado 2026-10-20, fuera de los 12 puntos)
+
+El dueno pidio un mapa completo antes de seguir implementando: *"asi como has encontrado muchos endpoints sueltos hay muchas funciones mas que aun no estan bien, no hay un mapeo completo aun de eventos que sea de nivel"*. Documento: **`odd/tasks/mapa-del-sistema.md`** (estado: primera mitad hecha).
+
+Hallazgo de fondo (medido, no opinado): hay **dos sistemas de registro que no se hablan**. El persistente (tablas: `chat_logs`, `click_logs`, `audience_users`, `sessions`, `security_logs`...) y el efimero (`coreEvents`, en memoria del navegador y del proceso). Los 28 tipos de evento se emiten SOLO en el cliente y ninguno se persiste; los tableros de analitica y de atribucion UTM leen de la memoria, asi que muestran la pestana abierta y no la historia del negocio. Ademas 5 de 12 modulos de dominio no talking con la base (facturacion, puntos, clics, analitica, digest): el saldo de clics y los puntos del comercio viven solo en el navegador.
+
 ## Fase de canje y referidos (anotada 2026-10-20, fuera de los 12 puntos)
 
 El dueno postergo dos veces el sistema de codigos: *"el codigo de canje tampoco va a algun lado ahora, el sistema de canje va para otra fase"* y antes *"por ahora el sistema de referidos no esta completo y va tambien para otra fase"*. Documento de control: **`odd/tasks/fase-canje-y-referidos.md`**.

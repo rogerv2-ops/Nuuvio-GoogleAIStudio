@@ -51,5 +51,6 @@ Branch: `feat/modular-server-g1-auth` (primer grupo) · Test runner: `$HOME/.bun
 
 ## Fases hermanas (no forman parte del punto 10)
 
+- **`odd/tasks/mapa-del-sistema.md`** — Mapa verificado del sistema (anotado 2026-10-20 por decision del dueno: "mapa completo primero, despues implementar"). Estado: **primera mitad hecha** (superficie HTTP, datos, eventos y modulos, con 14 hallazgos priorizados). Pendiente: la segunda mitad (que no cubre este documento) y las decisiones de §7.
 - **`odd/tasks/fase-canje-y-referidos.md`** — Fase de canje y referidos (anotada 2026-10-20 por decision del dueno: "el codigo de canje tampoco va a algun lado ahora... va para otra fase"; y antes, lo mismo con los referidos). Estado: **pendiente de arranque**. Salio de la correccion del boton "Lo quiero" (PR #23/#24): hay TRES codigos y ninguno cierra su circuito.
 - **`odd/tasks/fase-seo-indexacion.md`** — Fase SEO / indexacion (anotada 2026-10-20 por decision del dueno: "el seo es importantisimo, asi que hay que anotarlo para otra fase"). Estado: **pendiente de arranque**. La landing hoy es una SPA de 1 KB de HTML + 1.5 MB de JS, sin pre-render, sin sitemap/robots reales, sin `og:image`, y con el editor SEO del panel guardando solo en el `localStorage` del admin (nunca llega al servidor).

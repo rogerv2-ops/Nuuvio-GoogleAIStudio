@@ -111,7 +111,8 @@ bun scripts/ci/assert-tests-ran.mjs results/security.xml --min 80   # fails if t
 ## Repo docs (hand-written, Spanish)
 
 - `FLUJOS.md` — per-feature request/response flows, tables touched, and how to verify each one (F1–F12).
-- `INVENTARIO.md` — endpoint/DB/infra inventory and known debt. Dated snapshot (2026-10-16), so cross-check against `server.ts` before trusting.
+- `odd/tasks/mapa-del-sistema.md` — **mapa verificado del sistema** (estado real, no documentado): 69 endpoints verificados uno por uno contra produccion, 14 tablas con sus filas reales, el inventario de los 28 eventos (y por que no se persisten) y 14 hallazgos con consecuencia de negocio. Es el mapa de referencia antes de tocar cualquier cosa.
+- `INVENTARIO.md` — snapshot del 2026-10-16, **desactualizado**: dice 50 endpoints (hoy 69) y describe un estado que ya cambio. Solo como referencia historica; el vigente es `odd/tasks/mapa-del-sistema.md`.
 - `docs/cambio-dominio-yuddit.md` — domain migration runbook; `docs/flujo-consulta-ofertas.md` — offers query flow.
 - `docs/reglas-whatsapp.md` — spec of the WhatsApp links: app choice per platform, endpoint, tracking tables, security rules, how to verify.
 - `odd/tasks/fase-canje-y-referidos.md` — fase de canje y referidos (pendiente de arranque; el dueno la postergo). Ojo: hay TRES codigos distintos y ninguno cierra su circuito: `REF#####` (referido, no acredita puntos ni tiene link de registro), `NV-XXXXXX` (atribucion del clic; el bot ya lo usa, pero el comercio no tiene donde consultarlo) y el codigo de canje de premios (vive en un `Map` en memoria del navegador: se pierde al recargar y dos comercios pueden canjear lo mismo).
