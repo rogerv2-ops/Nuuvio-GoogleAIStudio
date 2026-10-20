@@ -10,6 +10,7 @@ import { GestionMenuItem, GestionSubItem, GestionBreadcrumb } from './types';
 import { coreSecurity } from '../../core/security';
 import { comerciosModule } from '../../modules/comercios';
 import { ofertasModule } from '../../modules/ofertas';
+import { usuariosModule } from '../../modules/usuarios';
 import { bannersModule } from '../../modules/banners';
 import { purgarTodasLasCaches } from '../../utils/resourceVersion';
 
@@ -90,9 +91,17 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
   useEffect(() => {
     const unC = comerciosModule.suscribir(() => setVersion(v => v + 1));
     const unO = ofertasModule.suscribir(() => setVersion(v => v + 1));
+    const unU = usuariosModule.suscribir(() => setVersion(v => v + 1));
+    // La audiencia se recarga desde el servidor al entrar al panel de
+    // gestion: el modulo es un singleton que se construye al importarlo
+    // (antes de que exista sesion), asi que su carga inicial falla y el
+    // panel queda con la copia del navegador, que puede traer datos viejos.
+    // Aqui ya hay sesion, asi que el servidor manda.
+    void usuariosModule.recargar();
     return () => {
       unC();
       unO();
+      unU();
     };
   }, []);
 

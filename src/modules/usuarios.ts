@@ -42,8 +42,18 @@ class UsuariosModule {
     this.cargarDesdeServidor();
   }
 
-  private async cargarDesdeServidor() {
-    if (typeof window === 'undefined') return;
+  /**
+   * Carga la audiencia desde el servidor (fuente de verdad).
+   *
+   * OJO con el orden de arranque: este modulo se construye al IMPORTARLO, y
+   * su constructor dispara la carga. En ese instante todavia no hay sesion,
+   * asi que `/api/audience/users` (que exige rol admin) responde 401 y el
+   * panel se queda con la copia de localStorage (que puede traer datos
+   * viejos). Por eso el panel tiene que volver a llamar a `recargar()`
+   * cuando monta, ya con la sesion lista.
+   */
+  public async cargarDesdeServidor(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
     try {
       const res = await fetch('/api/audience/users');
       if (res.ok) {
@@ -55,8 +65,12 @@ class UsuariosModule {
               this.usuarios.set(u.id, {
                 ...(existente || {}),
                 id: u.id,
-                // El correo puede venir null: los usuarios de WhatsApp se
-                // identifican por su numero, no por un correo.
+                // El servidor manda. La copia local puede traer un correo
+                // que la base ya no tiene (por ejemplo, un correo inventado
+                // que se normalizo): si se fusionara, el panel seguiria
+                // mostrando el dato viejo. Se pisa SIEMPRE con el del
+                // servidor; la copia local solo aporta lo que el servidor
+                // no envia (edad, genero, codigoRef sin valor).
                 email: u.email || '',
                 nombre: u.nombre,
                 apellido: u.apellido || '',
@@ -79,11 +93,20 @@ class UsuariosModule {
           });
           this.guardarEnStorage();
           this.notificar();
+          return true;
         }
       }
+      return false;
     } catch (e) {
-      // Ignorar fallos de red silenciosamente
+      // Fallo de red: se deja la copia local como esta. El panel vuelve a
+      // llamar a `recargar()` cuando monta.
+      return false;
     }
+  }
+
+  /** Recarga explicita de la audiencia desde el servidor. */
+  public async recargar(): Promise<boolean> {
+    return this.cargarDesdeServidor();
   }
 
   public async syncConServidor(user: AudienceUser): Promise<{ ok: boolean; error?: string }> {
@@ -114,7 +137,11 @@ class UsuariosModule {
         if (Array.isArray(parsed)) {
           parsed.forEach((u) => {
             if (u && u.id && !String(u.id).startsWith('usr_demo_')) {
-              this.usuarios.set(u.id, u);
+              // La copia local de un usuario de WhatsApp puede tener un
+              // correo INVENTADO de una version anterior. No se arrastra:
+              // hasta que el servidor responda, se muestra sin correo.
+              const esWhatsapp = String(u.id).startsWith('usr_wa_');
+              this.usuarios.set(u.id, esWhatsapp ? { ...u, email: '' } : u);
             }
           });
         }
