@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const SERVER = leerTextoServidor();
 const PANEL = fs.readFileSync(path.join(ROOT, "src/components/WhatsAppConfigPanel.tsx"), "utf8");
 
 describe("M1 - verify token de Meta sin fallback hardcodeado", () => {

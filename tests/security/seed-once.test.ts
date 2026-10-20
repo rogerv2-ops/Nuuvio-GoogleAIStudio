@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const server = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+import { leerTextoServidor } from "./server-code";
+const server = leerTextoServidor();
 
 function cuerpoInitDatabaseState(): string {
   const i = server.indexOf("async function initDatabaseState(){");

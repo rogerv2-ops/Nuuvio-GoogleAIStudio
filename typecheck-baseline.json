@@ -1,6 +1,6 @@
 {
   "nota": "Baseline de errores de tipos preexistentes. Regenerar con: npm run typecheck:baseline",
-  "actualizado": "2026-10-19",
+  "actualizado": "2026-10-20",
   "total": 59,
   "huellas": {
     "server.ts|TS2322|Type '{ id: string; createdAt: Date; titulo: string; subtitulo: string; imagenUrl: string; enlaceUrl: string; activado: boolean; orden: number; }[]' is not assignable to type '{ id: string; titulo: string; subtitulo: string; imagenUrl: string; enlaceUrl: string; activado: boolean; orden: number; creadoEn: string; }[]'.": 1,
@@ -18,10 +18,8 @@
     "server.ts|TS2341|Property 'kanban' is private and only accessible within class 'ComerciosModule'.": 1,
     "server.ts|TS2345|Argument of type 'string | ParsedQs | (string | ParsedQs)[]' is not assignable to parameter of type 'string | number | boolean'.": 1,
     "server.ts|TS2345|Argument of type 'string | ParsedQs | (string | ParsedQs)[]' is not assignable to parameter of type 'string'.": 1,
-    "server.ts|TS2353|Object literal may only specify known properties, and 'merchantId' does not exist in type '{ email: string; passwordSalt: any; passwordHash: string; nombre: string; rol: string; usuarioId: string; descripcion: string; }'.": 1,
     "server.ts|TS2403|Subsequent variable declarations must have the same type. Variable 'dispatchFiveOffers' must be of type 'any', but here has type '(user: any, distrito: any, doSend: any, cleanPhone: any, canal: any, tituloIntro: any, searchQuery: any, distritoTemporal: any) => Promise<void>'.": 1,
     "server.ts|TS2403|Subsequent variable declarations must have the same type. Variable 'waConfig' must be of type 'any', but here has type '{ modoActivo: string; numeroTelefono: string; metaConfig: { phoneNumberId: string; wabaId: string; accessToken: string; verifyToken: string; webhookUrl: string; }; wahaConfig: { endpointUrl: string; apiKey: string; sessionName: string; webhookUrl: string; }; }'.": 1,
-    "server.ts|TS2554|Expected 2 arguments, but got 1.": 5,
     "server.ts|TS2554|Expected 3 arguments, but got 1.": 1,
     "server.ts|TS2769|No overload matches this call.": 2,
     "src/components/LoginView.tsx|TS2305|Module '\"../core/security\"' has no exported member 'AuthSession'.": 1,
@@ -37,6 +35,8 @@
     "src/db/repo.ts|TS2769|No overload matches this call.": 7,
     "src/modules/analitica.ts|TS2554|Expected 1 arguments, but got 0.": 2,
     "src/modules/puntos.ts|TS2345|Argument of type '{ id: string; comercioId: string; comercioNombre: string; titulo: string; descripcion: string; tipo: string; puntosRequeridos: number; stock: number; distrito: string; estado: string; creadaEn: string; }' is not assignable to parameter of type 'Reward'.": 1,
+    "src/routes/auth.ts|TS2353|Object literal may only specify known properties, and 'merchantId' does not exist in type '{ email: string; passwordSalt: any; passwordHash: string; nombre: string; rol: string; usuarioId: string; descripcion: string; }'.": 1,
+    "src/routes/auth.ts|TS2554|Expected 2 arguments, but got 1.": 5,
     "src/services/aiService.ts|TS2339|Property 'system' does not exist on type '{ model: any; max_tokens: number; messages: { role: string; content: any; }[]; }'.": 1,
     "src/services/aiService.ts|TS2339|Property 'systemInstruction' does not exist on type '{ contents: { role: string; parts: { text: any; }[]; }[]; }'.": 1
   }
