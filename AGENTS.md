@@ -114,6 +114,7 @@ bun scripts/ci/assert-tests-ran.mjs results/security.xml --min 80   # fails if t
 - `INVENTARIO.md` — endpoint/DB/infra inventory and known debt. Dated snapshot (2026-10-16), so cross-check against `server.ts` before trusting.
 - `docs/cambio-dominio-yuddit.md` — domain migration runbook; `docs/flujo-consulta-ofertas.md` — offers query flow.
 - `docs/reglas-whatsapp.md` — spec of the WhatsApp links: app choice per platform, endpoint, tracking tables, security rules, how to verify.
+- `odd/tasks/fase-canje-y-referidos.md` — fase de canje y referidos (pendiente de arranque; el dueno la postergo). Ojo: hay TRES codigos distintos y ninguno cierra su circuito: `REF#####` (referido, no acredita puntos ni tiene link de registro), `NV-XXXXXX` (atribucion del clic; el bot ya lo usa, pero el comercio no tiene donde consultarlo) y el codigo de canje de premios (vive en un `Map` en memoria del navegador: se pierde al recargar y dos comercios pueden canjear lo mismo).
 - `odd/tasks/fase-seo-indexacion.md` — fase SEO/indexacion (pendiente de arranque; el dueño la priorizó como crítica). Antes de tocar la landing: la SPA sirve 1 KB de HTML, el contenido de ofertas viene de la base, y **cualquier pre-render NO puede incluir el número de WhatsApp en el HTML** (misma regla que `docs/reglas-whatsapp.md`: el número se resuelve en el servidor al momento del clic).
 
 ## Deploy

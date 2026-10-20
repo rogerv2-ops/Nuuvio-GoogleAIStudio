@@ -190,6 +190,12 @@ Diagnóstico completo: `docs/auditoria-2026-10-19.md` (no duplicar acá; este do
   - **Un bug propio que costara tiempo (y la leccion)**: la primera version de `loginBloqueadoSeg` borraba la fila del contador cada vez que consultaba y no habia bloqueo, o sea que **el contador se reiniciaba en cada intento** y nunca llegava a 5. Se manifesto como "el lockout no bloquea nunca" y solo se vio al instrumentar el flujo real (el mismo repo, llamado desde un endpoint de prueba, funcionaba: el bug estaba en el reset, no en el SQL). La leccion: **un test que pasa en el script de pruebas puede fallar en el flujo real**; hay que probar el camino completo (el endpoint de login), no solo la funcion.
 
 
+## Fase de canje y referidos (anotada 2026-10-20, fuera de los 12 puntos)
+
+El dueno postergo dos veces el sistema de codigos: *"el codigo de canje tampoco va a algun lado ahora, el sistema de canje va para otra fase"* y antes *"por ahora el sistema de referidos no esta completo y va tambien para otra fase"*. Documento de control: **`odd/tasks/fase-canje-y-referidos.md`**.
+
+Motivo (verificado en el codigo): hay TRES codigos distintos y ninguno cierra su circuito. `REF#####` (referido) se genera y se muestra, pero nadie acredita los puntos con el motivo `referido_registrado` y no hay link de registro que lo use. `NV-XXXXXX` (atribucion del clic) ya lo usa el bot para que el clic quede con el telefono real (PR #23), pero el comercio lo recibe en su mensaje y no tiene donde consultarlo. El codigo de canje de premios tiene pantalla en el panel del comercio, pero los canjes viven en un `Map` en memoria del navegador: se pierden al recargar y dos comercios pueden canjear el mismo codigo a la vez.
+
 ## Fase SEO (anotada 2026-10-20, fuera de los 12 puntos)
 
 El dueño priorizó **SEO como critico** y decidio tratarlo como **fase propia** (no como parte de los 12 puntos de esta auditoria). Documento de control: **`odd/tasks/fase-seo-indexacion.md`**.
