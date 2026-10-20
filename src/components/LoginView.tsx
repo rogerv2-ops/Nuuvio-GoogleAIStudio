@@ -91,7 +91,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     // El panel de comercio es solo para usuarios de comercio: el admin entra por el panel de gestion.
     if (!esGestion && resultado.sesion?.rol === 'admin') {
       coreSecurity.cerrarSesion();
-      setError('Estas credenciales corresponden al panel de administración. Ingresá desde el panel de admin.');
+      setError('Credenciales de acceso incorrectas.');
       return;
     }
 
@@ -126,7 +126,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     // El panel de comercio es solo para usuarios de comercio: el admin entra por el panel de gestion.
     if (!esGestion && resultado.sesion?.rol === 'admin') {
       coreSecurity.cerrarSesion();
-      setError('Estas credenciales corresponden al panel de administración. Ingresá desde el panel de admin.');
+      setError('Credenciales de acceso incorrectas.');
       return;
     }
     if (resultado.sesion) {
