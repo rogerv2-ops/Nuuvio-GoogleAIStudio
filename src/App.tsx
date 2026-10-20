@@ -13,6 +13,7 @@ import { UserRegistrationFunnelModal } from './components/UserRegistrationFunnel
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
 import { comerciosModule } from './modules/comercios';
+import { vistaComoModule } from './modules/vistaComo';
 import { ofertasModule } from './modules/ofertas';
 import { seoMetadataModule } from './modules/seoMetadata';
 import { sincronizarVersionConServidor } from './utils/resourceVersion';
@@ -69,6 +70,14 @@ export default function App() {
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [, setTick] = useState(0);
+  const [vistaComoId, setVistaComoId] = useState<string | null>(vistaComoModule.obtener());
+
+  // "Entrar como comercio" (admin): la senal llega desde la vista de comercios del panel de gestion.
+  useEffect(() => vistaComoModule.suscribir(() => {
+    const id = vistaComoModule.obtener();
+    setVistaComoId(id);
+    setSuperficieActiva(id ? 'comercio' : 'gestion');
+  }), []);
 
   // Sincronizar superficie activa con la URL del navegador
   const cambiarSuperficie = useCallback((s: ActiveSurface) => {
@@ -172,8 +181,8 @@ export default function App() {
         )}
 
         {superficieActiva === 'comercio' && (
-          tieneAccesoComercio ? (
-            <MerchantPanel />
+          (tieneAccesoComercio || vistaComoId) ? (
+            <MerchantPanel entrarComoId={vistaComoId} />
           ) : (
             <LoginView
               superficie="comercio"

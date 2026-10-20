@@ -563,7 +563,7 @@ class CoreSecurity {
     if (superficie === 'web') return true;
     if (!this.estaAutenticado()) return false;
     if (superficie === 'gestion') return this.sesionActual!.rol === 'admin';
-    if (superficie === 'comercio') return this.sesionActual.rol === 'comercio' || this.sesionActual.rol === 'admin';
+    if (superficie === 'comercio') return this.sesionActual.rol === 'comercio';
     return false;
   }
 

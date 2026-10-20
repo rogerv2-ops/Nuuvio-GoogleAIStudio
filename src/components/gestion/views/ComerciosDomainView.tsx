@@ -6,6 +6,7 @@ import {
   FileText, ArrowRight, ExternalLink, Sparkles, AlertCircle, GripVertical, Trash2
 } from 'lucide-react';
 import { comerciosModule, ValidationChecklist } from '../../../modules/comercios';
+import { vistaComoModule } from '../../../modules/vistaComo';
 import { ofertasModule } from '../../../modules/ofertas';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { facturacionModule } from '../../../modules/facturacion';
@@ -827,6 +828,16 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                             className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-[11px] font-semibold"
                           >
                             Ver 360
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              vistaComoModule.entrar(c.id);
+                            }}
+                            title={`Ver el panel de ${c.nombreComercial} como si fuera su dueño`}
+                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-[11px] font-semibold"
+                          >
+                            Entrar como
                           </button>
                           <button
                             onClick={(e) => {

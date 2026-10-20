@@ -30,6 +30,12 @@ class ComerciosModule {
     if (typeof window === 'undefined') return;
     try {
       const res = await fetch('/api/comercios');
+      if (res.status === 401) {
+        // La sesion del navegador esta muerta (revocada/expirada): alinear el
+        // cliente con el servidor y volver al login en vez de fallar en silencio.
+        coreSecurity.invalidarSesionLocal();
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
       if (!data || !data.ok) return;
