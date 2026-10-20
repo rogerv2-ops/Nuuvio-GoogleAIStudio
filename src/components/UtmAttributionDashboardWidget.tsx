@@ -37,7 +37,7 @@ import {
   BarChart3,
   ShieldCheck
 } from 'lucide-react';
-import { usuariosModule } from '../modules/usuarios';
+import { usuariosModule, estaVerificado } from '../modules/usuarios';
 import { clicsAtribucionModule } from '../modules/clics';
 import { coreEvents } from '../core/events';
 import { AudienceUser, ClickRecord, EventLog } from '../types';
@@ -112,7 +112,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     const tasaConversionVisitas = visitasTotales > 0 ? ((registrosTotales / visitasTotales) * 100).toFixed(1) : '0';
     
     // Usuarios que verificaron su correo en 1 clic
-    const usuariosVerificados = usuarios.filter(u => u.emailVerificado).length;
+    const usuariosVerificados = usuarios.filter(estaVerificado).length;
     const tasaVerificacion = registrosTotales > 0 ? ((usuariosVerificados / registrosTotales) * 100).toFixed(1) : '0';
 
     return {
@@ -183,7 +183,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
       }
 
       fuentesBase[src].registros += 1;
-      if (u.emailVerificado) {
+      if (estaVerificado(u)) {
         fuentesBase[src].verificados += 1;
       }
     });

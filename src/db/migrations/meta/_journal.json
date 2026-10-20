@@ -15,6 +15,13 @@
       "when": 1792442142470,
       "tag": "0001_login-failures",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792524224690,
+      "tag": "0002_audience_email_nullable",
+      "breakpoints": true
     }
   ]
 }

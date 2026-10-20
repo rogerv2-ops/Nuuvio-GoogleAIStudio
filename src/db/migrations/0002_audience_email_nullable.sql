@@ -1,0 +1,1 @@
+ALTER TABLE "audience_users" ALTER COLUMN "email" DROP NOT NULL;
