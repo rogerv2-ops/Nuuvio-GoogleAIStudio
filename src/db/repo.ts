@@ -137,6 +137,37 @@ __name(migrarPiiAudiencia,"migrarPiiAudiencia");
  */
 async function normalizarEmailsAudiencia(){try{const rows=await db.select({id:audienceUsers.id,email:audienceUsers.email,emailIdx:audienceUsers.emailIdx}).from(audienceUsers);let n=0;for(const r of rows){if(!String(r.id||"").startsWith("usr_wa_"))continue;if(r.email===null&&r.emailIdx===null)continue;const _set:any={email:null,emailIdx:null};await db.update(audienceUsers).set(_set).where(eq(audienceUsers.id,r.id));n++}if(n>0)console.log(`[Audience] ${n} usuario(s) de WhatsApp normalizados: su identidad es el numero (correo eliminado).`)}catch(e){console.warn("[Audience] No se pudieron normalizar los correos de audiencia (se reintenta en el proximo arranque):",e)}}
 __name(normalizarEmailsAudiencia,"normalizarEmailsAudiencia");
+/**
+ * Atribuye un codigo de canje (NV-XXXXXX) a una persona concreta.
+ *
+ * El codigo lo genera el clic en la web (`/api/whatsapp/contacto`), donde se
+ * registra como "anonimo" y NO facturable: aun no se sabia de quien era.
+ * Cuando la persona escribe al bot, el bot ya sabe su numero, asi que el
+ * clic se puede atribuir al comercio real.
+ *
+ * NO debita saldo del pack: el debito sigue siendo del enlace firmado
+ * (`/c/:id?u=<tel>&s=<hmac>`), que es el unico camino que factura
+ * (regla del antifraude). Esto solo COMPLETA la atribucion.
+ *
+ * Devuelve el comercio y la oferta acreditados, o null si no hay nada que
+ * atribuir.
+ */
+async function atribuirCodigoDeCanje(codigo, telefono){
+  const cod=String(codigo||"").trim().toUpperCase();
+  const tel=String(telefono||"").replace(/\D/g,"");
+  if(!cod||!tel)return null;
+  try{
+    const rows=await db.select().from(clickLogs).where(eq(clickLogs.codigoCanje,cod)).limit(1);
+    const fila=rows&&rows[0];
+    if(!fila)return null;
+    // Ya atribuido a una persona: no se acredita dos veces.
+    if(fila.usuarioTelefono&&fila.usuarioTelefono!=="anonimo")return null;
+    await db.update(clickLogs).set({usuarioTelefono:tel}).where(eq(clickLogs.id,fila.id));
+    console.log(`[Audience] Codigo ${cod} atribuido a ${tel} (comercio ${fila.comercioId}).`);
+    return {comercioId:fila.comercioId,ofertaId:fila.ofertaId,codigoCanje:cod,telefono:tel};
+  }catch(error){console.error("[DB Repo] Error atribuyendo codigo de canje:",error);return null}
+}
+__name(atribuirCodigoDeCanje,"atribuirCodigoDeCanje");
 async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAllAudienceUsers();if(existing.length===0&&seedList.length>0){console.log(`[DB Repo] Sembrando ${seedList.length} usuarios de audiencia en Cloud SQL...`);for(const u of seedList){await upsertAudienceUser(u)}console.log(`[DB Repo] ${seedList.length} usuarios de audiencia sembrados en Cloud SQL exitosamente.`)}}catch(error){console.error("[DB Repo] Error sembrando audience users en Cloud SQL:",error)}}__name(seedAudienceUsersIfEmpty,"seedAudienceUsersIfEmpty");async function insertEmailLog(logItem){try{await db.insert(emailLogs).values({id:logItem.id||`elog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,toEmail:logItem.to||"",subject:logItem.subject||"",provider:logItem.provider||"simulated",status:logItem.status||"simulado",timestamp:logItem.timestamp||new Date().toISOString(),verificationToken:logItem.verificationToken||null,verificationLink:logItem.verificationLink||null,whatsappLink:logItem.whatsappLink||null,error:logItem.error||null})}catch(error){console.error("[DB Repo] Error guardando log de correo:",error)}}__name(insertEmailLog,"insertEmailLog");async function getRecentEmailLogs(limitCount=50){try{const rows=await db.select().from(emailLogs).orderBy(desc(emailLogs.createdAt)).limit(limitCount);return rows.map(r=>({id:r.id,to:r.toEmail,subject:r.subject,provider:r.provider,status:r.status,timestamp:r.timestamp,verificationToken:r.verificationToken,verificationLink:r.verificationLink,whatsappLink:r.whatsappLink,error:r.error}))}catch(error){console.error("[DB Repo] Error obteniendo logs de correo:",error);return[]}}__name(getRecentEmailLogs,"getRecentEmailLogs");async function checkAudienceUserUniqueness(email,phone){try{const cleanEmail=(email||"").trim().toLowerCase();const rows=await getAllAudienceUsers();let isEmailDuplicate=false;let isPhoneDuplicate=false;for(const r of rows){if(cleanEmail&&r.email&&r.email.trim().toLowerCase()===cleanEmail){isEmailDuplicate=true}if(phone&&r.telefono&&phonesMatch(r.telefono,phone)){isPhoneDuplicate=true}}return{exists:isEmailDuplicate||isPhoneDuplicate,isEmailDuplicate,isPhoneDuplicate}}catch(error){console.error("[DB Repo] Error al verificar unicidad de usuario:",error);return{exists:false,isEmailDuplicate:false,isPhoneDuplicate:false}}}__name(checkAudienceUserUniqueness,"checkAudienceUserUniqueness");const inMemoryRegLogs=[];async function insertRegistrationLog(logData){const item={id:`reglog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,email:(logData.email||"").trim().toLowerCase(),telefono:logData.telefono||"",nombre:logData.nombre||"",status:logData.status,resultDetails:logData.resultDetails||(logData.status==="success"?"Registro completado exitosamente":"Error en el proceso de registro"),timestamp:new Date().toISOString()};inMemoryRegLogs.unshift(item);if(inMemoryRegLogs.length>200)inMemoryRegLogs.pop();try{await db.insert(registrationLogs).values({id:item.id,email:item.email,telefono:item.telefono,nombre:item.nombre,status:item.status,resultDetails:item.resultDetails,timestamp:item.timestamp})}catch(error){console.error("[DB Repo] Error guardando log de registro en PostgreSQL:",error)}}__name(insertRegistrationLog,"insertRegistrationLog");async function getRecentRegistrationLogs(limitCount=100){try{const rows=await db.select().from(registrationLogs).orderBy(desc(registrationLogs.createdAt)).limit(limitCount);if(rows.length>0){return rows.map(r=>({id:r.id,email:r.email,telefono:r.telefono||"",nombre:r.nombre||"",status:r.status,resultDetails:r.resultDetails||"",timestamp:r.timestamp,createdAt:r.createdAt}))}}catch(error){console.error("[DB Repo] Error consultando logs de registro en DB, usando fallback:",error)}return inMemoryRegLogs.slice(0,limitCount)}__name(getRecentRegistrationLogs,"getRecentRegistrationLogs");/**
  * Purga total de un usuario de audiencia.
  *
@@ -278,7 +309,7 @@ async function savePersistedKanban(kanbanList) {
   await saveSetting("merchants_kanban", kanbanList);
 }
 __name(savePersistedKanban, "savePersistedKanban");
-export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,registerQualifiedLead,incrementOfferLikes,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser,upsertAudienceUserSafe};
+export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,checkAudienceUserUniqueness,atribuirCodigoDeCanje,clearAllRegistrationLogs,deleteAndPurgeUser,deleteRegistrationLog,findAudienceUserByPhone,getAllAudienceUsers,getAllBanners,getAllOffers,getRecentEmailLogs,getRecentRegistrationLogs,getSetting,insertEmailLog,insertRegistrationLog,normalizePhoneForMatching,phonesMatch,registerOfferClick,registerQualifiedLead,incrementOfferLikes,saveSetting,seedAudienceUsersIfEmpty,replaceOffers,syncBanners,syncOffers,upsertAudienceUser,upsertAudienceUserSafe};
 import{chatLogs}from"./schema.ts";
 async function insertChatLog(e){try{await db.insert(chatLogs).values({id:e.id||`clog_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,canal:e.canal||"waha",direccion:e.direccion||"entrante",telefono:String(e.telefono||""),contenido:String(e.contenido||"").slice(0,4000),estado:e.estado||"recibido",detalles:String(e.detalles||"").slice(0,2000),timestamp:e.timestamp||new Date().toISOString()})}catch(err){console.error("[DB Repo] Error guardando chat log:",err)}}
 __name(insertChatLog,"insertChatLog");

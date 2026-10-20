@@ -99,6 +99,54 @@ export function construirMensajeContactoWhatsApp(params: {
   return codigo ? `${base}. Mi codigo es ${codigo}` : base;
 }
 
+/**
+ * Lo que el bot entiende del mensaje que manda el boton de contacto.
+ */
+export interface LecturaMensajeOferta {
+  /** Titulo de la oferta que la persona quiere (sin el `ref` ni el codigo). */
+  titulo: string;
+  /** Referencia unica de la oferta (`codigo_url`): match EXACTO, sin texto. */
+  ref: string;
+  /** Codigo de canje que genera el clic en la web (`NV-XXXXXX`). */
+  codigoCanje: string;
+}
+
+/**
+ * Lee el mensaje que arma `construirMensajeContactoWhatsApp`.
+ *
+ * Por que existe: el bot recibia el mensaje COMPLETO como termino de
+ * busqueda y lo echoa en su respuesta ("Encontramos estas ofertas para
+ * hola yuddit duo baos ... (ref codigo es nv-ldkzks"). Ademas el codigo
+ * de canje nunca se registraba, asi que el clic de la web no se acreditaba
+ * a nadie.
+ *
+ * El `ref` es la `codigo_url` de la oferta, que es UNICA: con el se
+ * resuelve la oferta sin depender de que el titulo coincida como texto.
+ */
+export function leerMensajeOfertaWhatsApp(texto: string | null | undefined): LecturaMensajeOferta | null {
+  const bruto = String(texto || '').trim();
+  if (!bruto) return null;
+
+  // "Mi codigo es NV-LDKZKS" (con o sin '#').
+  const mCodigo = bruto.match(/mi\s+codigo\s+es\s*#?\s*([A-Z0-9][A-Z0-9-]{4,})/i);
+  const codigoCanje = mCodigo ? mCodigo[1].toUpperCase() : '';
+
+  // "(ref duo-baos-nikkei-san-isidro)"
+  const mRef = bruto.match(/\(ref\s+([^)]+)\)/i);
+  const ref = mRef ? mRef[1].trim() : '';
+
+  // El titulo va despues de "ofertas de Yuddit:" y antes del "(ref ...)".
+  let titulo = '';
+  const mTitulo = bruto.match(/ofertas?\s+de\s+yuddit\s*:\s*([\s\S]*?)(?=\s*\(ref\b|\s*\.\s*mi\s+codigo\b|\s*\.\s*$|$)/i);
+  if (mTitulo) titulo = mTitulo[1].trim();
+
+  // Sin ninguna de las tres marcas, NO es un mensaje de oferta: que el bot
+  // lo trate como texto de busqueda normal.
+  if (!titulo && !ref && !codigoCanje) return null;
+
+  return { titulo, ref, codigoCanje };
+}
+
 /** Opciones que la interfaz ofrece segun la plataforma. */
 export function opcionesWhatsAppPorPlataforma(plataforma: PlataformaWhatsApp): {
   destino: DestinoWhatsApp;
