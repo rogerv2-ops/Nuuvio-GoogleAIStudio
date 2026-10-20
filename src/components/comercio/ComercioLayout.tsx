@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Merchant, Offer, ClickRecord, ConfirmedSale } from '../../types';
 import { comerciosModule } from '../../modules/comercios';
+import { vistaComoModule } from '../../modules/vistaComo';
 import { ofertasModule } from '../../modules/ofertas';
 import { clicsAtribucionModule } from '../../modules/clics';
 import { facturacionModule } from '../../modules/facturacion';
@@ -30,14 +31,17 @@ import { OnboardingTourModal } from './OnboardingTourModal';
 
 interface ComercioLayoutProps {
   onVolverAWeb?: () => void;
+  /** "Entrar como comercio" (admin): id del comercio a mostrar en el panel. */
+  entrarComoId?: string | null;
 }
 
-export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) => {
+export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, entrarComoId }) => {
   const sesion = coreSecurity.getSesionActual();
 
   // Aislamiento estricto de negocio según la sesión autorizada
   // Si la sesión es comercio_user_01, su merchantId es 'merch_01' (La Bodega Verde)
-  const comercioIdAutorizado = sesion?.merchantId || 'merch_01';
+  // Con "entrar como" (admin), se muestra el comercio elegido desde el panel de gestión.
+  const comercioIdAutorizado = entrarComoId || sesion?.merchantId || 'merch_01';
   const comercio = comerciosModule.obtenerComercio(comercioIdAutorizado) || comerciosModule.listarComercios()[0];
 
   // Ruta actual sincronizada
@@ -697,6 +701,19 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb }) 
 
           {/* Área de scroll principal */}
           <main className="flex-1 p-3.5 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
+            {entrarComoId && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800">
+                  Estás viendo el panel de {comercio?.nombreComercial || 'un comercio'} como administrador.
+                </p>
+                <button
+                  onClick={() => vistaComoModule.salir()}
+                  className="text-xs font-bold text-amber-900 hover:text-amber-700 underline cursor-pointer whitespace-nowrap"
+                >
+                  Volver al panel admin
+                </button>
+              </div>
+            )}
             
             {/* Header del Comercio Desktop con Selector de Período y Acciones */}
             <div className="hidden md:flex items-center justify-between gap-4">

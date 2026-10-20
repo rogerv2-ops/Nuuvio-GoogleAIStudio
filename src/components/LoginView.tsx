@@ -88,6 +88,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
+    // El panel de comercio es solo para usuarios de comercio: el admin entra por el panel de gestion.
+    if (!esGestion && resultado.sesion?.rol === 'admin') {
+      coreSecurity.cerrarSesion();
+      setError('Estas credenciales corresponden al panel de administración. Ingresá desde el panel de admin.');
+      return;
+    }
+
     if (resultado.sesion) {
       onLoginExitoso(resultado.sesion);
     }
@@ -114,6 +121,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
     if (esGestion && resultado.sesion?.rol !== 'admin') {
       setError('Esta cuenta no cuenta con permisos de Administrador para acceder a esta consola.');
       coreSecurity.cerrarSesion();
+      return;
+    }
+    // El panel de comercio es solo para usuarios de comercio: el admin entra por el panel de gestion.
+    if (!esGestion && resultado.sesion?.rol === 'admin') {
+      coreSecurity.cerrarSesion();
+      setError('Estas credenciales corresponden al panel de administración. Ingresá desde el panel de admin.');
       return;
     }
     if (resultado.sesion) {
