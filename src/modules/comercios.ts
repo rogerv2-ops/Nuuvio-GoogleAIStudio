@@ -382,6 +382,13 @@ class ComerciosModule {
     return Array.from(this.comercios.values());
   }
 
+  /** Recarga comercios y kanban desde la API. Necesario tras iniciar sesion:
+   * el constructor carga al abrir la pagina (sin sesion -> 401 silencioso),
+   * y el login no recarga la pagina. */
+  public recargar(): void {
+    this.cargarDesdeServidor();
+  }
+
   public listarPendientes(): Merchant[] {
     return this.listarComercios().filter(m => m.estado === 'pendiente');
   }
