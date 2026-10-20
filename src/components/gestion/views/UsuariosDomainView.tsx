@@ -15,21 +15,6 @@ interface UsuariosDomainViewProps {
   onNavegar: (ruta: string) => void;
 }
 
-/**
- * Identidad visible de un usuario de la audiencia.
- *
- * Los usuarios que entran por WhatsApp NO tienen correo: su identidad es el
- * numero. Antes el sistema fabricaba un correo (`<id>@<dominio>`) y el panel
- * lo mostraba como si fuera real. Ahora, cuando no hay correo, se muestra el
- * numero de WhatsApp como dato de contacto.
- */
-function identidadVisible(u: { email?: string | null; telefono?: string | null }): string {
-  const email = String(u.email || '').trim();
-  if (email) return email;
-  const tel = String(u.telefono || '').trim();
-  return tel || 'Sin contacto';
-}
-
 export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta, onNavegar }) => {
   const [version, setVersion] = useState(0);
   const [busqueda, setBusqueda] = useState('');
@@ -53,6 +38,11 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
   useEffect(() => {
     const unsubU = usuariosModule.suscribir(() => setVersion(v => v + 1));
     const unsubP = puntosModule.suscribir(() => setVersion(v => v + 1));
+    // Recarga desde el servidor al montar: el modulo se construye al
+    // importarlo (antes de que exista sesion), asi que su carga inicial
+    // falla con 401 y el panel queda con la copia del navegador, que puede
+    // traer datos viejos. Con la sesion ya activa, el servidor manda.
+    void usuariosModule.recargar();
     return () => {
       unsubU();
       unsubP();
@@ -299,7 +289,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                         </div>
                       </td>
                       <td className="py-3 text-stone-600 font-mono text-[11px]">
-                        {identidadVisible(user)}
+                        {user.telefono || '—'}
                       </td>
                       <td className="py-3 text-stone-600">
                         {user.distrito || '—'}
