@@ -65,6 +65,22 @@ function obtenerSuperficieDesdeUrl(): ActiveSurface {
   return 'web';
 }
 
+/**
+ * URL canonica de cada superficie: la que debe quedar en la barra de
+ * direcciones cuando NO hay sesion.
+ *
+ * Sin esto, al cerrar sesion en el panel de gestion la URL se quedaba
+ * clavada en la sub-ruta interna (por ejemplo `/gestion/usuarios/lista`),
+ * de modo que cualquier persona que mirara la barra de direcciones veía
+ * una ruta de administracion. Ahora, al perder la sesion, la URL vuelve a
+ * la superficie publica.
+ */
+function urlPublicaDeSuperficie(s: ActiveSurface): string {
+  if (s === 'comercio') return '/comercio';
+  if (s === 'bienvenida') return '/bienvenida';
+  return '/';
+}
+
 export default function App() {
   const [superficieActiva, setSuperficieActiva] = useState<ActiveSurface>(obtenerSuperficieDesdeUrl);
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
@@ -145,6 +161,22 @@ export default function App() {
   const tieneAccesoGestion = coreSecurity.tieneAcceso('gestion');
   const tieneAccesoComercio = coreSecurity.tieneAcceso('comercio');
 
+  // Si la sesion se pierde sola (expira, 401, cierre en otra pestana), la
+  // URL no debe seguir en una sub-ruta interna de gestion. Se sube a la
+  // entrada canonica de la superficie, que es la que muestra el login.
+  useEffect(() => {
+    if (superficieActiva !== 'gestion') return;
+    if (tieneAccesoGestion) return;
+    try {
+      if (typeof window === 'undefined' || !window.history) return;
+      const actual = window.location.pathname.toLowerCase();
+      if (actual === '/gestion' || actual === '/panel' || actual === '/') return;
+      window.history.replaceState({ superficie: 'gestion' }, '', '/gestion');
+    } catch {
+      /* noop */
+    }
+  }, [superficieActiva, tieneAccesoGestion]);
+
   return (
     <div className="min-h-screen bg-[#FBF9F4] text-[#1C1917] font-sans antialiased selection:bg-[#D8F3DC] selection:text-[#1B4332]">
       {/* Universal Top Navigation Header */}
@@ -155,9 +187,24 @@ export default function App() {
         sesion={sesion}
         onCerrarSesion={() => {
           coreSecurity.cerrarSesion();
-          // Si estaba en gestión, volver a login o a la web pública
-          if (superficieActiva === 'gestion') {
-            // Se mantiene en /panel mostrando el formulario de login de gestión
+          // Al cerrar sesion la URL NO debe seguir mostrando una ruta
+          // interna de gestion (`/gestion/usuarios/lista`): se devuelve a
+          // la superficie publica. Sin esto, la ruta interna queda a la
+          // vista de cualquiera que mire la barra de direcciones.
+          const destino = urlPublicaDeSuperficie(superficieActiva);
+          try {
+            if (typeof window !== 'undefined' && window.history) {
+              window.history.replaceState({ superficie: destino }, '', destino);
+            } else if (typeof window !== 'undefined') {
+              window.location.hash = '';
+            }
+          } catch {
+            /* noop */
+          }
+          if (superficieActiva === 'comercio') {
+            // el panel de comercio muestra su propio login en /comercio
+          } else if (superficieActiva !== 'web') {
+            cambiarSuperficie('web');
           }
         }}
       />
