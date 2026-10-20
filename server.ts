@@ -232,12 +232,17 @@ async function enviarOfertaEspecifica(user,oferta,doSend,cleanPhone,canal){try{c
 async function acreditarCodigoDeCanje(codigo, telefono, ofertaId){
   const atribuido=await atribuirCodigoDeCanjeDb(codigo,telefono);
   if(!atribuido)return null;
-  const _oferta=ofertaId?serverOfertas.find(o=>o.id===ofertaId):serverOfertas.find(o=>o.id===atribuido.ofertaId);
-  if(_oferta){
-    _oferta.clics=(_oferta.clics||0)+1;
-    _oferta.leadsCalificados=(_oferta.leadsCalificados||0)+1;
-    try{await syncOffers([_oferta])}catch(e){console.warn("[Server] Error sincronizando oferta tras acreditar codigo:",e)}
-  }
+  // OJO: aqui NO se suman clics ni leads de la oferta.
+  //
+  // El contador de la oferta se sube UNA sola vez, en el camino facturable
+  // (`/c/:id?u=&s=`, el enlace firmado que el bot entrega). Sumarlo tambien
+  // aqui contaba el mismo interes dos veces: una persona que hacia clic en
+  // "Lo quiero", escribia al bot y tocaba el boton aparecia con 2 clics y
+  // 2 leads, y el comercio pagaba por un solo clic real.
+  //
+  // Lo que si se hace aca es la ATRIBUCION: el clic queda con el telefono
+  // de la persona (antes quedaba como "anonimo"), que es lo que permite
+  // saber a quien le interesa la oferta.
   return atribuido;
 }
 __name(acreditarCodigoDeCanje,"acreditarCodigoDeCanje");

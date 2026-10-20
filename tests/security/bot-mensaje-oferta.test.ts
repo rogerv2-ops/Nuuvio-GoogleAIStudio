@@ -214,4 +214,91 @@ describe("Bot: el mensaje del boton 'Lo quiero' no se trata como busqueda", () =
       }
     },
   );
+
+  test.skipIf(!online || !hayAdmin || !conBase)(
+    "P4: el mismo interes NO se cuenta dos veces (clics y leads de la oferta)",
+    async () => {
+      const token = await login(ADMIN.email, ADMIN.password);
+      expect(token).toBeTruthy();
+
+      const ofertaId = `of_test_dc_${Date.now()}`;
+      const codigoUrl = `test-dc-${Date.now()}`;
+      await post(
+        "/api/ofertas/sync",
+        {
+          ofertas: [
+            {
+              id: ofertaId,
+              codigoUrl,
+              comercioId: "merch_01",
+              comercioNombre: "Prueba",
+              comercioWhatsapp: "+51987654321",
+              titulo: "Oferta Prueba Doble Conteo",
+              categoria: "gastronomia",
+              precioNormal: "50",
+              precioOferta: "30",
+              distrito: DISTRITO,
+              estado: "activa",
+              venceEn: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString(),
+            },
+          ],
+        },
+        token,
+      );
+
+      // 1) El clic en la web ("Lo quiero"): el servidor lo registra como
+      //    "anonimo" y devuelve el codigo de canje.
+      const resContacto = await fetch(
+        `${BASE}/api/whatsapp/contacto?oferta=${ofertaId}&dest=app`,
+        { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } },
+      );
+      const contacto: any = await resContacto.json();
+      const codigo = String(contacto?.tracking?.codigoCanje || "");
+      expect(codigo).toMatch(/^NV-[A-Z0-9]{6}$/);
+
+      // 2) La persona escribe al bot con ese codigo.
+      const tel = telefonoNuevo();
+      await post(
+        "/api/whatsapp/simulate-incoming",
+        {
+          telefono: tel,
+          texto: construirMensajeContactoWhatsApp({
+            titulo: "Oferta Prueba Doble Conteo",
+            ref: codigoUrl,
+            codigoCanje: codigo,
+          }),
+          pushName: "Test",
+        },
+        token,
+      );
+
+      const client = new pg.Client(SQL);
+      await client.connect();
+      try {
+        const antes = await client.query(
+          "select clics, leads_calificados from offers where id=$1",
+          [ofertaId],
+        );
+        const clicsTrasMensaje = Number(antes.rows[0]?.clics || 0);
+        const leadsTrasMensaje = Number(antes.rows[0]?.leads_calificados || 0);
+
+        // El clic de la web se ATRIBUYE (ya no es "anonimo")...
+        const atrib = await client.query(
+          "select usuario_telefono from click_logs where codigo_canje=$1",
+          [codigo],
+        );
+        expect(atrib.rows.length).toBe(1);
+        expect(atrib.rows[0].usuario_telefono).not.toBe("anonimo");
+
+        // ...pero NO suma un clic ni un lead de la oferta: el contador sube
+        // UNA sola vez, en el camino facturable (/c/:id con firma). Si se
+        // sumara aqui, la misma persona contaria 2 clics y 2 leads, y el
+        // comercio pagaria por un solo interes real.
+        expect(clicsTrasMensaje).toBe(0);
+        expect(leadsTrasMensaje).toBe(0);
+      } finally {
+        await client.end().catch(() => undefined);
+      }
+    },
+  );
 });
