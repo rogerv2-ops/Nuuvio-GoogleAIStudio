@@ -148,13 +148,16 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
           token!,
           { titulo: "Oferta del clic", distrito: "Miraflores" },
           async (oferta) => {
+            // Flujo por REF (el del boton "Lo quiero"), no el mosaico:
+            //   - no dispara el clasificador de IA, que en el CI (sin clave)
+            //     tarda segundos y deja que otro archivo reemplace el
+            //     catalogo mientras tanto;
+            //   - el enlace es el de NUESTRA oferta, no el primero de un
+            //     mosaico con 3 ofertas de archivos distintos.
             const t = telefonoNuevo();
-            await simular(token!, t, "hola");
-            const texto = await simular(token!, t, "Carlos, 28, Miraflores");
-            // El enlace de NUESTRA oferta, no el primero: el mosaico muestra
-            // hasta 3 ofertas y las otras son de otros archivos de test (que
-            // corren en paralelo). Agarrar el primero hacia que el clic
-            // apuntara a una oferta que otro archivo ya habia borrado.
+            const mensaje = `Hola, quiero ver las ofertas de Yuddit: ${oferta.titulo} (ref ${oferta.codigoUrl}). Mi codigo es NV-TEST00`;
+            await simular(token!, t, mensaje);
+            const texto = await simular(token!, t, "sí");
             const enlace = [...texto.matchAll(/https?:\/\/\S+\/c\/\S+/g)]
               .map((m) => m[0])
               .find((u) => u.includes(`/c/${oferta.id}`));

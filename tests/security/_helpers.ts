@@ -86,7 +86,7 @@ export async function post(path: string, body: any, token?: string | null, extra
 export async function crearOfertaDePrueba(
   token: string | null | undefined,
   opts: { titulo?: string; distrito?: string; comercioId?: string } = {}
-): Promise<{ id: string; titulo: string; distrito: string }> {
+): Promise<{ id: string; titulo: string; distrito: string; codigoUrl: string }> {
   const id = `of_test_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const titulo = opts.titulo || `Oferta de prueba ${id}`;
   const distrito = opts.distrito || "Miraflores";
@@ -127,7 +127,7 @@ export async function crearOfertaDePrueba(
   if (r.status !== 200) {
     throw new Error(`no se pudo crear la oferta de prueba (HTTP ${r.status})`);
   }
-  return { id, titulo, distrito };
+  return { id, titulo, distrito, codigoUrl: `test-${id}` };
 }
 
 /**
@@ -151,7 +151,7 @@ export async function crearOfertaDePrueba(
 export async function conOfertaDePrueba<T>(
   token: string | null | undefined,
   opts: { titulo?: string; distrito?: string; comercioId?: string },
-  accion: (oferta: { id: string; titulo: string; distrito: string }) => Promise<T>,
+  accion: (oferta: { id: string; titulo: string; distrito: string; codigoUrl: string }) => Promise<T>,
   intentos = 4
 ): Promise<T> {
   let ultimoError: unknown = null;
