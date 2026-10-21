@@ -128,3 +128,19 @@ CI lives in `.github/workflows/ci.yml` (two jobs: type gate + build + contract t
 ## Local checkout quirk
 
 `git` here fails with `detected dubious ownership`. Prefix commands with `git -c safe.directory=/home/ubuntu/nuuvio-googleaistudio ...` instead of editing global git config.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues de `rogerv2-ops/Nuuvio-GoogleAIStudio`, via el CLI `gh`. Un cambio llega como issue y sale como pull request. Ver `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Las cinco etiquetas canonicas: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. Ver `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Layout **single-context**: un `GLOSSARY.md` en la raiz y las decisiones en `docs/adr/`. Antes de explorar, leer el glosario y los ADR del area; si tu output contradice un ADR, dilo en vez de pisarlo. Ver `docs/agents/domain.md`.
+
+El glosario (`GLOSSARY.md`) es el idioma del proyecto: **oferta** (no producto), **comercio** (no merchant), **lead calificado** (no clic), **codigo de canje NV-XXXXXX** (atribucion del clic, no referido ni descuento), **provincia** (la zona de servicio) y **distrito** (la ubicacion de la persona). Y `docs/adr/` tiene las decisiones ya tomadas: no se vuelven a discutir sin que el dueno lo pida.
