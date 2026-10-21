@@ -175,7 +175,14 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
 
             // Tres clics del mismo enlace, con la misma persona.
             for (let i = 0; i < 3; i++) {
-              const r = await fetch(enlaceLocal, { redirect: "manual" });
+              // IP propia: el rate limit de clics (20/min por IP) lo agota
+              // `lead-qualified.test.ts`, que hace clic a proposito para
+              // probar el limite. Los archivos corren en PARALELO y comparten
+              // la IP del runner.
+              const r = await fetch(enlaceLocal, {
+                redirect: "manual",
+                headers: { "X-Forwarded-For": ipPropia() },
+              });
               if (r.status !== 302) {
                 throw new Error(`el clic ${i + 1} respondio ${r.status} (la oferta ya no esta)`);
               }
