@@ -41,9 +41,17 @@ const online = await servidorOnline();
 const TELEFONO_COMERCIO = "51987654321";
 
 let ipSecuencia = 0;
+/**
+ * IP propia para este archivo.
+ *
+ * Pool DISTINTO al de `ventana-24h.test.ts` (203.0.113.x): los archivos
+ * corren en paralelo y el rate limit de clics es POR IP, asi que compartir
+ * pool hacia que los clics de un archivo comieran el cupo del otro y la
+ * suite se volviera intermitente.
+ */
 function ipPropia(): string {
   ipSecuencia += 1;
-  return `203.0.113.${(ipSecuencia % 200) + 20}`;
+  return `198.51.100.${(ipSecuencia % 200) + 20}`;
 }
 
 const UA_ANDROID =
@@ -71,15 +79,16 @@ async function tokenAdmin(): Promise<string> {
 }
 
 describe("Hoja de WhatsApp del servidor - reglas puras", () => {
-  test("la hoja ofrece las tres destinations y ninguna mas", () => {
+  test("la hoja ofrece las tres destinos y ninguna mas", () => {
     const html = htmlHojaWhatsApp({
       urlBase: "/c/of_test?u=51900000000&s=abc123",
       plataforma: "ios",
       tituloOferta: "Oferta de prueba",
     });
-    expect(html).toContain("dest=app");
-    expect(html).toContain("dest=business");
-    expect(html).toContain("dest=web");
+    // CUANTOS destinos, no solo que aparezcan: un destino de mas (o uno que
+    // falta) tiene que hacer fallar este test.
+    const destinos = [...html.matchAll(/dest=([a-z]+)/g)].map((m) => m[1]);
+    expect(destinos.sort()).toEqual(["app", "business", "web"]);
     // Las opciones salen de la MISMA fuente que la hoja del SPA.
     expect(html).toContain("WhatsApp Business");
     expect(html).toContain("WhatsApp Web");

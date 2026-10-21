@@ -31,7 +31,7 @@ import {
   opcionesWhatsAppPorPlataforma,
   type DestinoWhatsApp,
   type PlataformaWhatsApp,
-} from './whatsappLinks';
+} from './whatsappLinks.ts';
 
 /** Escapa texto que viene de la base (un comercio puede escribir HTML). */
 export function escaparHtml(valor: unknown): string {
@@ -41,6 +41,34 @@ export function escaparHtml(valor: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/**
+ * Parametros del enlace firmado de oferta.
+ *
+ * Son un CONTRATO (los arma el bot, los valida el servidor, y aparecen en la
+ * documentacion): van con nombre, no como cadenas sueltas por ahi.
+ */
+export const PARAM_USUARIO = 'u';
+export const PARAM_FIRMA = 's';
+
+/**
+ * Base del enlace firmado, con los tokens intactos y SIN destino.
+ *
+ * La hoja solo le agrega `dest=`, asi que el servidor vuelve a validar la
+ * firma cuando la persona elige app. El telefono del comercio NO va aqui:
+ * se resuelve en el servidor, en el momento del clic.
+ */
+export function urlBaseEnlaceFirmado(
+  ofertaId: string,
+  usuario?: string | null,
+  firma?: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (usuario) params.set(PARAM_USUARIO, String(usuario));
+  if (firma) params.set(PARAM_FIRMA, String(firma));
+  const query = params.toString();
+  return `/c/${encodeURIComponent(String(ofertaId || ''))}${query ? '?' + query : ''}`;
 }
 
 /**
