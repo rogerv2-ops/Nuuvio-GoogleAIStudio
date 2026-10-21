@@ -66,9 +66,11 @@ export function saludoPedirDistrito(nombre?: string | null): string {
  * desuscribir|detener`), asi que la promesa se cumple.
  */
 export function lineaOptOut(): string {
+  // PULL, NO PUSH: no se promete ningun envio proactivo. Lo que se ofrece es
+  // dejar de RESPONDER.
   return (
-    '📩 Si ya no quieres recibir ofertas, escribe *BAJA* y te sacamos de la lista al instante. ' +
-    '¡Gracias por estar con nosotros! 😊'
+    '📩 Si prefieres que no te respondamos más, escribe *BAJA* y te sacamos de la lista al instante. ' +
+    '¡Gracias por escribirnos! 😊'
   );
 }
 

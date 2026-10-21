@@ -33,6 +33,24 @@ Lo que **tiene que ver la persona** (si no, no está bien):
 
 - Spec completa, tablas y verificación: `docs/reglas-whatsapp.md`. Tests que vigilan las reglas: `tests/security/whatsapp-contacto.test.ts`.
 
+## Reglas inquebrantables — Yuddit es PULL, no PUSH
+
+**Yuddit solo RESPONDE consultas. Nunca empuja.** Decidido por el dueno el 2026-10-21.
+
+| | |
+|---|---|
+| **Si (PULL)** | La persona escribe al bot (o se registra en la web) y el bot responde. La persona pide ofertas, el bot las manda. |
+| **No (PUSH)** | El negocio inicia un contacto: campañas, "te avisamos cuando haya ofertas nuevas", resumen diario, recordatorios, avisos de que algo nuevo apareció. |
+
+Consecuencias practices:
+
+- **Ningun texto puede prometer un envio proactivo.** Nada de "te avisaremos", "te aviso cuando entren ofertas nuevas", "recibirás más ofertas", "resumen diario", "te escribimos". Si el bot no tiene nada nuevo que mostrar, se lo dice y la persona vuelve a escribir.
+- **La unica forma de que alguien reciba algo es que haya escrito.** Por eso el bot responde al mensaje del boton "Lo quiero" aunque ya le haya mandado esa oferta: es una peticion suya.
+- **No hay envios programados a usuarios.** El "resumen diario" del panel es una SIMULACION: no envia ningun correo. Si alguna vez se quisiera activar un envio automatico, hay que pedirlo explicitamente y cambiar esta regla.
+- **El opt-out significa "dejar de RESPONDER"**, no "dejar de notificar": el bot contesta "ya no te respondemos con ofertas; si quieres volver, escribenos *Ofertas*".
+
+Hay un test que vigila esta regla (`tests/security/pull-no-push.test.ts`): escanea el texto que ve la persona y falla si vuelve a aparecer una promesa de envio proactivo.
+
 ## Commands
 
 ```bash

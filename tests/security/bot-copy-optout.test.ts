@@ -131,7 +131,10 @@ describe.skipIf(!online || !hayAdmin)("Bot: copy del saludo y opt-out", () => {
     await simular(token!, tel, "55, Miraflores");
 
     const baja = await simular(token!, tel, "BAJA");
-    expect(textoDe(baja)).toContain("desuscrito");
+    // El mensaje es en clave PULL: el bot deja de RESPONDER (no "deja de
+    // notificar"), porque el bot nunca empuja.
+    expect(textoDe(baja)).toContain("ya no te respondemos con ofertas");
+    expect(textoDe(baja)).toContain("*Ofertas*");
 
     let estado = await estadoEnAudiencia(token!, tel);
     expect(estado).toBeTruthy();

@@ -162,7 +162,7 @@ class CoreMessaging {
         return [{
           id: `msg_bot_${Date.now()}`,
           remitente: 'bot',
-          texto: `Por el momento no hay nuevas ofertas activas en tus categorías cerca de ${usuario.distrito}. ¡Te avisaremos en el resumen diario!`,
+          texto: `Por el momento no hay nuevas ofertas activas en tus categorías cerca de ${usuario.distrito}. Escríbenos cuando quieras ver más ofertas.`,
           tipo: 'texto',
           timestamp: ahora
         }];
@@ -243,7 +243,7 @@ class CoreMessaging {
       return [{
         id: `msg_bot_${Date.now()}`,
         remitente: 'bot',
-        texto: 'Has sido dado de baja de Yuddit. No recibirás más mensajes ni resúmenes. Si deseas volver en el futuro, solo vuelve a escribirnos.',
+        texto: 'Has sido dado de baja de Yuddit. No te responderemos con ofertas. Si deseas volver en el futuro, solo vuelve a escribirnos.',
         tipo: 'texto',
         timestamp: ahora
       }];
@@ -280,7 +280,7 @@ class CoreMessaging {
       return [{
         id: `msg_bot_${Date.now()}`,
         remitente: 'bot',
-        texto: `Estimado ${comercio.nombreComercial}, tu registro con RUC ${comercio.ruc} se encuentra en estado *${comercio.estado.toUpperCase()}*.\n\nEl equipo de administración revisa cada comercio antes de habilitar publicaciones. Te avisaremos por correo apenas seas aprobado.`,
+        texto: `Estimado ${comercio.nombreComercial}, tu registro con RUC ${comercio.ruc} se encuentra en estado *${comercio.estado.toUpperCase()}*.\n\nEl equipo de administración revisa cada comercio antes de habilitar publicaciones. Cuando seas aprobado, escríbenos por aquí y te activamos las publicaciones.`,
         tipo: 'texto',
         timestamp: ahora
       }];

@@ -85,7 +85,7 @@ class CoreConfig {
     ['hora_digest_lima', {
       clave: 'hora_digest_lima',
       valor: '09:00',
-      descripcion: 'Hora de envío del resumen diario por correo en hora de Lima (D10)',
+      descripcion: 'Hora de envío del resumen diario por correo en hora de Lima (D10). SIMULADO: no se envía nada',
       actualizadoEn: new Date().toISOString(),
       actualizadoPor: 'Sistema'
     }],
