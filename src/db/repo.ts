@@ -1,4 +1,4 @@
-var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs,sessions,authUsers,loginFailures,geoTerritorios}from"./schema.ts";import{eq,desc,and,or,gte,notInArray,sql}from"drizzle-orm";import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../utils/pii.ts";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio Yuddit",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");/**
+var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs,sessions,authUsers,loginFailures,geoTerritorios,eventos}from"./schema.ts";import{eq,desc,and,or,gte,notInArray,sql}from"drizzle-orm";import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../utils/pii.ts";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio Yuddit",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");/**
  * Identidad de la audiencia: el CORREO es opcional.
  *
  * Antes: `email` era NOT NULL y, cuando el usuario no traia correo (que es el
@@ -540,7 +540,11 @@ async function obtenerMetricasGlobales() {
         (select count(*)::int from audience_users where estado = 'activo') as usuarios_activos,
         (select count(*)::int from chat_logs) as chats,
         (select count(*)::int from click_packs) as packs,
-        (select coalesce(sum(saldo_clics), 0)::int from click_packs) as saldo_clics
+        (select coalesce(sum(saldo_clics), 0)::int from click_packs) as saldo_clics,
+        (select count(*)::int from eventos where tipo_evento = 'visita_landing_utm') as visitas,
+        (select count(*)::int from eventos where tipo_evento = 'oferta_mostrada') as impresiones,
+        (select count(*)::int from eventos where tipo_evento = 'oferta_enviada') as ofertas_entregadas,
+        (select count(*)::int from eventos where tipo_evento = 'embudo_registro_completado') as embudos
     `);
     const fila: any = (r && r.rows && r.rows[0]) || {};
 
@@ -550,17 +554,21 @@ async function obtenerMetricasGlobales() {
     const comerciosActivos = comercios.filter((m: any) => m && m.estado === "activo").length;
 
     const clics = Number(fila.clics || 0);
+    // Las VISTAS se miden con las impresiones de la tabla `eventos` (cada vez
+    // que el bot muestra una oferta queda una). Antes no se median porque
+    // `offers.vistas` no lo incrementa nadie.
+    const impresiones = Number(fila.impresiones || 0);
     const vistas = Number(fila.vistas_ofertas || 0);
+    const vistasTotales = Math.max(vistas, impresiones);
     return {
       ofertasActivas: Number(fila.ofertas_activas || 0),
       ofertasTotal: Number(fila.ofertas_total || 0),
-      // Las vistas NO se incrementan en ningun lado todavia: no se miden.
-      totalVistasOfertas: vistas > 0 ? vistas : null,
+      totalVistasOfertas: vistasTotales > 0 ? vistasTotales : null,
       totalClicsContactar: clics,
       northStarLeadsSemanales: Number(fila.leads_semana || 0),
       leadsCalificados: Number(fila.leads || 0),
       // El CTR solo existe si hay vistas medidas.
-      ctrPromedioGlobal: vistas > 0 ? Number(((clics / vistas) * 100).toFixed(1)) : null,
+      ctrPromedioGlobal: vistasTotales > 0 ? Number(((clics / vistasTotales) * 100).toFixed(1)) : null,
       // Las ventas confirmadas no tienen tabla: no se miden.
       ventasConfirmadas: null,
       comerciosActivos,
@@ -568,6 +576,11 @@ async function obtenerMetricasGlobales() {
       usuariosRegistrados: Number(fila.usuarios || 0),
       usuariosActivos: Number(fila.usuarios_activos || 0),
       chats: Number(fila.chats || 0),
+      // De la tabla de eventos (lo que NO tiene tabla propia).
+      visitas: Number(fila.visitas || 0),
+      impresiones: Number(fila.impresiones || 0),
+      ofertasEntregadas: Number(fila.ofertas_entregadas || 0),
+      embudosCompletados: Number(fila.embudos || 0),
       packs: Number(fila.packs || 0),
       saldoClics: Number(fila.saldo_clics || 0),
       // El tiempo de validacion no se registra en ninguna parte.
@@ -737,6 +750,104 @@ async function obtenerSerieDiaria(dias) {
 }
 __name(obtenerSerieDiaria, "obtenerSerieDiaria");
 
+/**
+ * Guarda eventos de negocio.
+ *
+ * REGLA DE LA CASA: un dominio que tiene su PROPIA tabla no emite evento.
+ * Los clics van en `click_logs`, los chats en `chat_logs`, la audiencia en
+ * `audience_users`, los packs en `click_packs`. Aqui va lo que NO tiene
+ * tabla: las visitas a la landing, las impresiones de una oferta, la
+ * entrega de una oferta al bot y los pasos del embudo.
+ *
+ * Antes estos eventos vivian en un `Map` EN MEMORIA del navegador: se
+ * perdian al recargar y por eso las visitas a la landing no se podian
+ * medir (el panel UTM tenia que inventar un minimo de 198).
+ */
+async function insertarEvento(evento) {
+  try {
+    const id = String(evento.id || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`);
+    await db.insert(eventos).values({
+      id,
+      tipoEvento: String(evento.tipoEvento),
+      actorTipo: evento.actorTipo ? String(evento.actorTipo) : null,
+      actorId: evento.actorId ? String(evento.actorId).slice(0, 120) : null,
+      distrito: evento.distrito ? String(evento.distrito).slice(0, 80) : null,
+      provincia: evento.provincia ? String(evento.provincia).slice(0, 80) : null,
+      origen: evento.origen ? String(evento.origen).slice(0, 40) : null,
+      datos: (evento.datos && typeof evento.datos === "object") ? evento.datos : {},
+      creadoEn: new Date(),
+      // `any`: mismo problema de Drizzle 0.38 con columnas nullable.
+    } as any);
+    return { ok: true, id };
+  } catch (error) {
+    console.error("[DB Repo] Error guardando el evento:", error);
+    return { ok: false, id: null };
+  }
+}
+__name(insertarEvento, "insertarEvento");
+
+/** Guarda varios eventos (el cliente los manda en tanda). */
+async function insertarEventos(lista) {
+  const guardados = [];
+  for (const e of lista) {
+    const r = await insertarEvento(e);
+    if (r.ok) guardados.push(r.id);
+  }
+  return { ok: guardados.length > 0, guardados: guardados.length };
+}
+__name(insertarEventos, "insertarEventos");
+
+/** Cuenta los eventos por tipo (para las metricas del panel). */
+async function contarEventos(filtros) {
+  try {
+    const condiciones = [];
+    if (filtros && filtros.tipoEvento) condiciones.push(eq(eventos.tipoEvento, String(filtros.tipoEvento)));
+    if (filtros && filtros.desde) condiciones.push(gte(eventos.creadoEn, new Date(String(filtros.desde))));
+    if (filtros && filtros.hasta) condiciones.push(sql`${eventos.creadoEn} <= ${new Date(String(filtros.hasta))}`);
+    const consulta = condiciones.length
+      ? db.select({ n: sql`count(*)::int` }).from(eventos).where(and(...condiciones))
+      : db.select({ n: sql`count(*)::int` }).from(eventos);
+    const filas = await consulta;
+    return filas.length ? Number(filas[0].n) : 0;
+  } catch (error) {
+    console.error("[DB Repo] Error contando los eventos:", error);
+    return 0;
+  }
+}
+__name(contarEventos, "contarEventos");
+
+/** Los eventos mas recientes de un tipo (para las listas del panel). */
+async function listarEventos(filtros) {
+  try {
+    const condiciones = [];
+    if (filtros && filtros.tipoEvento) condiciones.push(eq(eventos.tipoEvento, String(filtros.tipoEvento)));
+    if (filtros && filtros.limite) condiciones.push(sql`1=1`);
+    const base = condiciones.length
+      ? db.select().from(eventos).where(and(...condiciones))
+      : db.select().from(eventos);
+    const filas = await base;
+    const limite = Number((filtros && filtros.limite) || 100);
+    return filas
+      .sort((a: any, b: any) => new Date(b.creadoEn || 0).getTime() - new Date(a.creadoEn || 0).getTime())
+      .slice(0, limite)
+      .map((r: any) => ({
+        id: r.id,
+        tipoEvento: r.tipoEvento,
+        actorTipo: r.actorTipo,
+        actorId: r.actorId,
+        distrito: r.distrito,
+        provincia: r.provincia,
+        origen: r.origen,
+        datos: r.datos || {},
+        creadoEn: r.creadoEn,
+      }));
+  } catch (error) {
+    console.error("[DB Repo] Error listando los eventos:", error);
+    return [];
+  }
+}
+__name(listarEventos, "listarEventos");
+
 /** Las mismas metricas, pero de un solo comercio. */
 async function obtenerMetricasComercio(comercioId) {
   try {
@@ -813,4 +924,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos};
