@@ -156,6 +156,32 @@ describe("Bot: el mensaje del boton 'Lo quiero' no se trata como busqueda", () =
       expect(texto).not.toContain(REF);
       // Y NO es una busqueda ("Encontramos estas ofertas para ...").
       expect(texto).not.toContain("Encontramos estas ofertas para");
+
+      // B4: tras confirmar la zona, la oferta sale con el ENLACE firmado
+      // EN EL TEXTO, no con un boton.
+      //
+      // Antes decia "Toca el boton de abajo" y mandaba un boton CTA. Baileys
+      // v7 descarta los botones EN SILENCIO (el texto sale, el boton no, y no
+      // hay error), asi que la persona recibia la oferta y no tenia como
+      // abrirla: cero forma de llegar al comercio.
+      const confirm = await post(
+        "/api/whatsapp/simulate-incoming",
+        { telefono: tel, texto: "sí", pushName: "Roger Vasquez" },
+        token,
+      );
+      expect(confirm.status).toBe(200);
+      const bodyConfirm: any = await confirm.json();
+      const textoOferta = (bodyConfirm.respuestas || []).map((r: any) => r.texto || "").join(" | ");
+
+      expect(textoOferta).toContain(TITULO);
+      const enlace = (textoOferta.match(/https?:\/\/\S+\/c\/[^\s]+/) || [])[0] || "";
+      expect(enlace).toContain(`/c/${ofertaId}`);
+      expect(enlace).toContain("u=");
+      // La firma HMAC es lo que hace FACTURABLE el clic: sin ella el enlace
+      // abre igual pero no se cobra. Tiene que venir.
+      expect(enlace).toMatch(/[?&]s=[A-Za-z0-9_-]{8,}/);
+      // Y no puede seguir prometiendo un boton que no existe.
+      expect(textoOferta).not.toContain("Toca el botón de abajo");
     },
   );
 
@@ -301,4 +327,56 @@ describe("Bot: el mensaje del boton 'Lo quiero' no se trata como busqueda", () =
       }
     },
   );
+});
+
+/**
+ * El motor de WhatsApp (Baileys v7) YA NO manda botones interactivos.
+ *
+ * Que paso (2026-10-21, reportado por el dueno): el bot respondio con la
+ * oferta y el texto "Toca el boton de abajo", pero el boton nunca llego.
+ *
+ * La causa no era un error de envio: `templateButtons` y `buttons` no
+ * existen en el tipo `AnyMessageContent` de Baileys v7. La libreria toma el
+ * `text` (valido) e IGNORA el resto de la llave. Resultado: mensaje enviado,
+ * ninguna excepcion, y el enlace que factura se pierde en el camino.
+ *
+ * Regla que deja este incidente: todo enlace accionable va EN EL TEXTO.
+ * WhatsApp lo linkifica solo. Un boton es opcional; un enlace que no llega
+ * es un lead que no existe.
+ */
+describe("El envio por Baileys no depende de botones que el motor descarta", () => {
+  const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
+
+  test("no se le piden botones a Baileys (v7 los ignora en silencio)", () => {
+    expect(SERVER).not.toContain("templateButtons");
+    // La unica llave `buttons:` que queda es la de Meta Cloud API, que si
+    // soporta botones (`cta_url` / `reply`). Si aparece otra, es Baileys.
+    const botonesMeta = SERVER.match(/action:\{buttons:/g) || [];
+    const todas = SERVER.match(/buttons:/g) || [];
+    expect(todas.length).toBe(botonesMeta.length);
+    expect(SERVER).toContain("cta_url");
+  });
+
+  test("el bot avisa en el log si alguien intenta mandar un boton por Baileys", () => {
+    // No basta con no usarlos: si alguien los vuelve a usar, el log tiene que
+    // decirlo. El bug original fue justamente un silencio.
+    expect(SERVER).toContain("'buttons' ignorado");
+    expect(SERVER).toContain("'interactiveButton' ignorado");
+  });
+
+  test("la oferta y el mosaico llevan el enlace /c/ dentro del texto", () => {
+    // El enlace firmado es el unico camino que factura (regla de cobro).
+    const oferta = SERVER.slice(
+      SERVER.indexOf("async function enviarOfertaEspecifica"),
+      SERVER.indexOf("__name(enviarOfertaEspecifica"),
+    );
+    expect(oferta).toContain("${trackingUrl}");
+    // El mosaico calculaba el trackingUrl y no lo usaba en el caption: las
+    // ofertas se veian y no se podian abrir.
+    const mosaico = SERVER.slice(
+      SERVER.indexOf("combinedCaption +="),
+      SERVER.indexOf("Responde con *Más ofertas*"),
+    );
+    expect(mosaico).toContain("trackingUrl");
+  });
 });

@@ -126,6 +126,33 @@ El botón "Lo quiero" de una oferta abre el WhatsApp **del bot**, con el título
 
 Si algún día se quiere que el botón de una oferta vaya directo al comercio, hay que hacerlo **con el consentimiento del comercio** y, además, revisar la regla 2: ese número quedaría en manos de cualquiera que toque el botón.
 
+## Regla 5 — todo enlace accionable va EN EL TEXTO, nunca en un botón
+
+Esta es la regla que nació de un incidente real (2026-10-21, reportado por el dueño) y es la más fácil de volver a romper.
+
+**Qué pasó.** La persona escribió al bot, el bot respondió con la oferta y el texto *"Toca el botón de abajo para asegurar tus cupos"*, y **el botón nunca llegó**. Peor: el mensaje siguiente de la persona era una pregunta, porque no tenía ninguna forma de abrir la oferta.
+
+**Por qué.** El motor de WhatsApp en producción es **Baileys v7** (`@whiskeysockets/baileys@7.0.0-rc14`, modo `waha`; Meta Cloud API no está configurado: `accessToken` y `phoneNumberId` vacíos). En Baileys v7, el tipo `AnyMessageContent` **no tiene** `templateButtons` ni `buttons`: la librería toma el `text` (válido) e **ignora en silencio** el resto de la llave. No hay excepción, no hay log, no hay error. El mensaje sale "bien" y el botón no existe.
+
+**La regla.** Si la persona tiene que hacer algo (abrir un enlace, entrar al comercio, ver el catálogo), eso va **escrito en el texto**. WhatsApp convierte la URL en un enlace pulsable por su cuenta. Un botón es un adorno opcional; un enlace que no llega es un lead que no existe.
+
+| Correcto | Incorrecto |
+|---|---|
+| `Abre este enlace para asegurar tus cupos:\n\nhttps://yuddit.com/c/of_01?u=51…&s=…` | `Toca el botón de abajo 👇` + `interactiveButton` / `buttons` |
+
+**Dónde aplica hoy:**
+
+| Flujo | Qué hace |
+|---|---|
+| Oferta individual (`enviarOfertaEspecifica`) | El enlace firmado `/c/:id?u=&s=` va en el texto del mensaje. |
+| Mosaico de 3 ofertas (`dispatchOffersMosaic`) | Cada oferta del mosaico lleva su enlace firmado en el caption. Antes se mandaba un bloque `buttons` con "Ver Opción 1/2/3" que **nunca llegaba**, y las ofertas se veían pero no se podían abrir. |
+
+**El camino de Meta Cloud API sí soporta botones** (`cta_url` y `reply`), así que ese código sigue ahí y no se toca. Si algún día se migra a Meta, se puede volver a un botón — pero **el enlace tiene que estar en el texto igual**, porque el mensaje se entrega a personas que ya no usan el bot y llegan por el link de la web.
+
+**El código lo avisa**: si alguien vuelve a pasar `buttons` o `interactiveButton` al camino de Baileys, sale un `console.warn` en vez de un silencio. Hay un test (`tests/security/bot-mensaje-oferta.test.ts`) que vigila que `server.ts` no vuelva a pedirle botones a Baileys, y que los dos flujos lleven el `trackingUrl` dentro del texto.
+
+> **Corolario sobre los tests.** `POST /api/whatsapp/simulate-incoming` devuelve el **payload** que el bot quiso mandar, no lo que WhatsApp entrega. Un test que mira `boton.url` da verde mientras la persona no recibe nada — eso pasó con los tests R2/R3/R6 de `bot-zona-confirmacion.test.ts`. Por eso ahora se verifica **el enlace dentro de `texto`**: lo único que sale de verdad en un chat de WhatsApp.
+
 ## Archivos
 
 | Archivo | Rol |
