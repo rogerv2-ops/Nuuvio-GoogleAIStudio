@@ -1,3 +1,4 @@
+import { SelectorProvinciaDistrito } from './common/SelectorProvinciaDistrito';
 import React, { useState, useEffect } from 'react';
 import { 
   X, CheckCircle2, ShieldCheck, Mail, MessageCircle, 
@@ -16,13 +17,6 @@ interface Props {
   ofertaObjetivo?: Offer | null;
   motivo?: 'whatsapp' | 'general';
 }
-
-const DISTRITOS_LIMA = [
-  'Miraflores', 'San Isidro', 'Santiago de Surco', 'Barranco', 'San Borja',
-  'Magdalena del Mar', 'Jesús María', 'Lince', 'San Miguel', 'Pueblo Libre',
-  'Surquillo', 'La Molina', 'Los Olivos', 'Independencia', 'San Juan de Lurigancho',
-  'San Juan de Miraflores', 'Chorrillos', 'Ate', 'Cercado de Lima'
-];
 
 function obtenerUrlProveedorCorreo(correo: string): string {
   const dominio = correo.split('@')[1]?.toLowerCase() || '';
@@ -90,7 +84,9 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
   const [email, setEmail] = useState('');
   const [codigoPais, setCodigoPais] = useState('+51');
   const [telefono, setTelefono] = useState('');
-  const [distrito, setDistrito] = useState('Miraflores');
+  // El distrito se elige dentro de su provincia (jerarquia del negocio).
+  const [provincia, setProvincia] = useState('');
+  const [distrito, setDistrito] = useState('');
 
   // Resultado
   const [usuarioRegistrado, setUsuarioRegistrado] = useState<AudienceUser | null>(null);
@@ -387,16 +383,15 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 mb-1">Distrito de Lima *</label>
-                <select
-                  value={distrito}
-                  onChange={(e) => setDistrito(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:bg-white focus:outline-hidden focus:border-[#1B4332]"
-                >
-                  {DISTRITOS_LIMA.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+                <label className="block text-[11px] font-bold text-stone-700 mb-1">Provincia *</label>
+                <SelectorProvinciaDistrito
+                  provincia={provincia}
+                  distrito={distrito}
+                  onProvinciaChange={setProvincia}
+                  onDistritoChange={setDistrito}
+                  provinciaLabel="Provincia"
+                  distritoLabel="Distrito"
+                />
               </div>
 
               <div className="pt-2">

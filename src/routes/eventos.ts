@@ -49,6 +49,9 @@ export const TIPOS_EVENTO_ACEPTADOS: Record<string, string[]> = {
   embudo_registro_completado: ["paso", "origen", "canal"],
   // La persona se registro en la audiencia.
   usuario_registrado_utm: ["source", "medium", "campaign", "invitadoPor"],
+  // La persona escribio desde una zona donde todavia no operamos: es la
+  // senal de donde expandirse.
+  zona_sin_servicio: ["distrito", "provincia"],
   // Una venta confirmada (la reporta el comercio).
   venta_confirmada: ["comercioId", "ofertaId", "codigoPersonal", "monto"],
 };

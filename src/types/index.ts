@@ -17,6 +17,11 @@ export interface AudienceUser {
   ciudad: string;
   provincia: string;
   distrito: string;
+  /** Codigo ubigeo del distrito (6 digitos). El nombre solo no identifica
+   *  un lugar: en el Peru hay 99 nombres de distrito repetidos. */
+  distritoCodigo?: string | null;
+  /** Codigo ubigeo de la provincia (6 digitos). */
+  provinciaCodigo?: string | null;
   categoriasInteres: string[];
   puntosSaldo: number;
   codigoRef: string;

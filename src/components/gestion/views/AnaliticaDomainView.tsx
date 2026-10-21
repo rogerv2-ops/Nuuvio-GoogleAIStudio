@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../../../modules/geo';
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, Users, Building2, TrendingUp, 
@@ -13,7 +14,6 @@ import { analiticaModule } from '../../../modules/analitica';
 import { usuariosModule, estaVerificado } from '../../../modules/usuarios';
 import { comerciosModule } from '../../../modules/comercios';
 import { clicsAtribucionModule } from '../../../modules/clics';
-import { DISTRITOS_LIMA } from '../../../data/seedData';
 
 interface AnaliticaDomainViewProps {
   subruta?: string;
@@ -21,6 +21,9 @@ interface AnaliticaDomainViewProps {
 }
 
 export const AnaliticaDomainView: React.FC<AnaliticaDomainViewProps> = ({ subruta, onNavegar }) => {
+  // Los distritos del filtro salen de la zona de servicio (las
+  // provincias encendidas en el panel), no de una lista escrita a mano.
+  const distritosZona = useDistritosZona();
   const [rangoFechaUsuarios, setRangoFechaUsuarios] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
   const [rangoFechaComercios, setRangoFechaComercios] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
 
@@ -230,7 +233,7 @@ export const AnaliticaDomainView: React.FC<AnaliticaDomainViewProps> = ({ subrut
                 Distribución Geográfica de la Audiencia (Lima)
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                {DISTRITOS_LIMA.slice(0, 6).map(distrito => {
+                {distritosZona.map(distrito => {
                   const count = usuarios.filter(u => u.distrito.toLowerCase() === distrito.toLowerCase()).length;
                   return (
                     <div key={distrito} className="p-2.5 bg-stone-50 rounded-xl border border-stone-200/60 text-center">

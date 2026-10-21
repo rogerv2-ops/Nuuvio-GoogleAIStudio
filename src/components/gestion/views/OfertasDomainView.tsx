@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../../../modules/geo';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Tag, ShieldAlert, BarChart2, Layers, Search, Filter, 
@@ -7,7 +8,7 @@ import {
 import { ofertasModule } from '../../../modules/ofertas';
 import { comerciosModule } from '../../../modules/comercios';
 import { Offer } from '../../../types';
-import { CATEGORIAS_OFERTAS, DISTRITOS_LIMA } from '../../../data/seedData';
+import {CATEGORIAS_OFERTAS} from '../../../data/seedData';
 import { getCategoryFallbackImage, handleImgError } from '../../../utils/imageFallbacks';
 import { esOfertaNueva } from '../../../utils/ofertaUtils';
 import { EstadisticasOfertasWhatsAppPanel } from '../EstadisticasOfertasWhatsAppPanel';
@@ -19,6 +20,9 @@ interface OfertasDomainViewProps {
 }
 
 export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, onNavegar }) => {
+  // Los distritos del filtro salen de la zona de servicio (las
+  // provincias encendidas en el panel), no de una lista escrita a mano.
+  const distritosZona = useDistritosZona();
   const [version, setVersion] = useState(0);
   const [busqueda, setBusqueda] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
@@ -338,7 +342,7 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
                 className="py-1.5 px-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"
               >
                 <option value="todos">Todos los distritos</option>
-                {DISTRITOS_LIMA.map(d => (
+                {distritosZona.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
