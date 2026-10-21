@@ -128,3 +128,17 @@ CI lives in `.github/workflows/ci.yml` (two jobs: type gate + build + contract t
 ## Local checkout quirk
 
 `git` here fails with `detected dubious ownership`. Prefix commands with `git -c safe.directory=/home/ubuntu/nuuvio-googleaistudio ...` instead of editing global git config.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues de `rogerv2-ops/Nuuvio-GoogleAIStudio`, vía el CLI `gh`. Un cambio llega como issue y sale como pull request. Ver `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Las cinco etiquetas canónicas: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. Ver `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Layout **single-context**: un `GLOSSARY.md` en la raíz y las decisiones en `docs/adr/`. Antes de explorar, leer el glosario y los ADR del área; si tu output contradice un ADR, dilo en vez de pisarlo. Ver `docs/agents/domain.md`.
