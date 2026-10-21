@@ -69,6 +69,105 @@ export async function post(path: string, body: any, token?: string | null, extra
   return fetch(BASE + path, { method: "POST", headers, body: JSON.stringify(body) });
 }
 
+/**
+ * Crea una oferta de prueba y la devuelve.
+ *
+ * POR QUE EXISTE (lo dijo el CI el 2026-10-21)
+ *
+ * `POST /api/ofertas/sync` REEMPLAZA el catalogo completo. Un test que
+ * espera encontrar ofertas en la base depende del estado ambiente: en la
+ * base local yo habia sembrado tres ofertas a mano y los tests pasaban; en
+ * el CI (base recien creada, sin ofertas) los mismos tests fallaban. Un test
+ * que depende del ambiente no es un test: es una apuesta.
+ *
+ * Cada test que necesita ofertas crea la suya. Ojo: como el sync reemplaza
+ * todo, la oferta se usa enseguida, sin esperas en el medio.
+ */
+export async function crearOfertaDePrueba(
+  token: string | null | undefined,
+  opts: { titulo?: string; distrito?: string; comercioId?: string } = {}
+): Promise<{ id: string; titulo: string; distrito: string }> {
+  const id = `of_test_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const titulo = opts.titulo || `Oferta de prueba ${id}`;
+  const distrito = opts.distrito || "Miraflores";
+  const comercioId = opts.comercioId || "merch_01";
+  const r = await post(
+    "/api/ofertas/sync",
+    {
+      ofertas: [
+        {
+          id,
+          codigoUrl: `test-${id}`,
+          comercioId,
+          comercioNombre: "Comercio de prueba",
+          comercioWhatsapp: "+51987654321",
+          titulo,
+          descripcion: "Oferta creada por un test",
+          tipo: "descuento_porcentaje",
+          precioNormal: "50",
+          precioOferta: "30",
+          stock: 10,
+          categoria: "Gastronomia y Cafe",
+          distrito,
+          provincia: "Lima",
+          lat: "-12.12",
+          lng: "-77.03",
+          imagenes: [],
+          venceEn: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString(),
+          estado: "activa",
+          likes: 0,
+          vistas: 0,
+          clics: 0,
+          leadsCalificados: 0,
+        },
+      ],
+    },
+    token
+  );
+  if (r.status !== 200) {
+    throw new Error(`no se pudo crear la oferta de prueba (HTTP ${r.status})`);
+  }
+  return { id, titulo, distrito };
+}
+
+/**
+ * Ejecuta una accion con una oferta de prueba, reintentando si otra
+ * sincronizacion se lleva el catalogo por delante.
+ *
+ * POR QUE HACE FALTA (el CI lo demostro el 2026-10-21)
+ *
+ * `POST /api/ofertas/sync` REEMPLAZA el catalogo completo, y bun corre los
+ * archivos de test EN PARALELO. Si otro archivo sincroniza entre nuestro
+ * mosaico y nuestro clic, la oferta desaparece y el clic responde 404.
+ *
+ * No se puede arreglar cambiando la app: el replace es el mecanismo de
+ * BORRADO de ofertas (no hay un DELETE de ofertas; el panel borra
+ * sincronizando la lista sin ella).
+ *
+ * Asi que la accion se reintenta: si falla porque la oferta ya no esta, se
+ * crea de nuevo y se repite. La accion debe LANZAR cuando el estado no es el
+ * esperado.
+ */
+export async function conOfertaDePrueba<T>(
+  token: string | null | undefined,
+  opts: { titulo?: string; distrito?: string; comercioId?: string },
+  accion: (oferta: { id: string; titulo: string; distrito: string }) => Promise<T>,
+  intentos = 4
+): Promise<T> {
+  let ultimoError: unknown = null;
+  for (let i = 0; i < intentos; i++) {
+    const oferta = await crearOfertaDePrueba(token, opts);
+    try {
+      return await accion(oferta);
+    } catch (e) {
+      ultimoError = e;
+      // Pausa corta: da tiempo a que el otro archivo termine su sync.
+      await new Promise((r) => setTimeout(r, 150 * (i + 1)));
+    }
+  }
+  throw ultimoError instanceof Error ? ultimoError : new Error(String(ultimoError));
+}
+
 export const ADMIN = {
   email: process.env.VUUV_ADMIN_EMAIL || "",
   password: process.env.VUUV_ADMIN_PASSWORD || "",

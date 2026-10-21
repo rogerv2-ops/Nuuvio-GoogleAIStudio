@@ -27,7 +27,7 @@
  *    sanean al arrancar.
  */
 import { test, expect, describe } from "bun:test";
-import { BASE, servidorOnline, login, ADMIN, post, get } from "./_helpers.ts";
+import { BASE, servidorOnline, login, ADMIN, post, get, crearOfertaDePrueba, conOfertaDePrueba } from "./_helpers.ts";
 import pg from "pg";
 
 const SQL = {
@@ -86,19 +86,41 @@ function titulosOfertas(texto: string): string[] {
 }
 
 describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () => {
+  // Preparacion: una oferta propia. El catalogo se REEMPLAZA en cada sync, y
+  // en el CI la base arranca vacia: un test que espera encontrar ofertas
+  // depende del estado ambiente (y fallo ahi el 2026-10-21).
+  test("preparacion: se crea una oferta activa en Miraflores", async () => {
+    const token = await login(ADMIN.email, ADMIN.password);
+    expect(token).toBeTruthy();
+    const creada = await crearOfertaDePrueba(token, { titulo: "Oferta de la ventana", distrito: "Miraflores" });
+    expect(creada.id).toBeTruthy();
+  });
+
   test.skipIf(!online || !hayAdmin)(
     "V1: el bot NO reenvia las mismas ofertas dentro de la ventana",
     async () => {
       const token = await login(ADMIN.email, ADMIN.password);
       expect(token).toBeTruthy();
 
-      const tel = telefonoNuevo();
-      await simular(token!, tel, "hola");
-      const primera = await simular(token!, tel, "Carlos, 28, Miraflores");
+      // Con reintento: el catalogo es global y los archivos de test corren en
+      // paralelo (otra sincronizacion puede llevarse la oferta por delante).
+      const { texto: primera, tel } = await conOfertaDePrueba(
+        token!,
+        { titulo: "Oferta de la ventana", distrito: "Miraflores" },
+        async (oferta) => {
+          const t = telefonoNuevo();
+          await simular(token!, t, "hola");
+          const texto = await simular(token!, t, "Carlos, 28, Miraflores");
+          if (!texto.includes(oferta.titulo)) {
+            throw new Error("el bot no mostro la oferta de prueba");
+          }
+          return { texto, tel: t };
+        },
+      );
       const vistas = titulosOfertas(primera);
       expect(vistas.length).toBeGreaterThan(0);
 
-      // La segunda vez, en la ventana: no se repite ninguna.
+      // La segunda vez, en la ventana (MISMO telefono): no se repite ninguna.
       const segunda = await simular(token!, tel, "ofertas");
       for (const titulo of vistas) {
         expect(segunda, `repitio "${titulo}"`).not.toContain(titulo);
@@ -117,40 +139,53 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
 
       await simular(token!, tel, "hola");
       const mosaic = await simular(token!, tel, "Carlos, 28, Miraflores");
-      const enlaces = [...mosaic.matchAll(/https?:\/\/\S+\/c\/\S+/g)].map((m) => m[0]);
-      expect(enlaces.length).toBeGreaterThan(0);
-      const enlace = enlaces[0];
-      const ofertaId = enlace.match(/\/c\/([^?]+)/)![1];
-
       const client = new pg.Client(SQL);
       await client.connect();
       try {
-        const antes = await client.query(
-          "select coalesce(sum(clics),0)::int as c from offers where id = $1",
-          [ofertaId],
-        );
+        // Con reintento: si otra sincronizacion se lleva la oferta entre el
+        // mosaico y el clic, el clic responde 404.
+        await conOfertaDePrueba(
+          token!,
+          { titulo: "Oferta del clic", distrito: "Miraflores" },
+          async (oferta) => {
+            const t = telefonoNuevo();
+            await simular(token!, t, "hola");
+            const texto = await simular(token!, t, "Carlos, 28, Miraflores");
+            const enlaces = [...texto.matchAll(/https?:\/\/\S+\/c\/\S+/g)].map((m) => m[0]);
+            if (enlaces.length === 0) throw new Error("el bot no mostro ninguna oferta");
+            const enlace = enlaces[0];
+            const ofertaId = enlace.match(/\/c\/([^?]+)/)![1];
 
-        // Tres clics del mismo enlace, con la misma persona.
-        for (let i = 0; i < 3; i++) {
-          const r = await fetch(enlace, { redirect: "manual" });
-          expect(r.status).toBe(302);
-        }
+            const antes = await client.query(
+              "select coalesce(sum(clics),0)::int as c from offers where id = $1",
+              [ofertaId],
+            );
 
-        const filas = await client.query(
-          "select facturable, codigo_canje from click_logs where usuario_telefono = $1 and oferta_id = $2 order by creado_en",
-          [tel.replace(/\D/g, ""), ofertaId],
-        );
-        // UN interes -> UNA fila (antes: tres).
-        expect(filas.rows.length).toBe(1);
-        // Y el mismo codigo de canje (no tres distintos).
-        expect(filas.rows[0].codigo_canje).toBeTruthy();
+            // Tres clics del mismo enlace, con la misma persona.
+            for (let i = 0; i < 3; i++) {
+              const r = await fetch(enlace, { redirect: "manual" });
+              if (r.status !== 302) {
+                throw new Error(`el clic ${i + 1} respondio ${r.status} (la oferta ya no esta)`);
+              }
+            }
 
-        const despues = await client.query(
-          "select coalesce(sum(clics),0)::int as c from offers where id = $1",
-          [ofertaId],
+            const filas = await client.query(
+              "select facturable, codigo_canje from click_logs where usuario_telefono = $1 and oferta_id = $2 order by creado_en",
+              [t.replace(/\D/g, ""), ofertaId],
+            );
+            // UN interes -> UNA fila (antes: tres).
+            expect(filas.rows.length).toBe(1);
+            // Y el mismo codigo de canje (no tres distintos).
+            expect(filas.rows[0].codigo_canje).toBeTruthy();
+
+            const despues = await client.query(
+              "select coalesce(sum(clics),0)::int as c from offers where id = $1",
+              [ofertaId],
+            );
+            // El contador de la oferta sube UNA vez, no tres.
+            expect(Number(despues.rows[0].c) - Number(antes.rows[0].c)).toBe(1);
+          },
         );
-        // El contador de la oferta sube UNA vez, no tres.
-        expect(Number(despues.rows[0].c) - Number(antes.rows[0].c)).toBe(1);
       } finally {
         await client.end().catch(() => undefined);
       }
@@ -193,15 +228,26 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
     "V4: una peticion EXPLICITA siempre se responde (la ventana es del envio proactivo)",
     async () => {
       const token = await login(ADMIN.email, ADMIN.password);
-      const tel = telefonoNuevo();
-      await simular(token!, tel, "hola");
-      const mosaic = await simular(token!, tel, "Carlos, 28, Miraflores");
-      const ofertaTitulo = titulosOfertas(mosaic)[0];
-
-      // La persona vuelve a pedir ESA oferta por el flujo del boton: se
-      // responde (es una peticion suya), aunque ya se la habiamos mandado.
-      const otra = await simular(token!, tel, `quiero ver las ofertas de Yuddit: ${ofertaTitulo}`);
-      expect(otra).toContain(ofertaTitulo);
+      await conOfertaDePrueba(
+        token!,
+        { titulo: "Oferta de la peticion", distrito: "Miraflores" },
+        async (oferta) => {
+          const tel = telefonoNuevo();
+          await simular(token!, tel, "hola");
+          const mosaic = await simular(token!, tel, "Carlos, 28, Miraflores");
+          if (!mosaic.includes(oferta.titulo)) {
+            throw new Error("el bot no mostro la oferta de prueba");
+          }
+          // La persona vuelve a pedir ESA oferta por el flujo del boton: se
+          // responde (es una peticion suya), aunque ya se la habiamos mandado.
+          const otra = await simular(
+            token!,
+            tel,
+            `quiero ver las ofertas de Yuddit: ${oferta.titulo}`,
+          );
+          expect(otra).toContain(oferta.titulo);
+        },
+      );
     },
   );
 });
