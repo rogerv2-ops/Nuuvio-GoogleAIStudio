@@ -41,6 +41,39 @@ class OfertasModule {
     }
   }
 
+  /**
+   * Carga el catalogo COMPLETO desde el servidor, incluidas las ofertas que
+   * estan EN VALIDACION.
+   *
+   * POR QUE EXISTE (2026-10-21)
+   *
+   * El panel armaba su lista desde el localStorage del navegador. Una oferta
+   * que publica un comercio por WhatsApp se crea en el SERVIDOR y nunca llega
+   * al navegador: la cola de moderacion la mostraba vacia y la oferta no
+   * podia aprobarse (o sea, no se publicaba nunca).
+   *
+   * Se FUSIONA con lo que el panel ya tiene (no se pisa a ciegas): el
+   * servidor manda la version buena, pero lo que el panel tenga solo en su
+   * localStorage no se borra (puede ser una oferta que todavia no logro
+   * sincronizar).
+   */
+  public async sincronizarDesdeServidor(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/ofertas/gestion', { cache: 'no-store' });
+      if (!res.ok) return;
+      const cuerpo: any = await res.json().catch(() => null);
+      const lista: Offer[] = Array.isArray(cuerpo?.ofertas) ? cuerpo.ofertas : [];
+      if (!lista.length) return;
+      for (const o of lista) {
+        if (o && o.id) this.ofertas.set(o.id, o);
+      }
+      this.notificar();
+    } catch {
+      // Sin red: el panel sigue con lo que tiene en localStorage.
+    }
+  }
+
   public cargarDeLista(lista: Offer[]): void {
     if (Array.isArray(lista) && lista.length > 0) {
       this.ofertas.clear();

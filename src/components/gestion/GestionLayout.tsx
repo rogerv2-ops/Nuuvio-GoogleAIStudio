@@ -99,6 +99,13 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
     // panel queda con la copia del navegador, que puede traer datos viejos.
     // Aqui ya hay sesion, asi que el servidor manda.
     void usuariosModule.recargar();
+    // Lo mismo con el catalogo: el modulo de ofertas tambien se construye al
+    // importarlo (antes de que exista sesion), asi que se queda con la copia
+    // del navegador. Sin esto, las ofertas que publica un comercio por
+    // WhatsApp (que se crean en el servidor) no llegan al panel y la cola
+    // de moderacion las muestra vacias: nadie puede aprobarlas y nunca se
+    // publican. Medido el 2026-10-21.
+    void ofertasModule.sincronizarDesdeServidor();
     return () => {
       unC();
       unO();
