@@ -106,6 +106,31 @@ export function formatLimaExpirationDate(venceEn?: string): string {
   return `⏰ Válida hasta el ${dateStr}, ${timeStr}`;
 }
 
+/**
+ * Escala de los textos de la tarjeta.
+ *
+ * Pedido del dueno (2026-10-21): "incrementa el tamano de todos los textos
+ * menos el titulo de la oferta en la renderizacion, al mas un 30% mas, y
+ * que no se desborden, no choquen entre si el fondo naranja de precios y el
+ * de descuento deben crecer en proporcion al texto".
+ *
+ * El TITULO NO SE TOCA: ya ocupa su ancho completo y es lo que la persona
+ * lee primero. Todo lo demas crece, y los fondos (el naranja del precio y
+ * el verde del descuento) se calculan a partir del TEXTO MEDIDO, para que
+ * ni una letra se salga de su caja.
+ */
+const ESCALA_TEXTO = 1.3;
+
+/** Tamano de fuente con la escala aplicada. */
+function tam(base: number): number {
+  return Math.round(base * ESCALA_TEXTO);
+}
+
+/** Padding, radio y demas medidas que acompanana al texto. */
+function med(base: number): number {
+  return Math.round(base * ESCALA_TEXTO);
+}
+
 function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   if (w < 2 * r) r = w / 2;
   if (h < 2 * r) r = h / 2;
@@ -227,15 +252,15 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   // Badges superiores izquierdos (Nuevo y Expira)
   let badgeX = 26;
   const badgeY = 26;
-  const badgeH = 34;
+  const badgeH = med(34); // 44: el fondo crece con el texto
 
   const esNueva = oferta.creadaEn ? Date.now() - new Date(oferta.creadaEn).getTime() < 48 * 3600 * 1000 : true;
   if (esNueva) {
     ctx.save();
-    ctx.font = `bold 13px ${familiaTitulo()}`;
+    ctx.font = `bold ${tam(13)}px ${familiaTitulo()}`;
     const textNuevo = "NUEVO";
     const textW = ctx.measureText(textNuevo).width;
-    const bWidth = textW + 36;
+    const bWidth = textW + med(36); // el padding crece con la letra
     ctx.fillStyle = "#059669";
     roundRect(ctx, badgeX, badgeY, bWidth, badgeH, 17);
     ctx.fill();
@@ -243,17 +268,17 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    drawSparkle(ctx, badgeX + 16, badgeY + badgeH / 2, 7, "#A7F3D0");
+    drawSparkle(ctx, badgeX + med(16), badgeY + badgeH / 2, med(7), "#A7F3D0");
     ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(textNuevo, badgeX + 26, badgeY + badgeH / 2);
+    ctx.fillText(textNuevo, badgeX + med(26), badgeY + badgeH / 2);
     ctx.restore();
     badgeX += bWidth + 8;
   }
 
   ctx.save();
-  ctx.font = `bold 13px ${familiaTitulo()}`;
+  ctx.font = `bold ${tam(13)}px ${familiaTitulo()}`;
   let expText = "EXPIRA EN 2H 55M";
   if (oferta.venceEn) {
     const d = new Date(oferta.venceEn);
@@ -270,20 +295,34 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
     }
   }
   const expTextW = ctx.measureText(expText).width;
-  const expBWidth = expTextW + 24;
+  const expBWidth = expTextW + med(24);
   ctx.fillStyle = "#B91C1C";
-  roundRect(ctx, badgeX, badgeY, expBWidth, badgeH, 17);
+  roundRect(ctx, badgeX, badgeY, expBWidth, badgeH, badgeH / 2);
   ctx.fill();
   ctx.fillStyle = "#FFFFFF";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(expText, badgeX + 12, badgeY + badgeH / 2);
+  ctx.fillText(expText, badgeX + med(12), badgeY + badgeH / 2);
   ctx.restore();
 
   // Price Tag en la esquina superior derecha
+  //
+  // El fondo naranja se CALCULA a partir del texto medido: antes era un
+  // ancho fijo (175) y con la letra un 30% mas grande el precio se salia de
+  // su caja. Ahora el ancho es el que necesita el texto mas un padding, con
+  // un minimo para que los precios cortos no se vean flacos.
   ctx.save();
-  const tagWidth = 175;
-  const tagHeight = 76;
+  const pNormText = `S/ ${pNorm.toFixed(2)}`;
+  const pOferText = `S/ ${pOfer.toFixed(2)}`;
+
+  ctx.font = `bold ${tam(14)}px ${familiaTitulo()}`;
+  const pNormWidth = ctx.measureText(pNormText).width;
+  ctx.font = `900 ${tam(30)}px ${familiaTitulo()}`;
+  const pOferWidth = ctx.measureText(pOferText).width;
+
+  const tagPadX = 18;
+  const tagWidth = Math.max(med(175), Math.ceil(Math.max(pNormWidth, pOferWidth)) + tagPadX * 2);
+  const tagHeight = med(76);
   const tagX = width - 26 - tagWidth;
   const tagY = 26;
 
@@ -291,40 +330,38 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 4;
   ctx.fillStyle = "#FF5722";
-  roundRect(ctx, tagX, tagY, tagWidth, tagHeight, 20);
+  roundRect(ctx, tagX, tagY, tagWidth, tagHeight, med(20));
   ctx.fill();
   ctx.shadowColor = "transparent";
 
-  const pNormText = `S/ ${pNorm.toFixed(2)}`;
   ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-  ctx.font = `bold 14px ${familiaTitulo()}`;
+  ctx.font = `bold ${tam(14)}px ${familiaTitulo()}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
-  ctx.fillText(pNormText, tagX + tagWidth - 16, tagY + 12);
+  ctx.fillText(pNormText, tagX + tagWidth - tagPadX, tagY + 12);
 
-  const pNormWidth = ctx.measureText(pNormText).width;
+  // La linea del precio tachado, al medio de la linea de texto.
   ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(tagX + tagWidth - 16 - pNormWidth - 2, tagY + 20);
-  ctx.lineTo(tagX + tagWidth - 14, tagY + 20);
+  ctx.moveTo(tagX + tagWidth - tagPadX - pNormWidth - 2, tagY + 12 + tam(14) * 0.55);
+  ctx.lineTo(tagX + tagWidth - tagPadX + 2, tagY + 12 + tam(14) * 0.55);
   ctx.stroke();
 
-  const pOferText = `S/ ${pOfer.toFixed(2)}`;
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = `900 30px ${familiaTitulo()}`;
+  ctx.font = `900 ${tam(30)}px ${familiaTitulo()}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
-  ctx.fillText(pOferText, tagX + tagWidth - 16, tagY + tagHeight - 8);
+  ctx.fillText(pOferText, tagX + tagWidth - tagPadX, tagY + tagHeight - 10);
   ctx.restore();
 
   // Badge de Descuento (justo debajo del tag de precio, sin corazón)
   if (descuentoPct > 0 || oferta.tipo === "2x1") {
     ctx.save();
     const descText = oferta.tipo === "2x1" ? "2X1" : `${descuentoPct}% OFF`;
-    ctx.font = `900 14px ${familiaTitulo()}`;
-    const descW = ctx.measureText(descText).width + 24;
-    const descH = 34;
+    ctx.font = `900 ${tam(14)}px ${familiaTitulo()}`;
+    const descW = ctx.measureText(descText).width + med(24);
+    const descH = med(34);
     const descX = width - 26 - descW;
     const descY = tagY + tagHeight + 10;
 
@@ -332,7 +369,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
     ctx.shadowBlur = 6;
     ctx.shadowOffsetY = 2;
     ctx.fillStyle = "#D1FAE5";
-    roundRect(ctx, descX, descY, descW, descH, 12);
+    roundRect(ctx, descX, descY, descW, descH, descH / 2);
     ctx.fill();
     ctx.shadowColor = "transparent";
 
@@ -409,34 +446,47 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
 
   // Comercio y Badge inferior de Distrito (solo distrito, sin '10 km · ')
   ctx.save();
-  drawStoreIcon(ctx, 32, height - 58, 24, 24, "#34D399");
-  ctx.font = `900 20px ${familiaTitulo()}`;
+  const iconSize = med(24);
+  drawStoreIcon(ctx, 32, height - 58, iconSize, iconSize, "#34D399");
+  const cNameX = 32 + iconSize + 10;
+  ctx.font = `900 ${tam(20)}px ${familiaTitulo()}`;
   ctx.fillStyle = "#FFFFFF";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const cName = (oferta.comercioNombre || "Comercio").slice(0, 24);
-  ctx.fillText(cName, 64, height - 46);
 
   const distBadgeLabel = (oferta.distrito || "Lima").trim();
-  ctx.font = `900 15px ${familiaTitulo()}`;
+  ctx.font = `900 ${tam(15)}px ${familiaTitulo()}`;
   const distTextW = ctx.measureText(distBadgeLabel).width;
-  const distBadgeW = distTextW + 48;
-  const distBadgeH = 38;
+  const distBadgeW = distTextW + med(48);
+  const distBadgeH = med(38);
   const distBadgeX = width - 32 - distBadgeW;
   const distBadgeY = height - 65;
 
+  // El nombre del comercio se acota al espacio que le queda ANTES de la
+  // insignia de distrito: con la letra mas grande, un nombre largo se
+  // metia debajo de la insignia.
+  const maxCNameW = distBadgeX - cNameX - 20;
+  let cName = (oferta.comercioNombre || "Comercio").trim();
+  if (ctx.measureText(cName).width > maxCNameW) {
+    while (cName.length > 1 && ctx.measureText(cName + "…").width > maxCNameW) {
+      cName = cName.slice(0, -1);
+    }
+    cName += "…";
+  }
+  ctx.fillText(cName, cNameX, height - 46);
+
   ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
-  roundRect(ctx, distBadgeX, distBadgeY, distBadgeW, distBadgeH, 14);
+  roundRect(ctx, distBadgeX, distBadgeY, distBadgeW, distBadgeH, distBadgeH / 2);
   ctx.fill();
   ctx.strokeStyle = "rgba(251, 191, 36, 0.65)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  drawMapPin(ctx, distBadgeX + 16, distBadgeY + distBadgeH / 2 + 1, 6, "#FBBF24");
+  drawMapPin(ctx, distBadgeX + med(16), distBadgeY + distBadgeH / 2 + 1, med(6), "#FBBF24");
   ctx.fillStyle = "#FCD34D";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(distBadgeLabel, distBadgeX + 30, distBadgeY + distBadgeH / 2);
+  ctx.fillText(distBadgeLabel, distBadgeX + med(30), distBadgeY + distBadgeH / 2);
   ctx.restore();
 
   const buffer = canvas.toBuffer("image/jpeg");
@@ -491,11 +541,15 @@ export async function renderMosaicImage(ofertas: OfferCardData[]): Promise<Buffe
       ctx.restore();
     }
 
-    // Dibuja un círculo oscuro llamativo en la esquina superior izquierda con el número de oferta (1, 2 o 3)
+    // Circulo oscuro llamativo con el numero de oferta (1, 2 o 3).
+    //
+    // Va MAS ABAJO que antes: con la esquina superior izquierda el circulo
+    // tapaba la insignia "NUEVO" (que ahora es mas alta). Baja a la altura
+    // de los badges superiores, con margen, para que no se solapen.
     ctx.save();
-    const badgeX = 40;
-    const badgeY = yOffset + 40;
-    const radius = 30;
+    const badgeX = 44;
+    const badgeY = yOffset + 116;
+    const radius = med(30);
 
     ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
     ctx.shadowBlur = 12;
@@ -511,7 +565,7 @@ export async function renderMosaicImage(ofertas: OfferCardData[]): Promise<Buffe
     ctx.lineWidth = 3.5;
     ctx.stroke();
 
-    ctx.font = `900 28px ${familiaTitulo()}`;
+    ctx.font = `900 ${tam(28)}px ${familiaTitulo()}`;
     ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
