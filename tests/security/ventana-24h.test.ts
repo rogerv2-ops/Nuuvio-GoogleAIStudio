@@ -27,7 +27,7 @@
  *    sanean al arrancar.
  */
 import { test, expect, describe } from "bun:test";
-import { BASE, servidorOnline, login, ADMIN, post, get, crearOfertaDePrueba, conOfertaDePrueba } from "./_helpers.ts";
+import { BASE, servidorOnline, login, ADMIN, post, get, crearOfertaDePrueba, conOfertaDePrueba, aUrlLocal } from "./_helpers.ts";
 import pg from "pg";
 
 const SQL = {
@@ -163,6 +163,10 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
               .find((u) => u.includes(`/c/${oferta.id}`));
             if (!enlace) throw new Error("el bot no mostro NUESTRA oferta de prueba");
             const ofertaId = oferta.id;
+            // El enlace del bot sale de APP_URL, que en el CI no existe y
+            // apunta a PRODUCCION: hay que clickear contra el servidor de
+            // pruebas.
+            const enlaceLocal = aUrlLocal(enlace);
 
             const antes = await client.query(
               "select coalesce(sum(clics),0)::int as c from offers where id = $1",
@@ -171,7 +175,7 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
 
             // Tres clics del mismo enlace, con la misma persona.
             for (let i = 0; i < 3; i++) {
-              const r = await fetch(enlace, { redirect: "manual" });
+              const r = await fetch(enlaceLocal, { redirect: "manual" });
               if (r.status !== 302) {
                 throw new Error(`el clic ${i + 1} respondio ${r.status} (la oferta ya no esta)`);
               }

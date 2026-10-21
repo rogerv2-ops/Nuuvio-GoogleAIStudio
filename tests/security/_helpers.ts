@@ -168,6 +168,24 @@ export async function conOfertaDePrueba<T>(
   throw ultimoError instanceof Error ? ultimoError : new Error(String(ultimoError));
 }
 
+/**
+ * Reapunta un enlace del bot al servidor bajo prueba.
+ *
+ * POR QUE (lo demostro el CI el 2026-10-21)
+ *
+ * Los enlaces que arma el bot salen de `APP_URL` (o `PUBLIC_URL`), y si no
+ * estan definidos apuntan a `https://yuddit.com`. En el CI no se define, asi
+ * que el test clickeaba PRODUCCION y recibia 404 (la oferta de prueba no
+ * existe alla). En local mi env si define APP_URL, y por eso el test pasaba
+ * en local y fallaba en el CI.
+ *
+ * Un test tiene que probar EL SERVIDOR QUE LEVANTO, no el de internet.
+ */
+export function aUrlLocal(enlace: string): string {
+  const base = (process.env.TEST_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+  return String(enlace || "").replace(/^https?:\/\/[^/]+/i, base);
+}
+
 export const ADMIN = {
   email: process.env.VUUV_ADMIN_EMAIL || "",
   password: process.env.VUUV_ADMIN_PASSWORD || "",
