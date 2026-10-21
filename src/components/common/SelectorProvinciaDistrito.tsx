@@ -124,7 +124,7 @@ export const SelectorProvinciaDistrito: React.FC<SelectorProvinciaDistritoProps>
       {!error && !cargando && lista.length === 0 && (
         <p className="sm:col-span-2 text-[11px] text-amber-700">
           {soloActivas
-            ? 'Todavía no hay zonas de servicio activas. Escríbenos y te avisamos cuando abramos la tuya.'
+            ? 'Todavía no hay zonas de servicio activas. Escríbenos y te contamos cuando abramos la tuya.'
             : 'No se pudo cargar el catálogo de provincias.'}
         </p>
       )}

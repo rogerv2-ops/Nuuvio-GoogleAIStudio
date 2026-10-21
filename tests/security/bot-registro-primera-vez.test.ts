@@ -21,7 +21,7 @@
  * pipeline que Baileys) con un telefono NUEVO en cada caso.
  */
 import { test, expect, describe } from "bun:test";
-import { BASE, servidorOnline, login, ADMIN, post, get } from "./_helpers.ts";
+import { BASE, servidorOnline, login, ADMIN, post, get, crearOfertaDePrueba, conOfertaDePrueba } from "./_helpers.ts";
 
 const online = await servidorOnline();
 const hayAdmin = Boolean(ADMIN.email && ADMIN.password);
@@ -82,6 +82,18 @@ function textoDe(res: SimResult): string {
 }
 
 describe.skipIf(!online || !hayAdmin)("Bot: el alta de un usuario que escribe por primera vez", () => {
+  // Preparacion: una oferta propia. El catalogo se REEMPLAZA en cada sync,
+  // asi que un test que espera encontrar ofertas en la base depende del
+  // estado ambiente (en el CI, donde la base esta vacia, fallaba).
+  let oferta: { id: string; titulo: string; distrito: string } | null = null;
+
+  test("preparacion: se crea una oferta activa en Miraflores", async () => {
+    const token = await login(ADMIN.email, ADMIN.password);
+    expect(token).toBeTruthy();
+    oferta = await crearOfertaDePrueba(token, { titulo: "Oferta del alta", distrito: "Miraflores" });
+    expect(oferta.id).toBeTruthy();
+  });
+
   test("A1: un numero nuevo recibe la solicitud de los datos que le faltan", async () => {
     const token = await login(ADMIN.email, ADMIN.password);
     expect(token).toBeTruthy();
@@ -103,24 +115,34 @@ describe.skipIf(!online || !hayAdmin)("Bot: el alta de un usuario que escribe po
     const token = await login(ADMIN.email, ADMIN.password);
     expect(token).toBeTruthy();
 
-    const tel = telefonoNuevo();
-    await simular(token!, tel, "hola");
-    const res = await simular(token!, tel, "Carlos, 28, Miraflores");
-    const texto = textoDe(res);
+    // Con reintento: el catalogo es global y los archivos de test corren en
+    // paralelo (otra sincronizacion puede llevarse la oferta por delante).
+    await conOfertaDePrueba(
+      token!,
+      { titulo: "Oferta del alta", distrito: "Miraflores" },
+      async (oferta) => {
+        const tel = telefonoNuevo();
+        await simular(token!, tel, "hola");
+        const texto = textoDe(await simular(token!, tel, "Carlos, 28, Miraflores"));
+        if (!texto.includes(oferta.titulo)) {
+          throw new Error("el bot no mostro la oferta de prueba");
+        }
 
-    // BUG: el bot respondia "No encontramos ofertas para carlos 28".
-    // El nombre y la edad NO son un producto.
-    expect(texto).not.toContain("No encontramos ofertas");
-    expect(texto).not.toContain("carlos 28");
-    expect(texto).not.toContain("No encontramos ofertas para");
+        // BUG: el bot respondia "No encontramos ofertas para carlos 28".
+        // El nombre y la edad NO son un producto.
+        expect(texto).not.toContain("No encontramos ofertas");
+        expect(texto).not.toContain("carlos 28");
+        expect(texto).not.toContain("No encontramos ofertas para");
 
-    // Y ahora si: las ofertas de la zona, con su enlace firmado.
-    expect(texto).toContain("Guardamos tu zona");
-    expect(texto).toContain("Miraflores");
-    const enlace = (texto.match(/https?:\/\/\S+\/c\/[^\s]+/) || [])[0] || "";
-    expect(enlace).toContain("/c/");
-    expect(enlace).toContain("u=");
-    expect(enlace).toMatch(/[?&]s=[A-Za-z0-9_-]{8,}/);
+        // Y ahora si: las ofertas de la zona, con su enlace firmado.
+        expect(texto).toContain("Guardamos tu zona");
+        expect(texto).toContain("Miraflores");
+        const enlace = (texto.match(/https?:\/\/\S+\/c\/[^\s]+/) || [])[0] || "";
+        expect(enlace).toContain("/c/");
+        expect(enlace).toContain("u=");
+        expect(enlace).toMatch(/[?&]s=[A-Za-z0-9_-]{8,}/);
+      },
+    );
   });
 
   test("A3: la zona, la edad y la etapa quedan guardadas en la audiencia", async () => {
@@ -153,15 +175,23 @@ describe.skipIf(!online || !hayAdmin)("Bot: el alta de un usuario que escribe po
     const token = await login(ADMIN.email, ADMIN.password);
     expect(token).toBeTruthy();
 
-    const tel = telefonoNuevo();
-    await simular(token!, tel, "hola");
-    const res = await simular(token!, tel, "Miraflores");
-    const texto = textoDe(res);
+    await conOfertaDePrueba(
+      token!,
+      { titulo: "Oferta del distrito", distrito: "Miraflores" },
+      async (oferta) => {
+        const tel = telefonoNuevo();
+        await simular(token!, tel, "hola");
+        const texto = textoDe(await simular(token!, tel, "Miraflores"));
+        if (!texto.includes(oferta.titulo)) {
+          throw new Error("el bot no mostro la oferta de prueba");
+        }
 
-    // El distrito no es un producto: no puede buscarse.
-    expect(texto).not.toContain("No encontramos ofertas");
-    expect(texto).toContain("Guardamos tu zona");
-    const enlace = (texto.match(/https?:\/\/\S+\/c\/[^\s]+/) || [])[0] || "";
-    expect(enlace).toContain("/c/");
+        // El distrito no es un producto: no puede buscarse.
+        expect(texto).not.toContain("No encontramos ofertas");
+        expect(texto).toContain("Guardamos tu zona");
+        const enlace = (texto.match(/https?:\/\/\S+\/c\/[^\s]+/) || [])[0] || "";
+        expect(enlace).toContain("/c/");
+      },
+    );
   });
 });

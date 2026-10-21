@@ -34,7 +34,7 @@
  *  3. Se borra lo que parezca PII (correos y telefonos) de los datos.
  *  4. Rate limit por IP y tope de eventos por peticion.
  */
-import { insertarEventos } from "../db/repo.ts";
+import { indiceDeActor, insertarEventos } from "../db/repo.ts";
 import { indiceCiego } from "../utils/pii.ts";
 
 /** Los tipos de evento que se aceptan. Los demas se descartan. */
@@ -126,7 +126,10 @@ export function registrarRutasEventos(app: any, ctx: any): void {
           validos.push({
             tipoEvento: tipo,
             actorTipo: e.actorTipo ? String(e.actorTipo).slice(0, 20) : null,
-            actorId: e.actorId ? String(e.actorId).slice(0, 120) : null,
+            // El cliente no sabe el indice ciego (la clave PII es del
+            // servidor): si manda un telefono o un id de audiencia, aqui se
+            // convierte a indice ciego antes de tocar la base.
+            actorId: indiceDeActor(e.actorId),
             distrito: e.distrito ? String(e.distrito).slice(0, 80) : null,
             provincia: e.provincia ? String(e.provincia).slice(0, 80) : null,
             origen: e.origen ? String(e.origen).slice(0, 40) : null,

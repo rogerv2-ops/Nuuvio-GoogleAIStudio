@@ -39,6 +39,10 @@ class DigestModule {
 
   /**
    * Generación y envío simulado del digest diario matutino
+   *
+   * El digest es el canal de CORREO: es el unico envio proactivo de
+   * Yuddit, con consentimiento explicito (`consentimientos.correo`). La regla
+   * de "pull, no push" es del bot de WhatsApp.
    */
   public ejecutarDigestMatutino(distrito: string = 'Miraflores'): {
     ofertas: Offer[];

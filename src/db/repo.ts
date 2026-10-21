@@ -198,7 +198,7 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
  *
  * Prioridad: `id` > `email` > `telefono`.
  */
-async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDeleted=false;let regLogsDeleted=false;const targetId=params.id?params.id.trim():"";const targetEmail=params.email?params.email.trim().toLowerCase():"";const targetPhone=params.telefono?String(params.telefono).trim():"";try{if(targetId){await db.delete(audienceUsers).where(eq(audienceUsers.id,targetId));userDeleted=true}else if(targetEmail){const _idx=indiceCiego(targetEmail);await db.delete(audienceUsers).where(_idx?or(eq(audienceUsers.emailIdx,_idx),eq(audienceUsers.email,targetEmail)):eq(audienceUsers.email,targetEmail));userDeleted=true}else if(targetPhone){const _norm=normalizePhoneForMatching(targetPhone);const _tIdx=indiceCiego(_norm.core9||_norm.digits||targetPhone);if(_tIdx){await db.delete(audienceUsers).where(eq(audienceUsers.telefonoIdx,_tIdx));userDeleted=true}else{const _digits=_norm.digits;await db.delete(audienceUsers).where(sql`regexp_replace(coalesce(${audienceUsers.telefono},''), '\\D', '', 'g') = ${_digits}`);userDeleted=true}}}catch(error){console.error("[DB Repo] Error borrando usuario de DB:",error)}if(targetEmail){try{await db.delete(emailLogs).where(eq(emailLogs.toEmail,targetEmail));emailLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando emailLogs:",error)}}if(targetEmail||targetPhone){try{if(targetEmail){await db.delete(registrationLogs).where(eq(registrationLogs.email,targetEmail))}else{const _norm=normalizePhoneForMatching(targetPhone);await db.delete(registrationLogs).where(sql`regexp_replace(coalesce(${registrationLogs.telefono},''), '\\D', '', 'g') = ${_norm.digits}`)}regLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando registrationLogs:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if((targetEmail&&inMemoryRegLogs[i]?.email===targetEmail)||(targetPhone&&String(inMemoryRegLogs[i]?.telefono||"").replace(/\D/g,"")===normalizePhoneForMatching(targetPhone).digits)){inMemoryRegLogs.splice(i,1)}}}return{userDeleted,emailLogsDeleted,regLogsDeleted}}__name(deleteAndPurgeUser,"deleteAndPurgeUser");async function deleteRegistrationLog(idOrEmail){const query=idOrEmail.trim();try{await db.delete(registrationLogs).where(eq(registrationLogs.id,query));if(query.includes("@")){await db.delete(registrationLogs).where(eq(registrationLogs.email,query.toLowerCase()))}}catch(error){console.error("[DB Repo] Error eliminando log de registro:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if(inMemoryRegLogs[i]?.id===query||inMemoryRegLogs[i]?.email===query.toLowerCase()){inMemoryRegLogs.splice(i,1)}}return true}__name(deleteRegistrationLog,"deleteRegistrationLog");async function clearAllRegistrationLogs(){try{await db.delete(registrationLogs)}catch(error){console.error("[DB Repo] Error limpiando todos los registrationLogs:",error)}inMemoryRegLogs.length=0;return true}__name(clearAllRegistrationLogs,"clearAllRegistrationLogs");const inMemoryClickLogs=[];async function registerOfferClick(arg1: any, arg2?: string, arg3?: string): Promise<{ facturable: boolean; codigoCanje: string }> {
+async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDeleted=false;let regLogsDeleted=false;const targetId=params.id?params.id.trim():"";const targetEmail=params.email?params.email.trim().toLowerCase():"";const targetPhone=params.telefono?String(params.telefono).trim():"";try{if(targetId){await db.delete(audienceUsers).where(eq(audienceUsers.id,targetId));userDeleted=true}else if(targetEmail){const _idx=indiceCiego(targetEmail);await db.delete(audienceUsers).where(_idx?or(eq(audienceUsers.emailIdx,_idx),eq(audienceUsers.email,targetEmail)):eq(audienceUsers.email,targetEmail));userDeleted=true}else if(targetPhone){const _norm=normalizePhoneForMatching(targetPhone);const _tIdx=indiceCiego(_norm.core9||_norm.digits||targetPhone);if(_tIdx){await db.delete(audienceUsers).where(eq(audienceUsers.telefonoIdx,_tIdx));userDeleted=true}else{const _digits=_norm.digits;await db.delete(audienceUsers).where(sql`regexp_replace(coalesce(${audienceUsers.telefono},''), '\\D', '', 'g') = ${_digits}`);userDeleted=true}}}catch(error){console.error("[DB Repo] Error borrando usuario de DB:",error)}if(targetEmail){try{await db.delete(emailLogs).where(eq(emailLogs.toEmail,targetEmail));emailLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando emailLogs:",error)}}if(targetEmail||targetPhone){try{if(targetEmail){await db.delete(registrationLogs).where(eq(registrationLogs.email,targetEmail))}else{const _norm=normalizePhoneForMatching(targetPhone);await db.delete(registrationLogs).where(sql`regexp_replace(coalesce(${registrationLogs.telefono},''), '\\D', '', 'g') = ${_norm.digits}`)}regLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando registrationLogs:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if((targetEmail&&inMemoryRegLogs[i]?.email===targetEmail)||(targetPhone&&String(inMemoryRegLogs[i]?.telefono||"").replace(/\D/g,"")===normalizePhoneForMatching(targetPhone).digits)){inMemoryRegLogs.splice(i,1)}}}return{userDeleted,emailLogsDeleted,regLogsDeleted}}__name(deleteAndPurgeUser,"deleteAndPurgeUser");async function deleteRegistrationLog(idOrEmail){const query=idOrEmail.trim();try{await db.delete(registrationLogs).where(eq(registrationLogs.id,query));if(query.includes("@")){await db.delete(registrationLogs).where(eq(registrationLogs.email,query.toLowerCase()))}}catch(error){console.error("[DB Repo] Error eliminando log de registro:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if(inMemoryRegLogs[i]?.id===query||inMemoryRegLogs[i]?.email===query.toLowerCase()){inMemoryRegLogs.splice(i,1)}}return true}__name(deleteRegistrationLog,"deleteRegistrationLog");async function clearAllRegistrationLogs(){try{await db.delete(registrationLogs)}catch(error){console.error("[DB Repo] Error limpiando todos los registrationLogs:",error)}inMemoryRegLogs.length=0;return true}__name(clearAllRegistrationLogs,"clearAllRegistrationLogs");const inMemoryClickLogs=[];async function registerOfferClick(arg1: any, arg2?: string, arg3?: string): Promise<{ facturable: boolean; codigoCanje: string; nuevo: boolean }> {
   let ofertaId = "";
   let comercioId = "";
   let telefono = "";
@@ -247,6 +247,11 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
   // no se factura. Nunca facturar por encima de un error de base de datos.
   let facturable = false;
   let registroPersistido = false;
+  // `nuevo`: el clic es un interes QUE NO SE HABIA REGISTRADO en la ventana.
+  // `false` = la misma persona volvio a hacer clic en la misma oferta dentro
+  // de las 24h: no se cuenta otra vez.
+  let esNuevo = false;
+  let codigoExistente = codigoCanje;
   try {
     facturable = await db.transaction(async (tx: any) => {
       await tx.execute(
@@ -265,7 +270,24 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
         );
       // La ventana se ancla al último clic facturable; los no facturables no la reinician.
       const existeClicEn24h = !!(rows && rows.length > 0);
-      const debeFacturar = !existeClicEn24h && saldoDisponible;
+
+      if (existeClicEn24h) {
+        // MISMO INTERES DENTRO DE LA VENTANA: no se inserta otra fila.
+        //
+        // Antes se insertaba una fila con facturable=false por cada clic
+        // repetido. Medido el 2026-10-21: tres clics de la misma persona en
+        // la misma oferta dejaron TRES filas en click_logs y tres codigos de
+        // canje distintos (el segundo y el tercero no significaban nada), y el
+        // contador `oferta.clics` sumo tres.
+        //
+        // Ahora la ventana ES la fila: un interes, una fila. Y se devuelve el
+        // codigo de canje que ya existe, para que siga siendo atribuible.
+        codigoExistente = rows[0].codigoCanje;
+        esNuevo = false;
+        return false;
+      }
+
+      const debeFacturar = saldoDisponible;
       await tx.insert(clickLogs).values({
         id,
         ofertaId,
@@ -275,6 +297,7 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
         facturable: debeFacturar,
         creadoEn: now
       } as any);
+      esNuevo = true;
       return debeFacturar;
     });
     registroPersistido = true;
@@ -285,10 +308,12 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
   if (!registroPersistido) {
     // Sin fila en click_logs no existe ventana de 24h: facturar acá sería cobrar sin
     // registro y habilitar un segundo cobro al mismo teléfono. Fail-closed.
-    return { facturable: false, codigoCanje };
+    return { facturable: false, codigoCanje, nuevo: false };
   }
 
-  return { facturable, codigoCanje };
+  // Si el clic ya estaba dentro de la ventana, se devuelve el codigo de canje
+  // que ya existe (no uno nuevo): el mismo interes, el mismo codigo.
+  return { facturable, codigoCanje: esNuevo ? codigoCanje : codigoExistente, nuevo: esNuevo };
 }__name(registerOfferClick,"registerOfferClick");
 async function registerQualifiedLead(arg1, arg2, arg3) {
   return registerOfferClick(arg1, arg2, arg3);
@@ -771,6 +796,92 @@ async function obtenerSerieDiaria(dias) {
 __name(obtenerSerieDiaria, "obtenerSerieDiaria");
 
 /**
+ * Convierte el "actor" de un evento en su indice ciego cuando es una
+ * persona concreta.
+ *
+ * `audience_users` guarda el telefono CIFRADO y un indice ciego
+ * (`telefono_idx`) para poder consultar sin descifrar. La tabla `eventos`
+ * tiene que seguir la misma regla: si el actor es un telefono (o un id de
+ * audiencia, que lo lleva embebido: `usr_wa_519...`), se guarda SU indice
+ * ciego, no el telefono.
+ *
+ * Sin esto, la tabla de eventos se convertia en una copia en texto plano
+ * de la lista de telefonos de los clientes.
+ *
+ * Un actor que NO es una persona (por ejemplo "anonimo" o "ref_VUUY-CV88")
+ * se queda como esta: no es PII y sirve para agrupar.
+ */
+function indiceDeActor(actorId) {
+  const v = String(actorId || "").trim();
+  if (!v) return null;
+  const m = v.match(/(\d{9,15})/);
+  if (!m) return v.slice(0, 120);
+  const _norm = normalizePhoneForMatching(m[1]);
+  return indiceCiego(_norm.core9 || _norm.digits || m[1]);
+}
+__name(indiceDeActor, "indiceDeActor");
+
+/**
+ * Convierte a indice ciego los `actor_id` de los eventos que se guardaron
+ * en texto plano (la tabla se creo asi y hay filas con el telefono).
+ *
+ * Es idempotente: solo toca los que parecen un telefono, y un indice
+ * ciego (64 hex) no lo parece.
+ */
+async function sanearActorIdEventos() {
+  try {
+    const filas = await db.select({ id: eventos.id, actorId: eventos.actorId }).from(eventos);
+    let corregidos = 0;
+    for (const f of filas) {
+      const actual = String(f.actorId || "");
+      if (!actual || !/\d{9,15}/.test(actual)) continue;
+      const idx = indiceDeActor(actual);
+      if (!idx || idx === actual) continue;
+      await db.update(eventos).set({ actorId: idx, updatedAt: new Date() } as any).where(eq(eventos.id, f.id));
+      corregidos++;
+    }
+    if (corregidos > 0) {
+      console.log("[Eventos] " + corregidos + " actor(es) convertidos a indice ciego (telefono en texto plano eliminado).");
+    }
+    return { ok: true, corregidos };
+  } catch (error) {
+    console.error("[DB Repo] Error saneando los actor_id de los eventos:", error);
+    return { ok: false, corregidos: 0 };
+  }
+}
+__name(sanearActorIdEventos, "sanearActorIdEventos");
+
+/**
+ * Las ofertas que se le MOSTRARON a una persona en las ultimas horas.
+ *
+ * Es lo que sostiene la regla de 24h del bot: no volver a enviar las
+ * mismas ofertas dentro de la ventana. La fuente son las impresiones
+ * (`eventos` tipo `oferta_mostrada`), que ya guardan quien y cuando.
+ */
+async function listarOfertasVistas(indiceActor, horas) {
+  try {
+    const idx = String(indiceActor || "");
+    if (!idx) return [];
+    const desde = new Date(Date.now() - Math.max(1, Number(horas) || 24) * 3600 * 1000);
+    const r = await db
+      .select({ ofertaId: sql`datos->>'ofertaId'` })
+      .from(eventos)
+      .where(
+        and(
+          eq(eventos.tipoEvento, "oferta_mostrada"),
+          eq(eventos.actorId, idx),
+          gte(eventos.creadoEn, desde)
+        )
+      );
+    return [...new Set((r || []).map((x: any) => x.ofertaId).filter(Boolean))];
+  } catch (error) {
+    console.error("[DB Repo] Error listando las ofertas vistas:", error);
+    return [];
+  }
+}
+__name(listarOfertasVistas, "listarOfertasVistas");
+
+/**
  * Guarda eventos de negocio.
  *
  * REGLA DE LA CASA: un dominio que tiene su PROPIA tabla no emite evento.
@@ -944,4 +1055,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos,indiceDeActor,sanearActorIdEventos,listarOfertasVistas};

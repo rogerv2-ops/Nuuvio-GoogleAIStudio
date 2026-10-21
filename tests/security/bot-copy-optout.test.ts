@@ -22,7 +22,7 @@
  * pipeline que Baileys) con un telefono NUEVO en cada caso.
  */
 import { test, expect, describe } from "bun:test";
-import { BASE, servidorOnline, login, ADMIN, post, get } from "./_helpers.ts";
+import { BASE, servidorOnline, login, ADMIN, post, get, conOfertaDePrueba } from "./_helpers.ts";
 
 const online = await servidorOnline();
 const hayAdmin = Boolean(ADMIN.email && ADMIN.password);
@@ -110,17 +110,27 @@ describe.skipIf(!online || !hayAdmin)("Bot: copy del saludo y opt-out", () => {
 
   test("C3: toda entrega de oferta lleva la linea de opt-out", async () => {
     const token = await login(ADMIN.email, ADMIN.password);
-    const tel = telefonoNuevo();
 
-    // Alta: el mosaico con las ofertas de la zona.
-    await simular(token!, tel, "hola");
-    const alta = await simular(token!, tel, "55, Miraflores");
-    const textoAlta = textoDe(alta);
-    expect(textoAlta).toContain("Guardamos tu zona");
-    expect(textoAlta).toContain("BAJA");
+    // Con oferta propia (y reintento): el catalogo es global y los archivos
+    // de test corren en paralelo.
+    await conOfertaDePrueba(
+      token!,
+      { titulo: "Oferta con opt-out", distrito: "Miraflores" },
+      async (oferta) => {
+        const tel = telefonoNuevo();
+        // Alta: el mosaico con las ofertas de la zona.
+        await simular(token!, tel, "hola");
+        const textoAlta = textoDe(await simular(token!, tel, "55, Miraflores"));
+        if (!textoAlta.includes(oferta.titulo)) {
+          throw new Error("el bot no mostro la oferta de prueba");
+        }
+        expect(textoAlta).toContain("Guardamos tu zona");
+        expect(textoAlta).toContain("BAJA");
 
-    // El "BAJA" tiene que ser la palabra que el bot ENTIENDE de verdad.
-    expect(textoAlta).toMatch(/escribe \*BAJA\*/i);
+        // El "BAJA" tiene que ser la palabra que el bot ENTIENDE de verdad.
+        expect(textoAlta).toMatch(/escribe \*BAJA\*/i);
+      },
+    );
   });
 
   test("C4: la baja se SOSTIENE (no la revive cualquier mensaje)", async () => {
@@ -131,7 +141,10 @@ describe.skipIf(!online || !hayAdmin)("Bot: copy del saludo y opt-out", () => {
     await simular(token!, tel, "55, Miraflores");
 
     const baja = await simular(token!, tel, "BAJA");
-    expect(textoDe(baja)).toContain("desuscrito");
+    // El mensaje es en clave PULL: el bot deja de RESPONDER (no "deja de
+    // notificar"), porque el bot nunca empuja.
+    expect(textoDe(baja)).toContain("ya no te respondemos con ofertas");
+    expect(textoDe(baja)).toContain("*Ofertas*");
 
     let estado = await estadoEnAudiencia(token!, tel);
     expect(estado).toBeTruthy();
@@ -149,20 +162,32 @@ describe.skipIf(!online || !hayAdmin)("Bot: copy del saludo y opt-out", () => {
 
   test("C5: 'OFERTAS' reactiva de forma explicita", async () => {
     const token = await login(ADMIN.email, ADMIN.password);
-    const tel = telefonoNuevo();
 
-    await simular(token!, tel, "hola");
-    await simular(token!, tel, "55, Miraflores");
-    await simular(token!, tel, "BAJA");
+    await conOfertaDePrueba(
+      token!,
+      { titulo: "Oferta de la re-suscripcion", distrito: "Miraflores" },
+      async (oferta) => {
+        const tel = telefonoNuevo();
+        await simular(token!, tel, "hola");
+        const alta = textoDe(await simular(token!, tel, "55, Miraflores"));
+        if (!alta.includes(oferta.titulo)) {
+          throw new Error("el bot no mostro la oferta de prueba");
+        }
+        await simular(token!, tel, "BAJA");
 
-    const vuelve = await simular(token!, tel, "ofertas");
-    // Vuelven las ofertas de su zona (con el enlace y la linea de opt-out).
-    const textoVuelve = textoDe(vuelve);
-    expect(textoVuelve).toContain("/c/");
-    expect(textoVuelve).toContain("BAJA");
+        const vuelve = await simular(token!, tel, "ofertas");
+        const textoVuelve = textoDe(vuelve);
+        // La re-suscripcion es lo que se comprueba aqui (abajo, en el estado).
+        // Las ofertas NO vuelven: esa persona ya las vio en el alta, y la
+        // ventana de 24h no permite reenviarlas (ver ventana-24h.test.ts).
+        // Lo que no puede ser es el silencio: el bot responde.
+        expect(textoVuelve.length).toBeGreaterThan(0);
+        expect(textoVuelve).toContain("Ya te mostré todas las ofertas");
 
-    const estado = await estadoEnAudiencia(token!, tel);
-    expect(estado?.estado).toBe("activo");
-    expect(estado?.consentimientos?.whatsapp).toBe(true);
+        const estado = await estadoEnAudiencia(token!, tel);
+        expect(estado?.estado).toBe("activo");
+        expect(estado?.consentimientos?.whatsapp).toBe(true);
+      },
+    );
   });
 });
