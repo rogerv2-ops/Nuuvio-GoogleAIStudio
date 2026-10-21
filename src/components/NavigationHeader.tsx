@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Store, LogOut, Lock, ArrowLeft, Shield } from 'lucide-react';
 import { AuthSession } from '../core/security';
-import { bannersModule, LogoLanding } from '../modules/banners';
+import { bannersModule, LogoLanding, colorConAlfa } from '../modules/banners';
+import { useFondoLanding } from '../hooks/useFondoLanding';
 import { withResourceVersion } from '../utils/resourceVersion';
 
 export type ActiveSurface = 'web' | 'comercio' | 'gestion' | 'bienvenida';
@@ -26,6 +27,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   // Logo configurado en la seccion de Banners. Si no hay, se mantiene el logo
   // por defecto (la "Y" + el nombre): nunca queda un hueco vacio en la cabecera.
   const [logo, setLogo] = useState<LogoLanding>(() => bannersModule.obtenerLogo());
+  const fondo = useFondoLanding();
 
   useEffect(() => {
     bannersModule.sincronizarConServidor();
@@ -36,9 +38,12 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   }, []);
 
   return (
-    <header className={`sticky top-0 z-50 backdrop-blur-md border-b border-[#EAE5D9] transition-colors ${
-      superficieActiva === 'web' ? 'bg-[#D9F3DD]/95' : 'bg-[#FBF9F4]/95'
-    }`}>
+    <header
+      className={`sticky top-0 z-50 backdrop-blur-md border-b transition-colors ${
+        superficieActiva === 'web' ? 'border-white' : 'bg-[#FBF9F4]/95 border-[#EAE5D9]'
+      }`}
+      style={superficieActiva === 'web' ? { backgroundColor: colorConAlfa(fondo, 0.95) } : undefined}
+    >
       <div className={`mx-auto flex items-center justify-between gap-3 ${
         superficieActiva === 'web'
           ? 'w-full max-w-[640px] px-3 sm:px-4 py-2.5'

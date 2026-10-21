@@ -37,6 +37,35 @@ export const DEFAULT_LOGO_LANDING: LogoLanding = {
 
 const LOCAL_STORAGE_KEY_LOGO = 'vuuy_landing_logo_v1';
 
+/**
+ * Color de fondo de la landing.
+ *
+ * Se configura en la seccion de Banners (debajo del logo) y se guarda en el
+ * servidor (app_settings.landing_fondo) junto al resto de la configuracion.
+ * Se acepta solo hexadecimal: `#rrggbb` o la forma corta `#rgb`, que se
+ * expande a `#rrggbb`. Cualquier otra cosa no es un color y se rechaza.
+ */
+export const FONDO_LANDING_DEFAULT = '#d9f3dd';
+
+const LOCAL_STORAGE_KEY_FONDO = 'vuuy_landing_fondo_v1';
+
+export function normalizarColorFondo(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const hex = raw.trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(hex)) return hex;
+  if (/^#[0-9a-f]{3}$/.test(hex)) return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  return null;
+}
+
+/** Convierte `#rrggbb` en `rgba(r, g, b, alfa)` para las capas con transparencia. */
+export function colorConAlfa(hex: string, alfa: number): string {
+  const color = normalizarColorFondo(hex) || FONDO_LANDING_DEFAULT;
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alfa})`;
+}
+
 function normalizarLogo(raw: unknown): LogoLanding {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_LOGO_LANDING };
   const datos = raw as Partial<LogoLanding>;
@@ -86,13 +115,36 @@ export const DEFAULT_BANNERS: FeedBanner[] = [
 class BannersModule {
   private banners: FeedBanner[] = [];
   private logo: LogoLanding = { ...DEFAULT_LOGO_LANDING };
+  private fondo: string = FONDO_LANDING_DEFAULT;
   private listeners: (() => void)[] = [];
   private sincronizadoConServidor = false;
 
   constructor() {
     this.cargar();
     this.cargarLogo();
+    this.cargarFondo();
     this.sincronizarConServidor();
+  }
+
+  private cargarFondo() {
+    try {
+      if (typeof window !== 'undefined') {
+        const color = normalizarColorFondo(localStorage.getItem(LOCAL_STORAGE_KEY_FONDO));
+        if (color) this.fondo = color;
+      }
+    } catch {
+      // Usar el fondo por defecto
+    }
+  }
+
+  private guardarFondoLocal() {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_KEY_FONDO, this.fondo);
+      }
+    } catch {
+      // El fondo igual vive en el servidor
+    }
   }
 
   private cargarLogo() {
@@ -164,6 +216,11 @@ class BannersModule {
             this.logo = normalizarLogo(data.logo);
             this.guardarLogoLocal();
           }
+          const fondoServidor = normalizarColorFondo(data.fondo);
+          if (fondoServidor) {
+            this.fondo = fondoServidor;
+            this.guardarFondoLocal();
+          }
           this.sincronizadoConServidor = true;
           try {
             localStorage.setItem(LOCAL_STORAGE_KEY_BANNERS, JSON.stringify(this.banners));
@@ -182,11 +239,12 @@ class BannersModule {
    * logo (`incluirLogo`): asi guardar un banner desde un navegador que todavia
    * no leyo la configuracion no pisa el logo que ya esta publicado.
    */
-  private guardarEnServidor(incluirLogo = false) {
+  private guardarEnServidor(opciones: { incluirLogo?: boolean; incluirFondo?: boolean } = {}) {
     if (typeof window === 'undefined') return;
 
-    const payload: { banners: FeedBanner[]; logo?: LogoLanding } = { banners: this.banners };
-    if (incluirLogo) payload.logo = this.logo;
+    const payload: { banners: FeedBanner[]; logo?: LogoLanding; fondo?: string } = { banners: this.banners };
+    if (opciones.incluirLogo) payload.logo = this.logo;
+    if (opciones.incluirFondo) payload.fondo = this.fondo;
 
     fetch('/api/banners/sync', {
       method: 'POST',
@@ -244,7 +302,7 @@ class BannersModule {
     if (datos.altoPx !== undefined) base.altoPx = datos.altoPx;
     this.logo = normalizarLogo(base);
     this.guardarLogoLocal();
-    this.guardarEnServidor(true);
+    this.guardarEnServidor({ incluirLogo: true });
     this.notificar();
     return this.obtenerLogo();
   }
@@ -252,6 +310,25 @@ class BannersModule {
   /** Vuelve al logo por defecto (la "Y" + el nombre en la cabecera). */
   public quitarLogo(): LogoLanding {
     return this.actualizarLogo({ imagenUrl: '' });
+  }
+
+  public obtenerFondo(): string {
+    return this.fondo;
+  }
+
+  /**
+   * Guarda el color de fondo de la landing y lo sincroniza con el servidor.
+   * Un valor que no es un color hexadecimal se ignora: devuelve el que ya
+   * estaba, para que la landing nunca quede con un fondo invalido.
+   */
+  public actualizarFondo(color: string): string {
+    const normalizado = normalizarColorFondo(color);
+    if (!normalizado) return this.fondo;
+    this.fondo = normalizado;
+    this.guardarFondoLocal();
+    this.guardarEnServidor({ incluirFondo: true });
+    this.notificar();
+    return this.fondo;
   }
 
   public crearBanner(datos: Omit<FeedBanner, 'id' | 'creadoEn'>): FeedBanner {

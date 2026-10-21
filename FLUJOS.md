@@ -48,6 +48,9 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 ### F4.b Logo de la landing (2026-10-21)
 `BannersConfigView` → bloque "Logo de la Landing": URL o archivo (upload a `logo/`) + **alto en px** (24–160, el ancho lo calcula el navegador: siempre proporcional) → `POST /api/banners/sync {banners[], logo:{imagenUrl, altoPx}}` → `saveSetting('landing_logo')`. `GET /api/banners` devuelve también `logo`; `NavigationHeader` (cabecera pública) lo renderiza con `height: altoPx` y `width:auto`, y si no hay logo mantiene el de siempre (la "Y" + "Yuddit"). El logo no es un banner: no entra en la rotación. **Probar:** guardar logo → recargar la landing → el header muestra la imagen con ese alto y sin deformarse; "Quitar Logo" vuelve al logo por defecto.
 
+### F4.c Fondo de la landing (2026-10-21)
+`BannersConfigView` → bloque "Color de Fondo de la Landing" (debajo del logo): selector de color + campo hexadecimal → `POST /api/banners/sync {banners[], fondo:"#d9f3dd"}` → `saveSetting('landing_fondo')`. El color se aplica a **toda** la landing: el contenedor raíz de `App.tsx` y el de `PublicWeb` (no solo a la columna central de 640 px) y la cabecera pública con 95% de opacidad y borde blanco. Solo se acepta hexadecimal (`#rrggbb` o `#rgb`, que se expande); un valor inválido se rechaza con 400 y no pisa el color publicado. Default: `#d9f3dd`. **Probar:** cambiar el color → recargar la landing → el fondo de toda la página cambia, incluida la franja de la cabecera.
+
 ## F5. Comercios y panel comercio
 - `GET /api/comercios` → 10 comercios DB. `POST /api/comercios/sync {comercios, kanban}` → `merchants_list` + `merchants_kanban` (settings).
 - Vistas comercio: Inicio (resumen), MisOfertas (CRUD propio), MiNegocio (datos), Resultados/Ventas (de `click_logs`+clics), Historial, Campañas. Todo vía estos endpoints + `facturacionModule.inicializar` (click packs, persistidos en la tabla `click_packs`).

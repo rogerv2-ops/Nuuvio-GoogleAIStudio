@@ -12,6 +12,7 @@ import { BienvenidaView } from './components/BienvenidaView';
 import { UserRegistrationFunnelModal } from './components/UserRegistrationFunnelModal';
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
+import { useFondoLanding } from './hooks/useFondoLanding';
 import { comerciosModule } from './modules/comercios';
 import { vistaComoModule } from './modules/vistaComo';
 import { ofertasModule } from './modules/ofertas';
@@ -83,6 +84,7 @@ function urlPublicaDeSuperficie(s: ActiveSurface): string {
 
 export default function App() {
   const [superficieActiva, setSuperficieActiva] = useState<ActiveSurface>(obtenerSuperficieDesdeUrl);
+  const fondoLanding = useFondoLanding();
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [, setTick] = useState(0);
@@ -178,7 +180,12 @@ export default function App() {
   }, [superficieActiva, tieneAccesoGestion]);
 
   return (
-    <div className="min-h-screen bg-[#FBF9F4] text-[#1C1917] font-sans antialiased selection:bg-[#D8F3DC] selection:text-[#1B4332]">
+    <div
+      className={`min-h-screen text-[#1C1917] font-sans antialiased selection:bg-[#D8F3DC] selection:text-[#1B4332] ${
+        superficieActiva === 'web' ? '' : 'bg-[#FBF9F4]'
+      }`}
+      style={superficieActiva === 'web' ? { backgroundColor: fondoLanding } : undefined}
+    >
       {/* Universal Top Navigation Header */}
       <NavigationHeader
         superficieActiva={superficieActiva}

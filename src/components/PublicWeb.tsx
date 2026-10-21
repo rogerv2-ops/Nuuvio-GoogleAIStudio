@@ -17,6 +17,7 @@ import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallback
 import { esOfertaNueva } from '../utils/ofertaUtils';
 import { alPulsarBotonWhatsApp } from '../utils/whatsappNative';
 import { WhatsAppChooser } from './WhatsAppChooser';
+import { useFondoLanding } from '../hooks/useFondoLanding';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -27,6 +28,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   ofertaSeleccionadaId,
   onLimpiarOfertaSeleccionada
 }) => {
+  const fondo = useFondoLanding();
   const [fichaOferta, setFichaOferta] = useState<Offer | null>(null);
   const [fotoActivaIndex, setFotoActivaIndex] = useState(0);
 
@@ -286,7 +288,10 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#D9F3DD] text-[#1C1917] py-4 px-3 sm:px-4">
+    <div
+      className="min-h-screen text-[#1C1917] py-4 px-3 sm:px-4"
+      style={{ backgroundColor: fondo }}
+    >
       {/* Responsive layout - Vista Mobile Estricta max-w-[640px] */}
       <div className="w-full max-w-[640px] mx-auto space-y-4">
         {/* Toast de Verificación de Cuenta por 1 Clic */}

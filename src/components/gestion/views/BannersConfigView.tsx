@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Images, Plus, Upload, Link as LinkIcon, Eye, Trash2, 
+import {
+  Images, Plus, Upload, Link as LinkIcon, Eye, Trash2,
   ArrowUp, ArrowDown, Check, RefreshCw, Sparkles, Layers,
-  ExternalLink, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, X, AlertTriangle
+  ExternalLink, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, X, AlertTriangle, Palette
 } from 'lucide-react';
-import { bannersModule, FeedBanner, LogoLanding, LOGO_LANDING_ALTO_MIN, LOGO_LANDING_ALTO_MAX } from '../../../modules/banners';
+import {
+  bannersModule, FeedBanner, LogoLanding, LOGO_LANDING_ALTO_MIN, LOGO_LANDING_ALTO_MAX,
+  FONDO_LANDING_DEFAULT, normalizarColorFondo
+} from '../../../modules/banners';
 import { withResourceVersion } from '../../../utils/resourceVersion';
 
 export const BannersConfigView: React.FC = () => {
@@ -29,6 +32,10 @@ export const BannersConfigView: React.FC = () => {
   const [logoAltoPx, setLogoAltoPx] = useState(() => bannersModule.obtenerLogo().altoPx);
   const [logoModoOrigen, setLogoModoOrigen] = useState<'url' | 'upload'>('url');
 
+  // Color de fondo de la landing: se configura aquí, debajo del logo.
+  const [fondoColor, setFondoColor] = useState<string>(() => bannersModule.obtenerFondo() || FONDO_LANDING_DEFAULT);
+  const fondoInvalido = !normalizarColorFondo(fondoColor);
+
   const [notificacion, setNotificacion] = useState<string | null>(null);
 
   const refrescarLista = () => {
@@ -41,6 +48,7 @@ export const BannersConfigView: React.FC = () => {
       setLogo(actual);
       setLogoImagenUrl(actual.imagenUrl);
       setLogoAltoPx(actual.altoPx);
+      setFondoColor(bannersModule.obtenerFondo() || FONDO_LANDING_DEFAULT);
     });
     refrescarLista();
     const unsub = bannersModule.suscribir(() => {
@@ -104,6 +112,19 @@ export const BannersConfigView: React.FC = () => {
     setLogo(guardado);
     setLogoImagenUrl('');
     setNotificacion('Logo quitado: la landing vuelve al logo por defecto (Y + Yuddit).');
+    setTimeout(() => setNotificacion(null), 3000);
+  };
+
+  const handleGuardarFondo = () => {
+    const color = normalizarColorFondo(fondoColor);
+    if (!color) {
+      setNotificacion('Ese valor no es un color hexadecimal. Usa algo como #d9f3dd.');
+      setTimeout(() => setNotificacion(null), 4000);
+      return;
+    }
+    const guardado = bannersModule.actualizarFondo(color);
+    setFondoColor(guardado);
+    setNotificacion(`Fondo de la landing actualizado (${guardado}).`);
     setTimeout(() => setNotificacion(null), 3000);
   };
 
@@ -423,6 +444,80 @@ export const BannersConfigView: React.FC = () => {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* FONDO DE LA LANDING */}
+      <div className="bg-white rounded-3xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+        <div className="pb-3 border-b border-stone-100">
+          <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+            <Palette className="w-4 h-4 text-emerald-700" />
+            <span>Color de Fondo de la Landing</span>
+          </h3>
+          <p className="text-xs text-stone-500 mt-0.5">
+            El color que se ve de fondo en la landing. Se aplica a toda la pagina, no solo a la columna central.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-stone-700 block" htmlFor="fondoLandingColor">
+            Color
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="fondoLandingColor"
+              type="color"
+              value={fondoColor}
+              onChange={(e) => setFondoColor(e.target.value)}
+              className="w-14 h-11 rounded-xl border border-stone-200 bg-white p-1 cursor-pointer shrink-0"
+              aria-label="Selector de color de fondo de la landing"
+            />
+            <input
+              type="text"
+              value={fondoColor}
+              onChange={(e) => setFondoColor(e.target.value)}
+              placeholder="#d9f3dd"
+              className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-mono text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332]"
+            />
+            <button
+              type="button"
+              onClick={() => setFondoColor(FONDO_LANDING_DEFAULT)}
+              className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Restaurar
+            </button>
+          </div>
+          {fondoInvalido && (
+            <p className="text-[10px] font-bold text-rose-600 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              Ese valor no es un color hexadecimal. Usa algo como #d9f3dd.
+            </p>
+          )}
+        </div>
+
+        {/* Previsualización */}
+        <div className="space-y-1">
+          <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Previsualización</span>
+          <div
+            className="rounded-2xl border border-stone-200 px-4 py-6 min-h-[72px] flex items-center justify-center"
+            style={{ backgroundColor: fondoInvalido ? '#FBF9F4' : fondoColor }}
+          >
+            <span className="text-[11px] font-mono font-bold text-stone-700 bg-white/80 px-2 py-1 rounded-lg">
+              {fondoInvalido ? 'color inválido' : fondoColor}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={handleGuardarFondo}
+            disabled={fondoInvalido}
+            className="px-5 py-2.5 bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Check className="w-4 h-4" />
+            <span>Guardar Fondo</span>
+          </button>
+        </div>
       </div>
 
       {/* FORMULARIO DE CREACIÓN / EDICIÓN DE BANNER */}
