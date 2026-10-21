@@ -63,9 +63,11 @@ describe("Panel: sin datos de demostracion", () => {
     // La formula de "visitas * 18 + 142" y el minimo de 198.
     expect(widget).not.toMatch(/eventosVisitasUtm\.length\s*\*\s*\d+/);
     expect(widget).not.toMatch(/Math\.max\([^)]*,\s*1\d\d\s*\)/);
-    // Y las visitas se declaran como no medibles.
-    expect(widget).toContain("const visitasTotales: number | null = null;");
-    expect(widget).toContain("sin medir");
+    // Y las visitas se leen de la tabla de eventos (tabla `eventos`), no se
+    // inventan: el widget las pide por la API.
+    expect(widget).toContain("visitasGuardadas");
+    expect(widget).toContain("/api/analitica/kpis");
+    expect(widget).toContain("const visitasTotales: number | null = visitasGuardadas > 0 ? visitasGuardadas : 0;");
   });
 
   test("D3: el grafico de 6 meses del widget ejecutivo usa la serie real", () => {

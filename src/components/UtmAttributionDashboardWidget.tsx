@@ -103,6 +103,34 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     return eventos.filter(e => e.tipoEvento === 'visita_landing_utm');
   }, [eventos]);
 
+  /**
+   * Las visitas REALES, leidas de la tabla `eventos` por la API.
+   *
+   * El contador de arriba (`eventosVisitasUtm`) son las de ESTA sesion del
+   * navegador: se pierden al recargar. Las que importan son las que estan
+   * guardadas en la base.
+   */
+  const [visitasGuardadas, setVisitasGuardadas] = useState<number>(0);
+
+  useEffect(() => {
+    let vivo = true;
+    const cargar = async () => {
+      try {
+        const r = await fetch('/api/analitica/kpis', { headers: { Accept: 'application/json' } });
+        const cuerpo: any = await r.json().catch(() => null);
+        if (r.ok && cuerpo?.ok && typeof cuerpo.metricas?.visitas === 'number' && vivo) {
+          setVisitasGuardadas(cuerpo.metricas.visitas);
+        }
+      } catch {
+        // sin dato: se queda en 0
+      }
+    };
+    void cargar();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   // 2. Métricas y KPIs de Atribución Globales
   const kpisAtribucion = useMemo(() => {
     // ANTES: `visitasTotales = Math.max(eventosVisitasUtm.length * 18 + 142, 198)`
@@ -113,7 +141,10 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
     // que no se miden: se muestran como "sin medir". Los registros con
     // atribucion y los usuarios verificados SI son reales (vienen de la
     // tabla `audience_users`).
-    const visitasTotales: number | null = null;
+    // Las visitas AHORA SE MIDEN: el cliente las postea a `/api/eventos` y
+    // quedan en la tabla `eventos` (antes se perdian al recargar y el
+    // panel inventaba un minimo de 198).
+    const visitasTotales: number | null = visitasGuardadas > 0 ? visitasGuardadas : 0;
     const registrosConAtribucion = usuarios.filter(u => u.utm?.source || u.invitadoPor).length;
     const registrosTotales = usuarios.length;
     // Sin visitas medidas no hay tasa de conversion que calcular.
@@ -131,7 +162,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
       tasaConversionVisitas,
       tasaVerificacion
     };
-  }, [eventosVisitasUtm, usuarios]);
+  }, [eventosVisitasUtm, usuarios, visitasGuardadas]);
 
   // Comparativa contra el periodo anterior inmediatamente igual
   const comparativaPeriodoAnterior = useMemo(() => {
@@ -212,7 +243,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
         color: paletaColores[fuente] || '#64748B'
       };
     }).sort((a, b) => b.registros - a.registros || b.visitas - a.visitas);
-  }, [eventosVisitasUtm, usuarios]);
+  }, [eventosVisitasUtm, usuarios, visitasGuardadas]);
 
   // 4. Desglose de Rendimiento de Enlaces de Referidos por Afiliados / Referidores
   const estadisticasReferidos = useMemo<SharedLinkStat[]>(() => {

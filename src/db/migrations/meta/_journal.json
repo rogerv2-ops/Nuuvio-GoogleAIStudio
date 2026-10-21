@@ -29,6 +29,13 @@
       "when": 1792553327962,
       "tag": "0003_geo_territorios",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792557285907,
+      "tag": "0004_eventos",
+      "breakpoints": true
     }
   ]
 }
