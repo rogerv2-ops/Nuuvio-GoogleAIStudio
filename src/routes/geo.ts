@@ -38,7 +38,12 @@
  * blanco (error de modulo, script muerto, sitio caido). Este archivo solo
  * lo usa el SERVIDOR.
  */
-import { activarProvincias, listarTerritorios, sincronizarTerritorios } from "../db/repo.ts";
+import {
+  activarProvincias,
+  establecerProvinciaActiva,
+  listarTerritorios,
+  sincronizarTerritorios,
+} from "../db/repo.ts";
 import { UBIGEO_PERU } from "../data/ubigeoPeru.ts";
 
 export type NivelTerritorio = "departamento" | "provincia" | "distrito";
@@ -284,6 +289,7 @@ export function listarDistritosDeProvincia(codigoProvincia: string): DistritoGeo
  */
 export function registrarRutasGeo(app: any, ctx: any): void {
   const rateLimit = ctx.rateLimit;
+  const requireAdmin = ctx.requireAdmin;
 
   /** Provincias (con su departamento y su numero de distritos). */
   app.get("/api/geo/provincias", rateLimit("geo", 60, 60000), async (_req: any, res: any) => {
@@ -302,6 +308,53 @@ export function registrarRutasGeo(app: any, ctx: any): void {
       res.status(500).json({ ok: false, error: "Error obteniendo las provincias." });
     }
   });
+
+  /**
+   * Activa o desactiva una provincia (lo usa el panel de gestion).
+   *
+   * Es la operacion que hace el negocio cuando se expande: enciende una
+   * provincia y sus distritos pasan a ser zona de servicio.
+   */
+  app.post(
+    "/api/geo/provincias/activar",
+    requireAdmin,
+    rateLimit("geo", 60, 60000),
+    async (req: any, res: any) => {
+      try {
+        const codigo = String(req.body?.codigo || "").trim();
+        const activo = req.body?.activo === true;
+        if (!/^\d{6}$/.test(codigo)) {
+          res.status(400).json({ ok: false, error: "Codigo de provincia invalido." });
+          return;
+        }
+        const provincia = listaProvincias.find((p) => p.codigo === codigo);
+        if (!provincia) {
+          res.status(404).json({ ok: false, error: "Provincia no encontrada." });
+          return;
+        }
+        const cambio = await establecerProvinciaActiva(codigo, activo);
+        if (!cambio.ok) {
+          res.status(500).json({ ok: false, error: "No se pudo guardar el estado de la provincia." });
+          return;
+        }
+        // El indice en memoria decide que distrito se detecta: hay que
+        // recargarlo o el bot seguiria con el mapa viejo.
+        const indice = await recargarIndiceDesdeBase();
+        res.json({
+          ok: true,
+          provincia: codigo,
+          activo,
+          indice,
+          mensaje: activo
+            ? `${provincia.nombre} activada: ${provincia.totalDistritos} distritos en zona de servicio.`
+            : `${provincia.nombre} desactivada.`,
+        });
+      } catch (error) {
+        console.error("[Geo] Error activando una provincia:", error);
+        res.status(500).json({ ok: false, error: "Error activando la provincia." });
+      }
+    },
+  );
 
   /** Los distritos de una provincia. */
   app.get("/api/geo/distritos", rateLimit("geo", 60, 60000), async (req: any, res: any) => {

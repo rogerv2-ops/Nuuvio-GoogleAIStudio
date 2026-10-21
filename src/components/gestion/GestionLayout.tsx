@@ -23,6 +23,7 @@ import { OfertasDomainView } from './views/OfertasDomainView';
 import { CampanasCobroDomainView } from './views/CampanasCobroDomainView';
 import { ComunicacionesDomainView } from './views/ComunicacionesDomainView';
 import { ConfiguracionDomainView } from './views/ConfiguracionDomainView';
+import { ZonasDomainView } from './views/ZonasDomainView';
 
 interface GestionLayoutProps {
   rutaInicial?: string;
@@ -550,7 +551,12 @@ export const GestionLayout: React.FC<GestionLayoutProps> = ({
               <ComunicacionesDomainView subruta={rutaActiva} onNavegar={navegarA} />
             )}
 
-            {/* 8. Configuración: /gestion/configuracion* */}
+            {/* 8. Zonas: /gestion/zonas* */}
+            {rutaActiva.startsWith('/gestion/zonas') && (
+              <ZonasDomainView subruta={rutaActiva} onNavegar={navegarA} />
+            )}
+
+            {/* 9. Configuración: /gestion/configuracion* */}
             {rutaActiva.startsWith('/gestion/configuracion') && (
               <ConfiguracionDomainView subruta={rutaActiva} onNavegar={navegarA} />
             )}

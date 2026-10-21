@@ -1,6 +1,6 @@
 import { 
   LayoutDashboard, BarChart3, Users, Building2, Tag, 
-  CreditCard, Send, Settings
+  CreditCard, Send, Settings, MapPin
 } from 'lucide-react';
 import { GestionMenuItem } from './types';
 import { comerciosModule } from '../../modules/comercios';
@@ -232,6 +232,21 @@ export const GESTION_MENU: GestionMenuItem[] = [
         ruta: '/gestion/comunicaciones/plantillas',
         titulo: 'Plantillas',
         descripcion: 'Modelos de mensajes para verificación, alertas y promociones'
+      }
+    ]
+  },
+  {
+    id: 'zonas',
+    ruta: '/gestion/zonas',
+    titulo: 'Zonas',
+    descripcion: 'Provincias donde opera Yuddit y sus distritos',
+    icono: MapPin,
+    subitems: [
+      {
+        id: 'zonas-operacion',
+        ruta: '/gestion/zonas',
+        titulo: 'Zonas de operacion',
+        descripcion: 'Enciende o apaga las provincias segun el negocio se expande'
       }
     ]
   },
