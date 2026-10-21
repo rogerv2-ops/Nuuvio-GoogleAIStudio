@@ -138,12 +138,15 @@ describe.skipIf(!online || !hayAdmin)("Bot: confirmacion de zona de un toque (en
     expect(texto).not.toContain(ofertaTest.titulo);
   });
 
-  test("R5 (regresion): entrada directa por WhatsApp pide datos tal como estaba", async () => {
+  test("R5 (regresion): entrada directa por WhatsApp pide los datos que faltan", async () => {
     const tel = telefonoNuevo();
     const res = await simular(token!, tel, "hola");
     const texto = res.respuestas.map((a) => a.texto).join(" ");
-    expect(texto).toContain("Nombre");
+    // El bot YA conoce el nombre (viene en el perfil de WhatsApp), asi que
+    // pide solo lo que falta. Antes pedia nombre, edad y distrito.
+    expect(texto).toContain("Edad");
     expect(texto).toContain("Distrito");
+    expect(texto).not.toContain("*Nombre*");
   });
 
   test("R6 (regresion): registrado con zona que clickea una oferta recibe LA oferta, no el mosaico", async () => {
