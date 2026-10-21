@@ -28,6 +28,10 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
 
   useEffect(() => {
     const unsubF = facturacionModule.suscribir(() => setVersion(v => v + 1));
+    // El saldo se lee de la base (tabla `click_packs`). Antes esta pantalla
+    // mostraba la semilla del modulo: el admin veia saldos que no eran los
+    // reales y podia vender packs sobre una cifra inventada.
+    void facturacionModule.recargarCache();
     const unsubC = coreConfig.suscribir(() => {
       setPrecio50(Number(coreConfig.obtenerValor('precio_pack_50', 70)));
       setPrecio100(Number(coreConfig.obtenerValor('precio_pack_100', 120)));

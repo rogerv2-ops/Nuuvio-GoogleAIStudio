@@ -34,6 +34,7 @@ import { ofertasModule } from '../../modules/ofertas';
 import { clicsAtribucionModule } from '../../modules/clics';
 import { analiticaModule } from '../../modules/analitica';
 import { facturacionModule } from '../../modules/facturacion';
+import { useSaldoFacturacion } from '../common/useSaldoFacturacion';
 import { TrendBadge } from '../common/TrendBadge';
 
 interface ExecutiveMetricsRechartsWidgetProps {
@@ -50,14 +51,18 @@ export const ExecutiveMetricsRechartsWidget: React.FC<ExecutiveMetricsRechartsWi
   const ofertas = ofertasModule.listarOfertas();
   const ventas = clicsAtribucionModule.listarTodasLasVentas();
   const kpisGlobales = analiticaModule.calcularKPIsGlobales();
-  const packs = facturacionModule.listarTodosLosPacks();
+  // El saldo se lee de la base (tabla `click_packs`), no de la semilla.
+  const versionFacturacion = useSaldoFacturacion();
+  const packs = useMemo(() => facturacionModule.listarTodosLosPacks(), [versionFacturacion]);
 
   const totalUsuariosCount = Math.max(usuarios.length, 1280);
   const comerciosActivosCount = comercios.filter(c => c.estado === 'activo').length || 82;
   const leadsGeneradosCount = kpisGlobales.totalClicsContactar || 2140;
   const ventasConfirmadasCount = ventas.length || 380;
   const ofertasActivasCount = ofertas.filter(o => o.estado === 'activa').length || 45;
-  const totalClicsSaldo = packs.reduce((acc, p) => acc + p.saldoClics, 0) || 12500;
+  // Sin piso inventado: si no hay saldo, se muestra 0. Antes ponia 12500
+  // clics aunque la base tuviera 184.
+  const totalClicsSaldo = packs.reduce((acc, p) => acc + p.saldoClics, 0);
 
   // Cálculo de tendencia histórica mensual consolidada (Mayo - Octubre 2026)
   const datosMensuales = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, Users, Building2, Tag, CreditCard, Send, Settings,
   AlertCircle, CheckCircle2, ArrowRight, ShieldAlert, Sparkles,
@@ -13,6 +13,7 @@ import { coreConfig } from '../../../core/config';
 import { coreEvents } from '../../../core/events';
 import { usuariosModule } from '../../../modules/usuarios';
 import { facturacionModule } from '../../../modules/facturacion';
+import { useSaldoFacturacion } from '../../common/useSaldoFacturacion';
 import { TopOfertasSistemaDraggableWidget } from '../TopOfertasSistemaDraggableWidget';
 import { ExecutiveMetricsRechartsWidget } from '../ExecutiveMetricsRechartsWidget';
 import { TendenciasOfertasRechartsWidget } from '../../common/TendenciasOfertasRechartsWidget';
@@ -34,7 +35,9 @@ export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar })
   const ventasConfirmadas = clicsAtribucionModule.listarTodasLasVentas();
   const usuarios = usuariosModule.listarUsuarios();
   const eventosRecientes = coreEvents.consultar({ limite: 8 });
-  const packs = facturacionModule.listarTodosLosPacks();
+  // El saldo se lee de la base: antes venía de la semilla del modulo.
+  const versionFacturacion = useSaldoFacturacion();
+  const packs = useMemo(() => facturacionModule.listarTodosLosPacks(), [versionFacturacion]);
 
   const totalClicsSaldo = packs.reduce((acc, p) => acc + p.saldoClics, 0);
 
