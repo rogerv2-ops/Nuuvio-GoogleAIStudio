@@ -147,35 +147,6 @@ export function leerMensajeOfertaWhatsApp(texto: string | null | undefined): Lec
   return { titulo, ref, codigoCanje };
 }
 
-/**
- * Opciones de la hoja que sirve el SERVIDOR (para los enlaces firmados
- * `/c/:id`).
- *
- * La hoja ofrece SIEMPRE las tres (WhatsApp, WhatsApp Business, WhatsApp
- * Web), en todas las plataformas, por dos razones:
- *
- * - En iOS el sistema NO ofrece selector para esquemas propios: la hoja es
- *   la unica forma de dejar elegir la app.
- * - En Android el selector del sistema ocurre FUERA de nuestro servidor:
- *   cuando la persona elige ahi, nadie nos avisa. Si el selector es
- *   nuestro, la eleccion vuelve como un request (`dest=`) y ahi se puede
- *   registrar y cobrar; si es el del sistema, el cobro queda ANTES de que
- *   la persona elija.
- *
- * En escritorio la version web va primero (es la que funciona sin apps
- * instaladas).
- *
- * Mismas etiquetas que la hoja del SPA: una sola fuente para el texto.
- */
-export function opcionesHojaServidor(plataforma: PlataformaWhatsApp): {
-  destino: DestinoWhatsApp;
-  etiqueta: string;
-  detalle: string;
-}[] {
-  if (plataforma === "web") return opcionesWhatsAppPorPlataforma("web");
-  return opcionesWhatsAppPorPlataforma("ios");
-}
-
 /** Opciones que la interfaz ofrece segun la plataforma. */
 export function opcionesWhatsAppPorPlataforma(plataforma: PlataformaWhatsApp): {
   destino: DestinoWhatsApp;

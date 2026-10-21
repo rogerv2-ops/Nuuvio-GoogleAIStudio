@@ -173,33 +173,18 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
               [ofertaId],
             );
 
-            // Tres toques del mismo enlace, con la misma persona.
-            //
-            // IP propia: el rate limit de clics (20/min por IP) lo agota
-            // `lead-qualified.test.ts`, que hace clic a proposito para
-            // probar el limite. Los archivos corren en PARALELO y comparten
-            // la IP del runner.
-            //
-            // El primer toque muestra la hoja de opciones (o, en Android, el
-            // selector del sistema); los siguientes eligen destino. Los tres
-            // son UN interes: una sola fila y un solo codigo de canje.
-            const r1 = await fetch(enlaceLocal, {
-              redirect: "manual",
-              headers: { "X-Forwarded-For": ipPropia() },
-            });
-            if (r1.status !== 302 && r1.status !== 200) {
-              throw new Error(`el clic 1 respondio ${r1.status} (la oferta ya no esta)`);
-            }
-            // Los otros dos: la persona elige con que app abre el chat.
-            for (let i = 0; i < 2; i++) {
-              const urlDestino = new URL(enlaceLocal);
-              urlDestino.searchParams.set("dest", "app");
-              const r = await fetch(urlDestino.toString(), {
+            // Tres clics del mismo enlace, con la misma persona.
+            for (let i = 0; i < 3; i++) {
+              // IP propia: el rate limit de clics (20/min por IP) lo agota
+              // `lead-qualified.test.ts`, que hace clic a proposito para
+              // probar el limite. Los archivos corren en PARALELO y comparten
+              // la IP del runner.
+              const r = await fetch(enlaceLocal, {
                 redirect: "manual",
                 headers: { "X-Forwarded-For": ipPropia() },
               });
               if (r.status !== 302) {
-                throw new Error(`el clic ${i + 2} respondio ${r.status} (la oferta ya no esta)`);
+                throw new Error(`el clic ${i + 1} respondio ${r.status} (la oferta ya no esta)`);
               }
             }
 

@@ -1,46 +1,42 @@
 /**
- * Los enlaces firmados de oferta (`/c/:id`): elegir la app de WhatsApp y
- * cobrar SOLO cuando la persona entra al chat del comercio.
+ * El enlace firmado de oferta (`/c/:id`): lleva DIRECTO al chat del comercio.
  *
- * QUE PIDIO EL DUENO (2026-10-21)
+ * DECISIÓN DEL DUEÑO (2026-10-21)
  *
- * "necesito que tanto en android como en ios se abra el selector de la app
- * porque muchos tienen whatsapp normal y whatsapp business y por eso es
- * necesario escoger con cual abrir el enlace y cobrar cuando se abre el
- * whatsapp en ambos casos, cuando el usuario llega al whatsapp del comercio
- * se cobra"
+ * "se supone que la persona solo debe recibir el enlace con todos los datos
+ * ofuscados por seguridad, y el enlace lo debe llevar al whatsapp del
+ * comercio directo, ya estan en whatsapp ambos, no necesitan escojer app"
  *
- * LAS DOS REGLAS
+ * O sea: la persona recibe SOLO un enlace, con los datos ofuscados (la firma
+ * HMAC; el teléfono del comercio NO va en el enlace), y el enlace lo lleva
+ * directo al chat del comercio. El selector de app y el cobro por canje con
+ * código QR son proyectos aparte.
  *
- * 1. TODO enlace deja elegir la app. Antes el enlace firmado iba a
- *    `https://wa.me/...`, que NO ofrece selector: abria la app directo. Y en
- *    Android el selector del sistema ocurre FUERA de nuestro servidor
- *    (nadie nos avisa cuando la persona elige ahi), asi que la hoja la
- *    sirve el servidor en TODAS las plataformas: la eleccion vuelve como un
- *    request (`dest=`) y ahi se puede cobrar.
+ * Un intento anterior de poner un selector de app en este enlace se revirtió:
+ * en iOS el sistema no ofrece selector, y en Android el selector nativo ocurre
+ * fuera de nuestro servidor (nadie nos avisa cuando la persona elige ahí).
  *
- * 2. Se cobra cuando la persona entra al chat del comercio, NO cuando toca
- *    el enlace. Antes el clic se registraba y se debitaba el pack del
- *    comercio en la primera visita, sin que existiera ningun chat. Ahora la
- *    hoja no registra NADA: el clic, el debit y el lead pasan al request con
- *    `dest=`, que es el instante en que la persona entra al chat.
+ * LO QUE ESTOS TESTS VIGILAN
  *
- * LO QUE NO SE ROMPE (y estos tests lo vigilan)
- *
- * - El telefono del comercio NO aparece en el HTML de la hoja (regla 2).
- * - Los tokens viajan intactos: `u` (quien recibe la oferta) y `s` (la firma
- *   HMAC) siguen en la URL, y la ventana de 24 h sigue contando UN clic.
- * - El codigo de canje (`NV-XXXXXX`) sigue viajando en el mensaje al
- *   comercio: es lo que acredita el lead.
- * - La eleccion queda registrada (tracking) en `security_logs`.
+ *  1. El enlace va DIRECTO al chat del comercio (un 302 a `wa.me` con el
+ *     teléfono del comercio y el código de canje en el mensaje).
+ *  2. El enlace que el bot manda en el texto de WhatsApp NO lleva el
+ *     teléfono del comercio: los datos del comercio se resuelven en el
+ *     servidor, en el momento del clic (regla 2).
+ *  3. Sin firma HMAC válida NO se cobra nada (fail-closed), aunque el enlace
+ *     siga llevando al chat.
+ *  4. El código de canje viaja en el mensaje: es lo que acredita el lead.
  */
 import { test, expect, describe } from "bun:test";
+import fs from "node:fs";
+import path from "node:path";
 import pg from "pg";
 import { BASE, servidorOnline, login, ADMIN, crearOfertaDePrueba, conOfertaDePrueba } from "./_helpers.ts";
-import { htmlHojaWhatsApp, urlOpcionHoja, escaparHtml } from "../../src/utils/hojaWhatsApp.ts";
 
 const online = await servidorOnline();
 const TELEFONO_COMERCIO = "51987654321";
+const ROOT = path.resolve(import.meta.dir, "../..");
+const SERVER = fs.readFileSync(path.join(ROOT, "server.ts"), "utf8");
 
 const SQL = {
   host: process.env.SQL_HOST || "127.0.0.1",
@@ -85,12 +81,6 @@ function telefonoNuevo(): string {
   return `519${String(Date.now() % 100000000).padStart(8, "0")}${telSecuencia % 10}`;
 }
 
-const UA_ANDROID =
-  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36";
-const UA_IOS =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
-const UA_WEB = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
-
 /**
  * Un solo login para todo el archivo.
  *
@@ -109,236 +99,79 @@ async function tokenAdmin(): Promise<string> {
   return sesionAdmin;
 }
 
-describe("Hoja de WhatsApp del servidor - reglas puras", () => {
-  test("la hoja ofrece las tres destinos y ninguna mas", () => {
-    const html = htmlHojaWhatsApp({
-      urlBase: "/c/of_test?u=51900000000&s=abc123",
-      plataforma: "ios",
-      tituloOferta: "Oferta de prueba",
-    });
-    // CUANTOS destinos, no solo que aparezcan: un destino de mas (o uno que
-    // falta) tiene que hacer fallar este test.
-    const destinos = [...html.matchAll(/dest=([a-z]+)/g)].map((m) => m[1]);
-    expect(destinos.sort()).toEqual(["app", "business", "web"]);
-    // Las opciones salen de la MISMA fuente que la hoja del SPA.
-    expect(html).toContain("WhatsApp Business");
-    expect(html).toContain("WhatsApp Web");
+describe("Enlace firmado de oferta - el link NO expone los datos del comercio", () => {
+  test("el enlace que arma el bot NO lleva el telefono del comercio", () => {
+    // El bot arma el enlace con el id de la oferta, el telefono de QUIEN
+    // recibe la oferta y la firma HMAC. El telefono del COMERCIO se resuelve
+    // en el servidor, en el momento del clic (regla 2): si fuera en el
+    // enlace, cualquier persona que lo viera tendria el numero del comercio.
+    const i = SERVER.indexOf('const trackingUrl =');
+    expect(i).toBeGreaterThan(-1);
+    const linea = SERVER.slice(i, i + 400);
+    expect(linea).toContain("/c/");
+    expect(linea).toContain("u=");
+    expect(linea).toContain("s=");
+    // Y nada de telefono del comercio en el enlace.
+    expect(linea).not.toMatch(/comercioWhatsapp|comercioTelefono|telefonoComercio/);
   });
 
-  test("la hoja ofrece las tres destinos tambien en ANDROID", () => {
-    // El selector del sistema ocurre fuera de nuestro servidor: si la hoja
-    // no ofrece las opciones, la eleccion no vuelve y no se puede cobrar
-    // cuando la persona entra al chat.
-    const html = htmlHojaWhatsApp({
-      urlBase: "/c/of_test?u=51900000000&s=abc123",
-      plataforma: "android",
-      tituloOferta: "Oferta de prueba",
-    });
-    const destinos = [...html.matchAll(/dest=([a-z]+)/g)].map((m) => m[1]);
-    expect(destinos.sort()).toEqual(["app", "business", "web"]);
-  });
-
-  test("la hoja NO lleva el telefono del COMERCIO (regla 2)", () => {
-    // El numero del comercio se resuelve en el servidor, en el momento del
-    // clic: en la hoja no hay ningun `phone=`.
-    const html = htmlHojaWhatsApp({
-      urlBase: "/c/of_test?u=51900000000&s=abc123",
-      plataforma: "web",
-      tituloOferta: "Oferta de prueba",
-    });
-    expect(html).not.toContain(TELEFONO_COMERCIO);
-    expect(html).not.toContain("phone=");
-    // El `u` (el telefono de QUIEN recibio la oferta) si aparece: ya esta en
-    // la URL que el bot manda, asi que no es exposicion nueva. Lo que no
-    // puede aparecer es el numero del comercio.
-  });
-
-  test("la hoja escapa el titulo (un comercio puede escribir HTML)", () => {
-    const html = htmlHojaWhatsApp({
-      urlBase: "/c/of_test",
-      plataforma: "web",
-      tituloOferta: '<script>alert("x")</script>',
-    });
-    expect(html).not.toContain("<script>");
-    expect(html).toContain("&lt;script&gt;");
-    expect(escaparHtml('a"b&c')).toBe("a&quot;b&amp;c");
-  });
-
-  test("los tokens viajan intactos en las opciones de la hoja", () => {
-    const url = urlOpcionHoja("/c/of_test?u=51900000000&s=abc123", "business");
-    expect(url).toBe("/c/of_test?u=51900000000&s=abc123&dest=business");
-    // Sin query previo, agrega el '?'.
-    expect(urlOpcionHoja("/c/of_test", "app")).toBe("/c/of_test?dest=app");
+  test("la ruta /c/:id NO ofrece selector de app (va directo al chat)", () => {
+    // Decisión del dueño: la persona ya está en WhatsApp, no necesita
+    // escoger app. La ruta redirige al chat del comercio.
+    const i = SERVER.indexOf('app.get("/c/:ofertaId"');
+    expect(i).toBeGreaterThan(-1);
+    const ruta = SERVER.slice(i, i + 3000);
+    expect(ruta).toContain("wa.me/");
+    // Sin selector: ni hoja, ni parametro de destino.
+    expect(ruta).not.toContain("dest=");
+    expect(ruta).not.toContain("htmlHojaWhatsApp");
   });
 });
 
-describe.skipIf(!online)("Enlace de oferta (/c/:id) - elegir app y cobrar al entrar al chat", () => {
-  test("en ANDROID responde la hoja con las tres opciones (tambien ahi)", async () => {
+describe.skipIf(!online)("Enlace de oferta (/c/:id) - lleva directo al chat del comercio", () => {
+  test("responde 302 al chat del comercio con el codigo de canje en el mensaje", async () => {
     const token = await tokenAdmin();
-    await conOfertaDePrueba(token, { titulo: "Oferta del selector" }, async (oferta) => {
-      const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000`, {
+    await conOfertaDePrueba(token, { titulo: "Oferta del enlace directo" }, async (oferta) => {
+      const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000&s=firma`, {
         redirect: "manual",
-        headers: { "User-Agent": UA_ANDROID, "X-Forwarded-For": ipPropia() },
-      });
-      expect(r.status).toBe(200);
-      const html = await r.text();
-      const destinos = [...html.matchAll(/dest=([a-z]+)/g)].map((m) => m[1]);
-      expect(destinos.sort()).toEqual(["app", "business", "web"]);
-      // Y el telefono del comercio no esta en el HTML.
-      expect(html).not.toContain(TELEFONO_COMERCIO);
-    });
-  });
-
-  test("en iOS y en la WEB responde la hoja de opciones", async () => {
-    const token = await tokenAdmin();
-    await conOfertaDePrueba(token, { titulo: "Oferta de la hoja" }, async (oferta) => {
-      for (const ua of [UA_IOS, UA_WEB]) {
-        const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000&s=firma123`, {
-          redirect: "manual",
-          headers: { "User-Agent": ua, "X-Forwarded-For": ipPropia() },
-        });
-        expect(r.status).toBe(200);
-        expect(r.headers.get("content-type") || "").toContain("text/html");
-        const html = await r.text();
-        const destinos = [...html.matchAll(/dest=([a-z]+)/g)].map((m) => m[1]);
-        expect(destinos.sort()).toEqual(["app", "business", "web"]);
-        // REGLA 2: el telefono del comercio NO esta en el HTML.
-        expect(html).not.toContain(TELEFONO_COMERCIO);
-        // Y los tokens viajan intactos para que el servidor revalide la firma.
-        expect(html).toContain("u=51900000000");
-        expect(html).toContain("s=firma123");
-        // No se cachea ni se indexa.
-        expect(r.headers.get("cache-control") || "").toContain("no-store");
-        expect(r.headers.get("x-robots-tag") || "").toContain("noindex");
-      }
-    });
-  });
-
-  test("la persona elige app y el servidor responde con el enlace armado", async () => {
-    const token = await tokenAdmin();
-    await conOfertaDePrueba(token, { titulo: "Oferta del destino" }, async (oferta) => {
-      const destinos: Array<[string, string]> = [
-        ["business", "whatsappbusiness://send?phone="],
-        ["web", "https://web.whatsapp.com/send?phone="],
-        ["app", "whatsapp://send?phone="],
-      ];
-      for (const [dest, prefijo] of destinos) {
-        const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000&s=firma&dest=${dest}`, {
-          redirect: "manual",
-          headers: { "User-Agent": UA_WEB, "X-Forwarded-For": ipPropia() },
-        });
-        expect(r.status).toBe(302);
-        const location = String(r.headers.get("location") || "");
-        expect(location.startsWith(prefijo)).toBe(true);
-        // El codigo de canje viaja en el mensaje.
-        expect(decodeURIComponent(location)).toContain("Mi codigo es #NV-");
-      }
-    });
-  });
-
-  test("un destino raro cae en la app (no se inventa un esquema)", async () => {
-    const token = await tokenAdmin();
-    await conOfertaDePrueba(token, { titulo: "Oferta del destino raro" }, async (oferta) => {
-      const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000&dest=javascript:alert(1)`, {
-        redirect: "manual",
-        headers: { "User-Agent": UA_WEB, "X-Forwarded-For": ipPropia() },
+        headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile", "X-Forwarded-For": ipPropia() },
       });
       expect(r.status).toBe(302);
       const location = String(r.headers.get("location") || "");
-      expect(location.startsWith("whatsapp://send?phone=")).toBe(true);
-      expect(location.toLowerCase()).not.toContain("javascript:");
+      // Al chat del comercio.
+      expect(location.startsWith(`https://wa.me/${TELEFONO_COMERCIO}?text=`)).toBe(true);
+      // Y el codigo de canje en el mensaje: es lo que acredita el lead.
+      expect(decodeURIComponent(location)).toContain("Mi codigo es #NV-");
+      // El mensaje lleva el titulo de la oferta.
+      expect(decodeURIComponent(location)).toContain("Oferta del enlace directo");
+    });
+  });
+
+  test("sin firma valida NO se cobra nada (fail-closed), pero el enlace abre el chat", async () => {
+    const token = await tokenAdmin();
+    const tel = telefonoNuevo();
+    await conOfertaDePrueba(token, { titulo: "Oferta sin firma" }, async (oferta) => {
+      const r = await fetch(`${BASE}/c/${oferta.id}?u=${tel}&s=firmaInventada`, {
+        redirect: "manual",
+        headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile", "X-Forwarded-For": ipPropia() },
+      });
+      // El enlace sigue llevando al chat (la persona no se queda sin salida).
+      expect(r.status).toBe(302);
+      expect(String(r.headers.get("location") || "")).toContain("wa.me/");
+
+      if (!conBase) return;
+      const client = new pg.Client(SQL);
+      await client.connect();
+      try {
+        const filas = await client.query(
+          "select count(*) filter (where facturable)::int as cobrables from click_logs where oferta_id = $1 and usuario_telefono = $2",
+          [oferta.id, tel],
+        );
+        // Ni una fila facturable: sin la firma del bot, nadie paga.
+        expect(Number(filas.rows[0].cobrables)).toBe(0);
+      } finally {
+        await client.end().catch(() => undefined);
+      }
     });
   });
 });
-
-describe.skipIf(!online || !conBase)(
-  "Enlace de oferta (/c/:id) - se cobra cuando la persona entra al chat",
-  () => {
-    test("ver la hoja NO registra ningun clic (el comercio no paga por una hoja abierta)", async () => {
-      const token = await tokenAdmin();
-      const tel = telefonoNuevo();
-      await conOfertaDePrueba(token, { titulo: "Oferta sin cobro" }, async (oferta) => {
-        const r = await fetch(`${BASE}/c/${oferta.id}?u=${tel}&s=firma`, {
-          redirect: "manual",
-          headers: { "User-Agent": UA_IOS, "X-Forwarded-For": ipPropia() },
-        });
-        expect(r.status).toBe(200);
-
-        const client = new pg.Client(SQL);
-        await client.connect();
-        try {
-          const filas = await client.query(
-            "select count(*)::int as n from click_logs where oferta_id = $1 and usuario_telefono = $2",
-            [oferta.id, tel],
-          );
-          // Ni una fila: nadie pago por una hoja que nadie eligio.
-          expect(Number(filas.rows[0].n)).toBe(0);
-        } finally {
-          await client.end().catch(() => undefined);
-        }
-      });
-    });
-
-    test("elegir app registra UN clic (y el codigo de canje va en el mensaje)", async () => {
-      const token = await tokenAdmin();
-      const tel = telefonoNuevo();
-      await conOfertaDePrueba(token, { titulo: "Oferta con cobro" }, async (oferta) => {
-        const r = await fetch(`${BASE}/c/${oferta.id}?u=${tel}&s=firma&dest=business`, {
-          redirect: "manual",
-          headers: { "User-Agent": UA_IOS, "X-Forwarded-For": ipPropia() },
-        });
-        expect(r.status).toBe(302);
-        const location = String(r.headers.get("location") || "");
-        const codigo = decodeURIComponent(location).match(/Mi codigo es #([A-Z0-9-]+)/)?.[1] || "";
-        expect(codigo).toMatch(/^NV-/);
-
-        const client = new pg.Client(SQL);
-        await client.connect();
-        try {
-          const filas = await client.query(
-            "select count(*)::int as n, min(codigo_canje) as codigo from click_logs where oferta_id = $1 and usuario_telefono = $2",
-            [oferta.id, tel],
-          );
-          // UN interes -> UNA fila.
-          expect(Number(filas.rows[0].n)).toBe(1);
-          // Y el codigo de la fila es el que va en el mensaje al comercio:
-          // el comercio puede acreditar el lead con el.
-          expect(filas.rows[0].codigo).toBe(codigo);
-        } finally {
-          await client.end().catch(() => undefined);
-        }
-      });
-    });
-
-    test("tocar dos opciones SIN firma valida NO le cobra nada al comercio (fail-closed)", async () => {
-      // Sin la firma HMAC del bot, el enlace no puede facturar: se
-      // registraran las filas, pero ninguna sera facturable y no se debita
-      // nada del pack. El caso de la firma valida (un solo cobro por
-      // interes) lo vigila V2 de `ventana-24h.test.ts`, que usa un enlace
-      // firmado de verdad.
-      const token = await tokenAdmin();
-      const tel = telefonoNuevo();
-      await conOfertaDePrueba(token, { titulo: "Oferta con dos toques" }, async (oferta) => {
-        for (const dest of ["app", "business"]) {
-          const r = await fetch(`${BASE}/c/${oferta.id}?u=${tel}&s=firma&dest=${dest}`, {
-            redirect: "manual",
-            headers: { "User-Agent": UA_ANDROID, "X-Forwarded-For": ipPropia() },
-          });
-          expect(r.status).toBe(302);
-        }
-        const client = new pg.Client(SQL);
-        await client.connect();
-        try {
-          const filas = await client.query(
-            "select count(*)::int as n, count(*) filter (where facturable)::int as cobrables from click_logs where oferta_id = $1 and usuario_telefono = $2",
-            [oferta.id, tel],
-          );
-          // Ni una fila facturable: el comercio no paga nada.
-          expect(Number(filas.rows[0].cobrables)).toBe(0);
-        } finally {
-          await client.end().catch(() => undefined);
-        }
-      });
-    });
-  },
-);

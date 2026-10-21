@@ -51,58 +51,12 @@ Usuario toca el botón
 
 Por qué el teléfono se resuelve en el servidor: el número del bot y los de los comercios **no están en el HTML ni en el bundle** (`dist/assets/index-*.js`). Se resuelven en el momento del clic, en el servidor, con rate limit, y se devuelven ya dentro del enlace. El que hace clic necesita el número para abrir el chat; el resto del mundo no lo ve.
 
-### El otro camino: el enlace firmado `/c/:id`
-
-Los enlaces que el bot manda en el texto (`/c/:id?u=&s=`) son otro camino: no son un botón de React, son un **302 del servidor**. Antes terminaban en `https://wa.me/…`, que **no ofrece selector**: abría la app directo (la normal, o la de negocios si esa era la predeterminada) sin darle a la persona la elección. Medido por el dueño el 2026-10-21: *"los enlaces de esas ofertas no abren en la hoja de seleccion de whatsapp normal o business"*.
-
-```
-Persona toca el enlace firmado  →  GET /c/:id?u=<tel>&s=<hmac>
-        │
-        └─► 200: hoja de opciones (la sirve el servidor, en TODAS las plataformas)
-                          │
-                          ├─ "WhatsApp"         → /c/:id?…&dest=app
-                          ├─ "WhatsApp Business"→ /c/:id?…&dest=business
-                          └─ "WhatsApp Web"     → /c/:id?…&dest=web
-                                   │
-                                   ▼
-                        GET /c/:id?…&dest=<elegido>
-                                   │
-                                   ├─ valida la firma HMAC
-                                   ├─ REGISTRA el clic y DEBITA el pack   ← acá se cobra
-                                   ├─ registra el destino (security_logs)
-                                   └─► 302 al enlace YA ARMADO → chat del comercio
-```
-
-**La hoja no cobra nada.** Todavía no hay ningún chat abierto: no hay nada
-que cobrarle al comercio. El clic, el débito y el lead se registran **cuando
-la persona elige app**, que es el instante en que entra al chat del comercio
-(pedido del dueño, 2026-10-21: *"cobrar cuando se abre el whatsapp en ambos
-casos, cuando el usuario llega al whatsapp del comercio se cobra"*).
-
-**Por qué la hoja se sirve en Android también.** En iOS el sistema no ofrece
-selector para esquemas propios: no hay otra forma. En Android el selector del
-sistema existe, pero ocurre **fuera de nuestro servidor**: cuando la persona
-elige ahí, nadie nos avisa. Con la hoja nuestra, la elección vuelve como un
-request (`dest=`) y ahí se puede registrar y cobrar.
-
-Lo que **no** se rompe en ese camino:
-
-| | |
-|---|---|
-| **Los tokens** | `u` (quién recibe la oferta) y `s` (la firma HMAC) viajan intactos: la hoja los lleva en sus botones y el servidor vuelve a validar la firma cuando la persona elige. |
-| **El código de canje** | `NV-XXXXXX` sigue en el mensaje al comercio: es lo que acredita el lead. Se genera en el paso de la elección, así que el chat y la fila facturable son el mismo. |
-| **La ventana de 24 h** | Tocar dos opciones es **un** interés: una sola fila en `click_logs`, un solo débito, el mismo código de canje. |
-| **El momento del cobro** | Ver la hoja **no** registra ni cobra nada. El clic, el débito y el lead pasan al request con `dest=`. |
-| **El teléfono** | **No** va en el HTML de la hoja (regla 2): cada botón vuelve al servidor y el servidor responde con el enlace armado en el `Location` del 302. |
-| **El tracking** | La elección se registra en `security_logs` con `accion: "whatsapp_contacto"` y `canal: "enlace_firmado"`, igual que el botón de la landing. |
-| **La seguridad** | La hoja se sirve con `Cache-Control: no-store`, `Referrer-Policy: no-referrer` y `X-Robots-Tag: noindex`. Un `dest=` raro cae en `app` (nunca se inventa un esquema). |
-
 ## Elección de app por plataforma
 
 | Plataforma | Qué muestra el sistema | Qué hace la app | URL |
 |---|---|---|---|
-| Android | No hay selector propio del sistema para un esquema de la app: el selector nativo (WhatsApp / WhatsApp Business) aparece al abrir `whatsapp://` | La hoja de Yuddit ofrece las tres, y al elegir "WhatsApp" el sistema puede mostrar su propio selector | `whatsapp://send?phone=…&text=…`, `whatsappbusiness://…`, `https://web.whatsapp.com/send?…` |
-| iOS | No hay selector para esquemas propios | Hoja de opciones: WhatsApp / Business / Web | idem |
+| Android | Selector del sistema con las apps que manejan el esquema `whatsapp` (WhatsApp y WhatsApp Business) | Un toque y el selector aparece | `whatsapp://send?phone=…&text=…` |
+| iOS | No hay selector para esquemas propios | Hoja de opciones: WhatsApp / Business / Web | `whatsapp://…`, `whatsappbusiness://…`, `https://web.whatsapp.com/send?…` |
 | Escritorio | No hay selector | Hoja de opciones: WhatsApp Web / app / Business | idem |
 
 Detalles que importan:
@@ -146,8 +100,6 @@ Códigos: `200` ok · `404` oferta inexistente · `503` WhatsApp no configurado 
 | `security_logs` | `accion: "whatsapp_contacto"` con `destino`, `plataforma`, `ofertaId` y `codigoCanje` | Saber **qué app eligió la persona** es el dato que se pierde si solo se registra el clic. |
 
 Lo que **sí** factura sigue igual: `/c/:id` con la firma HMAC (`firmaClicValida`) y la ventana de 24 h por `(oferta, teléfono)`. El fail-closed de `registerOfferClick` no se tocó.
-
-En el enlace firmado, la elección de app se registra igual que en la landing: `security_logs` con `accion: "whatsapp_contacto"`, `entidad: "oferta"` y `detalles` con `{ destino, plataforma, ofertaId, codigoCanje, canal: "enlace_firmado" }`. La hoja y la elección son **un** clic: una sola fila en `click_logs` y un solo débito (lo vigila `tests/security/ventana-24h.test.ts`, V2).
 
 ## El mensaje al bot tiene que disparar su intención
 
@@ -221,11 +173,9 @@ Esto también importa para el negocio: cuando existan campañas automáticas, la
 |---|---|
 | `src/utils/whatsappLinks.ts` | Reglas puras: detectar plataforma, normalizar destino, construir la URL, listar las opciones. **Único** lugar donde se escriben URLs de WhatsApp. |
 | `src/utils/whatsappNative.ts` | Puente del navegador: pide el destino al servidor y abre el enlace. |
-| `src/components/WhatsAppChooser.tsx` | Hoja de opciones (iOS y web) del SPA. |
-| `src/utils/hojaWhatsApp.ts` | Hoja de opciones (iOS y web) que sirve el **servidor** para los enlaces firmados `/c/:id`. Sin teléfono en el HTML. |
-| `server.ts` | `GET /api/whatsapp/contacto` + su registro en `esRutaPublica`, y `GET /c/:id` (el enlace firmado, con la elección de app). |
-| `tests/security/whatsapp-contacto.test.ts` | Tests que vigilan las 4 reglas (botones de la landing). |
-| `tests/security/enlace-oferta-whatsapp.test.ts` | Tests que vigilan la elección de app en el enlace firmado `/c/:id`. |
+| `src/components/WhatsAppChooser.tsx` | Hoja de opciones (iOS y web). |
+| `server.ts` | `GET /api/whatsapp/contacto` + su registro en `esRutaPublica`. |
+| `tests/security/whatsapp-contacto.test.ts` | Tests que vigilan las 4 reglas. |
 
 ## Verificación en dispositivos reales
 
@@ -264,16 +214,6 @@ curl -s "http://127.0.0.1:3000/api/whatsapp/contacto?dest=web"         # https:/
 # A mano: el clic se registro y NO es facturable
 docker exec <pg> psql -U postgres -d nuuviopsg -c \
   "select oferta_id, usuario_telefono, codigo_canje, facturable from click_logs order by creado_en desc limit 5"
-
-# A mano: el enlace firmado deja elegir la app
-# Android -> 302 al esquema nativo (el sistema muestra el selector)
-curl -s -o /dev/null -D - -A "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile" \
-  "http://127.0.0.1:3000/c/<id>?u=51900000000" | grep -i location
-# iOS / web -> la hoja de opciones (200, sin el telefono del comercio)
-curl -s -A "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148" \
-  "http://127.0.0.1:3000/c/<id>?u=51900000000&s=<firma>" | grep -o 'dest=[a-z]*'
-# La eleccion -> 302 al enlace armado
-curl -s -o /dev/null -D - "http://127.0.0.1:3000/c/<id>?u=51900000000&s=<firma>&dest=business" | grep -i location
 ```
 
 En el navegador: en Android, un toque debe abrir el **selector del sistema**; en iOS y en escritorio debe abrirse la hoja con las tres opciones.
