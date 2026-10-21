@@ -153,6 +153,20 @@ Esta es la regla que nació de un incidente real (2026-10-21, reportado por el d
 
 > **Corolario sobre los tests.** `POST /api/whatsapp/simulate-incoming` devuelve el **payload** que el bot quiso mandar, no lo que WhatsApp entrega. Un test que mira `boton.url` da verde mientras la persona no recibe nada — eso pasó con los tests R2/R3/R6 de `bot-zona-confirmacion.test.ts`. Por eso ahora se verifica **el enlace dentro de `texto`**: lo único que sale de verdad en un chat de WhatsApp.
 
+## Regla 6 — toda entrega de oferta dice cómo darse de baja
+
+**Por qué:** la política de WhatsApp de Meta pide que la persona sepa de antemano cómo dejar de recibir mensajes. Y una promesa que no se cumple es peor que no prometer nada.
+
+**La regla:** cada mensaje del bot que **entrega una oferta** (la individual con su enlace y el mosaico con las 3) termina con la línea de opt-out, en un lugar único (`src/utils/botMensajes.ts`):
+
+> 📩 Si ya no quieres recibir ofertas, escribe *BAJA* y te sacamos de la lista al instante. ¡Gracias por estar con nosotros! 😊
+
+**"BAJA" es la palabra que el bot ya entendía** (`stop|baja|cancelar|salir|desuscribir|detener`), así que la promesa se cumple.
+
+**Y la baja se sostiene.** Antes de este cambio (2026-10-21) la baja NO se sostenía: tras "BAJA" el usuario quedaba en `desuscrito`, pero al siguiente mensaje **cualquier** mensaje lo reactivaba. Medido y corregido: un dado de baja solo vuelve a estar activo si lo pide de forma explícita ("ofertas", "alta"). Mientras tanto, el bot responde con un mensaje amable que le explica que está dado de baja y cómo volver.
+
+Esto también importa para el negocio: cuando existan campañas automáticas, la lista de destinatarios tiene que respetar `estado = "desuscrito"` y `consentimientos.whatsapp = false`. Hoy no hay envíos programados de WhatsApp (el digest es por correo y ya filtra por `consentimientos.correo`), así que el riesgo está acotado, pero la base ya está en las condiciones correctas.
+
 ## Archivos
 
 | Archivo | Rol |

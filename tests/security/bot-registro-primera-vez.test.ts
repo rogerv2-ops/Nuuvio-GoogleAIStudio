@@ -82,15 +82,19 @@ function textoDe(res: SimResult): string {
 }
 
 describe.skipIf(!online || !hayAdmin)("Bot: el alta de un usuario que escribe por primera vez", () => {
-  test("A1: un numero nuevo recibe la solicitud de nombre, edad y distrito", async () => {
+  test("A1: un numero nuevo recibe la solicitud de los datos que le faltan", async () => {
     const token = await login(ADMIN.email, ADMIN.password);
     expect(token).toBeTruthy();
 
     const res = await simular(token!, telefonoNuevo(), "hola");
     const texto = textoDe(res);
-    expect(texto).toContain("Nombre");
+    // El nombre ya se sabe (perfil de WhatsApp): se saluda con el nombre y
+    // se piden SOLO edad y distrito. Pedir el nombre otra vez hacia perder un
+    // dato a la persona.
+    expect(texto).toContain("Alguien Nuevo");
     expect(texto).toContain("Edad");
     expect(texto).toContain("Distrito");
+    expect(texto).not.toContain("*Nombre*");
     // Todavia no debe offering ofertas: primero necesita los datos.
     expect(texto).not.toContain("aquí tienes las 3 mejores ofertas");
   });
