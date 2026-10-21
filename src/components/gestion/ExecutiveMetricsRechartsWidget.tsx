@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -68,59 +68,50 @@ export const ExecutiveMetricsRechartsWidget: React.FC<ExecutiveMetricsRechartsWi
   // clics aunque la base tuviera 184.
   const totalClicsSaldo = packs.reduce((acc, p) => acc + p.saldoClics, 0);
 
-  // Cálculo de tendencia histórica mensual consolidada (Mayo - Octubre 2026)
-  const datosMensuales = useMemo(() => {
-    return [
-      {
-        mes: 'Mayo',
-        usuariosRegistrados: Math.round(totalUsuariosCount * 0.15),
-        comerciosActivos: Math.round(comerciosActivosCount * 0.20),
-        leadsGenerados: Math.round(leadsGeneradosCount * 0.12),
-        ventasConfirmadas: Math.round(ventasConfirmadasCount * 0.10),
-        ofertasVigentes: Math.round(ofertasActivasCount * 0.30)
-      },
-      {
-        mes: 'Junio',
-        usuariosRegistrados: Math.round(totalUsuariosCount * 0.30),
-        comerciosActivos: Math.round(comerciosActivosCount * 0.35),
-        leadsGenerados: Math.round(leadsGeneradosCount * 0.28),
-        ventasConfirmadas: Math.round(ventasConfirmadasCount * 0.22),
-        ofertasVigentes: Math.round(ofertasActivasCount * 0.45)
-      },
-      {
-        mes: 'Julio',
-        usuariosRegistrados: Math.round(totalUsuariosCount * 0.50),
-        comerciosActivos: Math.round(comerciosActivosCount * 0.52),
-        leadsGenerados: Math.round(leadsGeneradosCount * 0.48),
-        ventasConfirmadas: Math.round(ventasConfirmadasCount * 0.40),
-        ofertasVigentes: Math.round(ofertasActivasCount * 0.60)
-      },
-      {
-        mes: 'Agosto',
-        usuariosRegistrados: Math.round(totalUsuariosCount * 0.70),
-        comerciosActivos: Math.round(comerciosActivosCount * 0.70),
-        leadsGenerados: Math.round(leadsGeneradosCount * 0.68),
-        ventasConfirmadas: Math.round(ventasConfirmadasCount * 0.62),
-        ofertasVigentes: Math.round(ofertasActivasCount * 0.78)
-      },
-      {
-        mes: 'Setiembre',
-        usuariosRegistrados: Math.round(totalUsuariosCount * 0.88),
-        comerciosActivos: Math.round(comerciosActivosCount * 0.86),
-        leadsGenerados: Math.round(leadsGeneradosCount * 0.85),
-        ventasConfirmadas: Math.round(ventasConfirmadasCount * 0.81),
-        ofertasVigentes: Math.round(ofertasActivasCount * 0.90)
-      },
-      {
-        mes: 'Octubre',
-        usuariosRegistrados: totalUsuariosCount,
-        comerciosActivos: comerciosActivosCount,
-        leadsGenerados: leadsGeneradosCount,
-        ventasConfirmadas: ventasConfirmadasCount,
-        ofertasVigentes: ofertasActivasCount
+  /**
+   * Serie mensual REAL, pedida al servidor.
+   *
+   * Antes este bloque fabricaba seis meses de historia (Mayo-Octubre 2026)
+   * multiplicando el valor ACTUAL por porcentajes fijos: un grafico que
+   * parecia bien y no media nada. Ahora sale de las fechas de la base
+   * (`audience_users.created_at`, `click_logs.creado_en`,
+   * `offers.created_at`).
+   *
+   * Lo que no se puede medir por mes NO SE DIBUJA: los comercios activos no
+   * tienen historico (viven en un JSON sin fechas) y las ventas confirmadas
+   * no tienen tabla. Dibujarlas seria volver a inventar.
+   */
+  const [serieMensual, setSerieMensual] = useState<any[]>([]);
+
+  useEffect(() => {
+    let vivo = true;
+    const cargar = async () => {
+      try {
+        const r = await fetch('/api/analitica/series?meses=6', { headers: { Accept: 'application/json' } });
+        const cuerpo: any = await r.json().catch(() => null);
+        if (r.ok && cuerpo?.ok && Array.isArray(cuerpo.serie) && vivo) {
+          setSerieMensual(cuerpo.serie);
+        }
+      } catch {
+        // sin serie, el grafico queda vacio (no inventado)
       }
-    ];
-  }, [totalUsuariosCount, comerciosActivosCount, leadsGeneradosCount, ventasConfirmadasCount, ofertasActivasCount]);
+    };
+    void cargar();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const datosMensuales = useMemo(
+    () =>
+      serieMensual.map((m) => ({
+        mes: m.etiqueta,
+        usuariosRegistrados: Number(m.usuarios || 0),
+        leadsGenerados: Number(m.leads || 0),
+        ofertasVigentes: Number(m.ofertas || 0),
+      })),
+    [serieMensual],
+  );
 
   // Formateador personalizado de Tooltips de Recharts
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -129,7 +120,7 @@ export const ExecutiveMetricsRechartsWidget: React.FC<ExecutiveMetricsRechartsWi
         <div className="bg-slate-900 text-white p-3.5 rounded-2xl shadow-xl border border-slate-700 text-xs space-y-2">
           <p className="font-bold text-emerald-400 border-b border-slate-800 pb-1 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5" />
-            <span>Métricas de {label} 2026</span>
+            <span>Métricas de {label}</span>
           </p>
           <div className="space-y-1">
             {payload.map((entry: any, index: number) => (
@@ -395,14 +386,12 @@ export const ExecutiveMetricsRechartsWidget: React.FC<ExecutiveMetricsRechartsWi
                 {vistaGrafico === 'crecimiento' && (
                   <>
                     <Area type="monotone" dataKey="usuariosRegistrados" name="Nuevos Usuarios Registrados" stroke="#0D9488" strokeWidth={2.5} fillOpacity={1} fill="url(#gradUsuarios)" />
-                    <Area type="monotone" dataKey="comerciosActivos" name="Comercios Activos en Red" stroke="#D97706" strokeWidth={2.5} fillOpacity={1} fill="url(#gradComercios)" />
                   </>
                 )}
 
                 {vistaGrafico === 'conversion' && (
                   <>
                     <Area type="monotone" dataKey="leadsGenerados" name="Leads Generados (WhatsApp)" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#gradLeads)" />
-                    <Area type="monotone" dataKey="ventasConfirmadas" name="Ventas Confirmadas" stroke="#6366F1" strokeWidth={2.5} fillOpacity={1} fill="url(#gradVentas)" />
                   </>
                 )}
 

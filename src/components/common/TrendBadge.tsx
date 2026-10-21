@@ -61,6 +61,11 @@ export const TrendBadge: React.FC<TrendBadgeProps> = ({
   className = '',
   size = 'xs'
 }) => {
+  // Si no hay un periodo anterior REAL, no hay tendencia que mostrar:
+  // decir "0,0% sin cambio" cuando no sabemos es inventar tambien.
+  const hayComparacion = typeof porcentajeProp === 'number' ||
+    (typeof actual === 'number' && typeof anterior === 'number');
+
   // Determinar el porcentaje
   let pct = 0;
   if (typeof porcentajeProp === 'number') {
@@ -101,6 +106,21 @@ export const TrendBadge: React.FC<TrendBadgeProps> = ({
     sm: 'w-3.5 h-3.5',
     md: 'w-4 h-4'
   }[size];
+
+  if (!hayComparacion) {
+    return (
+      <span
+        className={`inline-flex items-center font-bold rounded-lg border bg-stone-100 text-stone-500 border-stone-200/80 tracking-tight ${sizeClasses} ${className}`}
+        title="Sin periodo anterior con el que comparar"
+      >
+        <Minus className={`${iconSizes} text-stone-400 shrink-0`} />
+        <span>sin dato</span>
+        {mostrarTextoPeriodo && !compact && (
+          <span className="text-[10px] text-stone-400 font-normal">{etiquetaPeriodo}</span>
+        )}
+      </span>
+    );
+  }
 
   if (esNeutro) {
     return (

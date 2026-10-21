@@ -233,9 +233,12 @@ export const VentasComercioView: React.FC<VentasComercioViewProps> = ({
     // Emitir evento en coreEvents
     coreEvents.emitir({
       tipoEvento: 'venta_confirmada',
+
       actorTipo: 'comercio',
       actorId: comercio.id,
-      origen: 'panel',
+      // Es una venta de PRUEBA (la dispara un boton del panel). Se marca
+      // como tal para que nunca se confunda con una venta real.
+      origen: 'prueba',
       datos: {
         codigoPersonal: randomCod,
         comercioId: comercio.id,
