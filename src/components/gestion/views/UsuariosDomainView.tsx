@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../../../modules/geo';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Gift, Search, Filter, CheckCircle2, AlertCircle, 
@@ -7,7 +8,6 @@ import {
 import { usuariosModule, estaVerificado, canalDeOrigen } from '../../../modules/usuarios';
 import { puntosModule } from '../../../modules/puntos';
 import { AudienceUser } from '../../../types';
-import { DISTRITOS_LIMA } from '../../../data/seedData';
 import { RegistrationAuditLogTable } from '../components/RegistrationAuditLogTable';
 
 interface UsuariosDomainViewProps {
@@ -16,6 +16,9 @@ interface UsuariosDomainViewProps {
 }
 
 export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta, onNavegar }) => {
+  // Los distritos del filtro salen de la zona de servicio (las
+  // provincias encendidas en el panel), no de una lista escrita a mano.
+  const distritosZona = useDistritosZona();
   const [version, setVersion] = useState(0);
   const [busqueda, setBusqueda] = useState('');
   const [filtroDistrito, setFiltroDistrito] = useState('todos');
@@ -234,7 +237,7 @@ export const UsuariosDomainView: React.FC<UsuariosDomainViewProps> = ({ subruta,
                 className="py-1.5 px-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"
               >
                 <option value="todos">Todos los distritos</option>
-                {DISTRITOS_LIMA.map(d => (
+                {distritosZona.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>

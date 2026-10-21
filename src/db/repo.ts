@@ -31,6 +31,11 @@ async function upsertAudienceUser(user){try{
     telefono: user.telefono ? cifrarCampo(user.telefono) : null,
     telefonoIdx: user.telefono ? indiceCiego(normalizePhoneForMatching(user.telefono).core9 || user.telefono) : null,
     distrito: user.distrito || null,
+    // El CODIGO del distrito y de la provincia: el nombre solo no
+    // identifica un lugar (en el Peru hay 99 nombres de distrito
+    // repetidos, "Santa Rosa" aparece 10 veces).
+    distritoCodigo: user.distritoCodigo || null,
+    provinciaCodigo: user.provinciaCodigo || null,
     provincia: user.provincia || null,
     ciudad: user.ciudad || null,
     emailVerificado: !!user.emailVerificado,
@@ -49,6 +54,11 @@ async function upsertAudienceUser(user){try{
     telefono: user.telefono ? cifrarCampo(user.telefono) : null,
     telefonoIdx: user.telefono ? indiceCiego(normalizePhoneForMatching(user.telefono).core9 || user.telefono) : null,
     distrito: user.distrito || null,
+    // El CODIGO del distrito y de la provincia: el nombre solo no
+    // identifica un lugar (en el Peru hay 99 nombres de distrito
+    // repetidos, "Santa Rosa" aparece 10 veces).
+    distritoCodigo: user.distritoCodigo || null,
+    provinciaCodigo: user.provinciaCodigo || null,
     provincia: user.provincia || null,
     ciudad: user.ciudad || null,
     emailVerificado: !!user.emailVerificado,
@@ -83,6 +93,11 @@ async function upsertAudienceUser(user){try{
       apellido: user.apellido || null,
       telefono: user.telefono || null,
       distrito: user.distrito || null,
+    // El CODIGO del distrito y de la provincia: el nombre solo no
+    // identifica un lugar (en el Peru hay 99 nombres de distrito
+    // repetidos, "Santa Rosa" aparece 10 veces).
+    distritoCodigo: user.distritoCodigo || null,
+    provinciaCodigo: user.provinciaCodigo || null,
       provincia: user.provincia || null,
       ciudad: user.ciudad || null,
       emailVerificado: !!user.emailVerificado,
@@ -100,6 +115,11 @@ async function upsertAudienceUser(user){try{
       apellido: user.apellido || null,
       telefono: user.telefono || null,
       distrito: user.distrito || null,
+    // El CODIGO del distrito y de la provincia: el nombre solo no
+    // identifica un lugar (en el Peru hay 99 nombres de distrito
+    // repetidos, "Santa Rosa" aparece 10 veces).
+    distritoCodigo: user.distritoCodigo || null,
+    provinciaCodigo: user.provinciaCodigo || null,
       provincia: user.provincia || null,
       ciudad: user.ciudad || null,
       emailVerificado: !!user.emailVerificado,

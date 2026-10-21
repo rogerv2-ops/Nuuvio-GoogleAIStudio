@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../modules/geo';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ResponsiveContainer,
@@ -38,7 +39,7 @@ import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from '
 import { TrendBadge, helperCalcularPeriodoAnterior } from './common/TrendBadge';
 import { comerciosModule } from '../modules/comercios';
 import { ofertasModule } from '../modules/ofertas';
-import { DISTRITOS_LIMA, CATEGORIAS_OFERTAS } from '../data/seedData';
+import { CATEGORIAS_OFERTAS } from '../data/seedData';
 import { Merchant, Offer } from '../types';
 
 
@@ -54,6 +55,9 @@ function diasDelRango(inicio: string, fin: string): number {
   }
 }
 export const AdminRechartsDashboard: React.FC = () => {
+  // Los distritos del grafico salen de la zona de servicio (provincias
+  // encendidas), no de una lista escrita a mano.
+  const distritosZona = useDistritosZona();
   // Estado para forzar actualización reactiva en tiempo real
   const [version, setVersion] = useState(0);
   const [rangoFecha, setRangoFecha] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('7d'));
@@ -185,7 +189,7 @@ export const AdminRechartsDashboard: React.FC = () => {
   const datosPorDistrito = useMemo(() => {
     const mapaDistritos: Record<string, { distrito: string; comercios: number; ofertas: number }> = {};
 
-    DISTRITOS_LIMA.slice(0, 8).forEach(d => {
+    distritosZona.slice(0, 8).forEach(d => {
       mapaDistritos[d] = { distrito: d, comercios: 0, ofertas: 0 };
     });
 
@@ -416,7 +420,7 @@ export const AdminRechartsDashboard: React.FC = () => {
                 {kpis.distritosConComercios}
               </div>
               <div className="text-[11px] text-stone-500 mt-1">
-                de {DISTRITOS_LIMA.length} distritos objetivo
+                de {distritosZona.length} distritos en zona de servicio
               </div>
             </div>
 

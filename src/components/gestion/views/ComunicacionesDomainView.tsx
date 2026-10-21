@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../../../modules/geo';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Send, Mail, Bell, Sparkles, CheckCircle2, AlertCircle, 
@@ -5,7 +6,7 @@ import {
 } from 'lucide-react';
 import { digestModule, DigestLogEntry } from '../../../modules/digest';
 import { usuariosModule } from '../../../modules/usuarios';
-import { DISTRITOS_LIMA } from '../../../data/seedData';
+
 import { coreEvents } from '../../../core/events';
 
 interface ComunicacionesDomainViewProps {
@@ -14,6 +15,8 @@ interface ComunicacionesDomainViewProps {
 }
 
 export const ComunicacionesDomainView: React.FC<ComunicacionesDomainViewProps> = ({ subruta, onNavegar }) => {
+  // Los distritos salen de la zona de servicio, no de una lista a mano.
+  const distritosZona = useDistritosZona();
   const [version, setVersion] = useState(0);
   const [distritoDigest, setDistritoDigest] = useState('Miraflores');
   const [ejecutandoDigest, setEjecutandoDigest] = useState(false);
@@ -218,7 +221,7 @@ export const ComunicacionesDomainView: React.FC<ComunicacionesDomainViewProps> =
                 onChange={(e) => setDistritoDigest(e.target.value)}
                 className="flex-1 p-2.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-800"
               >
-                {DISTRITOS_LIMA.map(d => (
+                {distritosZona.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>

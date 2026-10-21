@@ -5,7 +5,7 @@ import {
   Store, UserCheck, X, ExternalLink, Lock, LogOut, AlertTriangle
 } from 'lucide-react';
 import { Offer, AudienceUser } from '../types';
-import { DISTRITOS_LIMA } from '../data/seedData';
+import { SelectorProvinciaDistrito } from './common/SelectorProvinciaDistrito';
 import { ofertasModule } from '../modules/ofertas';
 import { usuariosModule } from '../modules/usuarios';
 import { comerciosModule } from '../modules/comercios';
@@ -67,7 +67,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     email: '',
     edad: 28,
     genero: 'Prefiero no decir',
-    distrito: 'Miraflores',
+    provincia: '',
+    distrito: '',
     categorias: ['Gastronomía y Café']
   });
   const [registroExitoso, setRegistroExitoso] = useState<{
@@ -84,7 +85,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     telefono: '+51 9',
     email: '',
     direccion: '',
-    distrito: 'Miraflores',
+    provincia: '',
+    distrito: '',
     categoria: 'Gastronomía y Café',
     instagram: '@'
   });
@@ -845,17 +847,13 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-semibold text-[#57534E]">Distrito</label>
-                    <select
-                      value={formUser.distrito}
-                      onChange={e => setFormUser({ ...formUser, distrito: e.target.value })}
-                      className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332] bg-white"
-                    >
-                      {DISTRITOS_LIMA.map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
+                  <div className="sm:col-span-2">
+                    <SelectorProvinciaDistrito
+                      provincia={formUser.provincia}
+                      distrito={formUser.distrito}
+                      onProvinciaChange={(provincia) => setFormUser({ ...formUser, provincia })}
+                      onDistritoChange={(distrito) => setFormUser({ ...formUser, distrito })}
+                    />
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold text-[#57534E]">Edad</label>
@@ -978,17 +976,15 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     />
                     <p className="text-[10px] text-[#78716C] mt-0.5">Código de país preconfigurado (🇵🇪 +51).</p>
                   </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-[#57534E]">Distrito del Local</label>
-                    <select
-                      value={formMerchant.distrito}
-                      onChange={e => setFormMerchant({ ...formMerchant, distrito: e.target.value })}
-                      className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332] bg-white"
-                    >
-                      {DISTRITOS_LIMA.map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
+                  <div className="sm:col-span-2">
+                    <SelectorProvinciaDistrito
+                      provincia={formMerchant.provincia}
+                      distrito={formMerchant.distrito}
+                      onProvinciaChange={(provincia) => setFormMerchant({ ...formMerchant, provincia })}
+                      onDistritoChange={(distrito) => setFormMerchant({ ...formMerchant, distrito })}
+                      provinciaLabel="Provincia del Local"
+                      distritoLabel="Distrito del Local"
+                    />
                   </div>
                 </div>
 

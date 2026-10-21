@@ -237,7 +237,15 @@ export function detectarDistritoEnTexto(
   for (const a of aliasOrdenados) {
     const re = new RegExp(`(^|\\s)${a.clave}(\\s|$)`);
     if (re.test(normalizado)) {
-      return { nombre: a.nombre, codigo: "", codigoProvincia: "", provinciaActiva: true };
+      // El alias apunta a un distrito REAL del catalogo: se busca su codigo
+      // para que la audiencia guarde el codigo y no solo el nombre.
+      const real = indiceDistritos.find((d) => d.nombre === a.nombre);
+      return {
+        nombre: a.nombre,
+        codigo: real?.codigo || "",
+        codigoProvincia: real?.codigoProvincia || "",
+        provinciaActiva: real ? real.provinciaActiva : true,
+      };
     }
   }
 
@@ -251,6 +259,34 @@ export function detectarDistritoEnTexto(
         codigo: entrada.codigo,
         codigoProvincia: entrada.codigoProvincia,
         provinciaActiva: entrada.provinciaActiva,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * La provincia a la que pertenece un distrito, y si esta activa.
+ *
+ * Es lo que usa el bot para saber si en la zona de la persona hay ofertas
+ * que ofrecerle: la ZONA DE SERVICIO es la provincia (encendida en el
+ * panel de gestion), no el distrito.
+ *
+ * `null` si el distrito no esta en el catalogo.
+ */
+export function provinciaDeDistrito(nombreDistrito: string | null | undefined): {
+  codigoProvincia: string;
+  nombre: string;
+  activa: boolean;
+} | null {
+  const k = clave(nombreDistrito);
+  if (!k) return null;
+  for (const d of indiceDistritos) {
+    if (d.clave === k) {
+      return {
+        codigoProvincia: d.codigoProvincia,
+        nombre: "",
+        activa: d.provinciaActiva,
       };
     }
   }

@@ -1,3 +1,4 @@
+import { useDistritosZona } from '../../../modules/geo';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Building2, Kanban, ShieldAlert, CheckCircle2, UserCheck, 
@@ -14,7 +15,7 @@ import { useSaldoFacturacion } from '../../common/useSaldoFacturacion';
 import { alPulsarBotonWhatsApp } from '../../../utils/whatsappNative';
 import { WhatsAppChooser } from '../../WhatsAppChooser';
 import { Merchant, KanbanStage, Offer } from '../../../types';
-import { DISTRITOS_LIMA, CATEGORIAS_OFERTAS } from '../../../data/seedData';
+import {CATEGORIAS_OFERTAS} from '../../../data/seedData';
 import { CrmVentasView } from '../../CrmVentasView';
 
 interface ComerciosDomainViewProps {
@@ -23,6 +24,9 @@ interface ComerciosDomainViewProps {
 }
 
 export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subruta, onNavegar }) => {
+  // Los distritos del filtro salen de la zona de servicio (las
+  // provincias encendidas en el panel), no de una lista escrita a mano.
+  const distritosZona = useDistritosZona();
   const [version, setVersion] = useState(0);
 
   // Estados de Pipeline Kanban (7 etapas)
@@ -528,7 +532,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                 className="bg-white border border-stone-200 rounded-xl text-xs text-stone-700 py-1.5 px-2.5 focus:outline-none"
               >
                 <option value="todos">Todos los distritos</option>
-                {DISTRITOS_LIMA.map(d => (
+                {distritosZona.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
@@ -1144,7 +1148,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                     onChange={(e) => setNuevoLeadForm({ ...nuevoLeadForm, distrito: e.target.value })}
                     className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800"
                   >
-                    {DISTRITOS_LIMA.map(d => (
+                    {distritosZona.map(d => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
