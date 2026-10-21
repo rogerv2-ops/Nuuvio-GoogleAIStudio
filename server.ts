@@ -422,9 +422,21 @@ app.get("/api/whatsapp/contacto",rateLimit("whatsapp_contacto",30,60000),async(r
   if (!cleanComercioWsp) {
     return res.redirect(302, "/");
   }
-  // Redireccion transparente: el usuario acaba directo en WhatsApp del comercio (sin pagina intermedia).
+  // EL SELECTOR DE APP LO PONE EL SISTEMA.
+  //
+  // El esquema nativo `whatsapp://` lo resuelven WhatsApp Y WhatsApp
+  // Business, asi que el sistema muestra el selector de app con un toque.
+  // Dueno (2026-10-21): "la hoja no, selector".
+  //
+  // - NO usamos `https://wa.me/...`: abre la app directo, sin dejar elegir
+  //   (medido: los enlaces de las ofertas no dejaban escoger app).
+  // - NO usamos una hoja HTML nuestra: el dueno la descarto.
+  //
+  // El numero del comercio va en el esquema porque es lo que la persona
+  // necesita para abrir el chat; el resto de los datos del enlace (quien
+  // recibe la oferta y la firma HMAC) viajan ofuscados.
   const mensajeComercio = 'Hola, vi en Yuddit la oferta "' + oferta.titulo + '". Mi codigo es #' + codigoCanje;
-  return res.redirect(302, "https://wa.me/" + cleanComercioWsp + "?text=" + encodeURIComponent(mensajeComercio));
+  return res.redirect(302, "whatsapp://send?phone=" + cleanComercioWsp + "&text=" + encodeURIComponent(mensajeComercio));
 });
 
 // Catalogo COMPLETO para la gestion: incluye las ofertas EN VALIDACION (las

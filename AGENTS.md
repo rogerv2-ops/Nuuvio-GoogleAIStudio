@@ -19,7 +19,7 @@ Cómo se aplica:
 - **Nunca reescribas una URL de WhatsApp a mano** fuera de `src/utils/whatsappLinks.ts`. Duplicar las reglas es exactamente como se rompe la elección de app.
 - **El mensaje al bot tiene que disparar su intención de "pedir ofertas"** (`esIntencionOfertas`, en `src/utils/securityGuards.ts`). La palabra va **en plural**: "quiero ver las **ofertas** de Yuddit: {título}". El mensaje viejo ("Hola quiero aprovechar esta **oferta**: …") no la disparaba, así que el bot no entendía el pedido.
 - **La landing enruta al bot, no al comercio**: así los teléfonos de los comercios no llegan al público. El lead llega al comercio por el enlace firmado `/c/:id`, que sí factura.
-- **Excepción documentada**: los enlaces `/c/:id` que el bot manda *dentro de* WhatsApp van directo al chat del comercio (la persona ya está en WhatsApp; no necesita escoger app). Es una decisión del dueño (2026-10-21): el enlace lleva los datos ofuscados (firma HMAC) y abre el chat del comercio; el selector de app y el cobro por canje (código QR) son proyectos aparte.
+- **Los enlaces `/c/:id` dejan elegir la app, con el selector del SISTEMA** (2026-10-21): van al esquema nativo `whatsapp://`, que lo resuelven WhatsApp **y** WhatsApp Business, así que el sistema muestra el selector con un toque. Dueño: *"la hoja no, selector"* → no hay hoja HTML intermedia. Antes iban a `wa.me`, que abre la app directo sin dejar elegir. El teléfono del comercio **no** va en el enlace (se resuelve en el servidor al hacer clic); lo que viaja es el id de la oferta, el teléfono de quien la recibe y la firma HMAC (datos ofuscados). El cobro por canje (código QR) es un proyecto aparte.
 
 Lo que **tiene que ver la persona** (si no, no está bien):
 
