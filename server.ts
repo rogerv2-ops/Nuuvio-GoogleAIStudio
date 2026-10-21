@@ -422,21 +422,23 @@ app.get("/api/whatsapp/contacto",rateLimit("whatsapp_contacto",30,60000),async(r
   if (!cleanComercioWsp) {
     return res.redirect(302, "/");
   }
-  // EL SELECTOR DE APP LO PONE EL SISTEMA.
+  // ENLACE DIRECTO AL CHAT DEL COMERCIO (sin selector de app).
   //
-  // El esquema nativo `whatsapp://` lo resuelven WhatsApp Y WhatsApp
-  // Business, asi que el sistema muestra el selector de app con un toque.
-  // Dueno (2026-10-21): "la hoja no, selector".
+  // Decision del dueno (2026-10-21): "se supone que la persona solo debe
+  // recibir el enlace con todos los datos ofuscados por seguridad, y el
+  // enlace lo debe llevar al whatsapp del comercio directo, ya estan en
+  // whatsapp ambos, no necesitan escojer app, asi que hay que volver al
+  // estado anterior".
   //
-  // - NO usamos `https://wa.me/...`: abre la app directo, sin dejar elegir
-  //   (medido: los enlaces de las ofertas no dejaban escoger app).
-  // - NO usamos una hoja HTML nuestra: el dueno la descarto.
+  // O sea: NO hay selector de app ni hoja intermedia. La persona cae de
+  // una en el chat del comercio.
   //
-  // El numero del comercio va en el esquema porque es lo que la persona
-  // necesita para abrir el chat; el resto de los datos del enlace (quien
-  // recibe la oferta y la firma HMAC) viajan ofuscados.
+  // El numero del comercio va en el enlace armado EN EL SERVIDOR (regla 2:
+  // el telefono no se expone en el enlace que la persona recibe). Lo que
+  // viaja en el enlace es el id de la oferta, el telefono de QUIEN la
+  // recibe y la firma HMAC: datos ofuscados.
   const mensajeComercio = 'Hola, vi en Yuddit la oferta "' + oferta.titulo + '". Mi codigo es #' + codigoCanje;
-  return res.redirect(302, "whatsapp://send?phone=" + cleanComercioWsp + "&text=" + encodeURIComponent(mensajeComercio));
+  return res.redirect(302, "https://wa.me/" + cleanComercioWsp + "?text=" + encodeURIComponent(mensajeComercio));
 });
 
 // Catalogo COMPLETO para la gestion: incluye las ofertas EN VALIDACION (las

@@ -55,7 +55,7 @@ Por qué el teléfono se resuelve en el servidor: el número del bot y los de lo
 
 | Plataforma | Qué muestra el sistema | Qué hace la app | URL |
 |---|---|---|---|
-| Android | Selector del sistema con las apps que manejan el esquema `whatsapp` (WhatsApp y WhatsApp Business) | Un toque y el selector aparece | `whatsapp://send?phone=…&text=…` (los enlaces firmados `/c/:id` usan este mismo esquema) |
+| Android | Selector del sistema con las apps que manejan el esquema `whatsapp` (WhatsApp y WhatsApp Business) | Un toque y el selector aparece | `whatsapp://send?phone=…&text=…` (esto es el botón de la landing; los enlaces firmados `/c/:id` van directo por `wa.me`) |
 | iOS | No hay selector para esquemas propios | Hoja de opciones: WhatsApp / Business / Web | `whatsapp://…`, `whatsappbusiness://…`, `https://web.whatsapp.com/send?…` |
 | Escritorio | No hay selector | Hoja de opciones: WhatsApp Web / app / Business | idem |
 
@@ -136,37 +136,26 @@ Persona toca el enlace firmado  →  GET /c/:id?u=<tel>&s=<hmac>
         │
         ├─ valida la firma HMAC
         ├─ registra el clic y debita el pack del comercio (si toca)
-        └─► 302 a whatsapp://send?phone=<comercio>&text=<mensaje con el código>
+        └─► 302 a https://wa.me/<comercio>?text=<mensaje con el código>
                         │
-                        └─► el SISTEMA muestra el selector de app
-                            (WhatsApp / WhatsApp Business), con un toque
+                        └─► el chat del comercio, directo
 ```
 
-**Por qué el esquema nativo y no `wa.me`:** `wa.me` abre la app directo, sin
-dejar elegir. Medido por el dueño el 2026-10-21: *"los enlaces de esas ofertas
-no abren en la hoja de seleccion de whatsapp normal o business"*. El esquema
-`whatsapp://` lo resuelven **las dos** apps, así que el sistema muestra el
-selector.
+**Por qué va directo y sin selector de app:** decisión del dueño el 2026-10-21:
+*"se supone que la persona solo debe recibir el enlace con todos los datos
+ofuscados por seguridad, y el enlace lo debe llevar al whatsapp del comercio
+directo, ya estan en whatsapp ambos, no necesitan escojer app"*. Los dos
+están en WhatsApp: la persona no tiene nada que escoger.
 
-**Y por qué no una hoja HTML nuestra:** decisión del dueño el 2026-10-21:
-*"la hoja no, selector"*. No hay página intermedia: el enlace va al esquema
-nativo y el sistema hace el resto (el mismo mecanismo que el botón de la
-landing, que el dueño ya verificó en su Android).
-
-Lo que **no** se rompe:
+**Lo que el enlace lleva y lo que no** (datos ofuscados):
 
 | | |
 |---|---|
-| **El teléfono del comercio** | No va en el enlace que recibe la persona: se resuelve en el servidor, en el momento del clic (regla 2). Lo que viaja en el enlace es el id de la oferta, el teléfono de **quien** la recibe y la firma HMAC. |
+| **El teléfono del comercio** | **No** va en el enlace: se resuelve en el servidor, en el momento del clic (regla 2). Lo que viaja en el enlace es el id de la oferta, el teléfono de **quien** la recibe y la firma HMAC. |
 | **La firma HMAC** | El enlace no se puede alterar: sin la firma del bot el clic **no factura** (fail-closed). |
 | **El código de canje** | `NV-XXXXXX` sigue en el mensaje al comercio: es lo que acredita el lead. |
 | **La ventana de 24 h** | Un interés = una fila en `click_logs` = un débito = un código. |
 | **El cobro** | Se mantiene como estaba: al tocar el enlace. El cobro por canje con código QR es un proyecto aparte. |
-
-> **Pendiente de verificar en un iPhone:** en iOS el comportamiento del sistema
-> con el esquema `whatsapp://` no está verificado en un dispositivo real (el
-> dueño no tiene un iPhone a mano). En Android está verificado: el selector
-> del sistema aparece con un toque.
 
 ## Regla 5 — todo enlace accionable va EN EL TEXTO, nunca en un botón
 
@@ -218,7 +207,7 @@ Esto también importa para el negocio: cuando existan campañas automáticas, la
 | `src/components/WhatsAppChooser.tsx` | Hoja de opciones (iOS y web). |
 | `server.ts` | `GET /api/whatsapp/contacto` + su registro en `esRutaPublica`. |
 | `tests/security/whatsapp-contacto.test.ts` | Tests que vigilan las 4 reglas (botones de la landing). |
-| `tests/security/enlace-oferta-whatsapp.test.ts` | Tests que vigilan el enlace firmado `/c/:id`: el esquema nativo (selector del sistema), los datos ofuscados y el fail-closed del cobro. |
+| `tests/security/enlace-oferta-whatsapp.test.ts` | Tests que vigilan el enlace firmado `/c/:id`: que va directo al chat del comercio (`wa.me`), los datos ofuscados y el fail-closed del cobro. |
 
 ## Verificación en dispositivos reales
 

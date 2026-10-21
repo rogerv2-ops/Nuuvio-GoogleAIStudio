@@ -1,40 +1,28 @@
 /**
- * El enlace firmado de oferta (`/c/:id`): lleva al chat del comercio y deja
- * elegir la app con el SELECTOR DEL SISTEMA.
+ * El enlace firmado de oferta (`/c/:id`): lleva DIRECTO al chat del comercio.
  *
  * DECISIÓN DEL DUEÑO (2026-10-21)
  *
- * 1) "los enlaces de esas ofertas no abren en la hoja de seleccion de whatsapp
- *     normal o business [...] todo enlace a whatsapp debe tener esa opcion en
- *     todos los enlaces a whatsapp" -> el enlace tiene que dejar ESCGER la app.
- * 2) "la hoja no, selector" -> el selector lo pone el SISTEMA, no una hoja
- *     HTML nuestra.
+ * "se supone que la persona solo debe recibir el enlace con todos los datos
+ * ofuscados por seguridad, y el enlace lo debe llevar al whatsapp del comercio
+ * directo, ya estan en whatsapp ambos, no necesitan escojer app, asi que hay
+ * que volver al estado anterior"
+ *
+ * O sea: el enlace va directo al chat del comercio, sin selector de app y sin
+ * hoja intermedia.
  *
  * COMO SE CONSIGUE
  *
- * El enlace va al esquema NATIVO `whatsapp://send?phone=...&text=...`: lo
- * resuelven WhatsApp Y WhatsApp Business, asi que el sistema muestra el
- * selector de app (WhatsApp / WhatsApp Business) con un toque. Es el mismo
- * mecanismo que usa el boton de la landing, que el dueno ya verifico en su
- * Android.
- *
- * Lo que NO se usa (y por que):
- * - `https://wa.me/...`: abre la app directo, sin dejar elegir. Medido: los
- *   enlaces de las ofertas no dejaban escoger app.
- * - Una hoja HTML propia: el dueno la descarto.
+ * El enlace responde 302 a `https://wa.me/<comercio>?text=...`: el mensaje
+ * lleva el codigo de canje y la persona cae en el chat del comercio.
  *
  * LO QUE ESTOS TESTS VIGILAN
  *
- *  1. El enlace responde 302 al esquema nativo, con el telefono del comercio
- *     y el codigo de canje en el mensaje.
- *  2. No hay hoja ni parametro de destino en la ruta (el selector es del
- *     sistema).
+ *  1. El enlace responde 302 al chat del comercio, con el codigo de canje en el
+ *     mensaje.
+ *  2. La ruta no tiene hoja ni parametro de destino (el enlace va directo).
  *  3. El enlace que arma el bot NO lleva el telefono del comercio: los datos
- *     del comercio se resuelven en el servidor, en el momento del clic
- *     (regla 2).
- *  4. Sin firma HMAC valida NO se cobra nada (fail-closed), aunque el enlace
- *     siga llevando al chat.
- */
+*/
 import { test, expect, describe } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
@@ -123,13 +111,13 @@ describe("Enlace firmado de oferta - el link NO expone los datos del comercio", 
     expect(linea).not.toMatch(/comercioWhatsapp|comercioTelefono|telefonoComercio/);
   });
 
-  test("la ruta usa el esquema NATIVO (el selector lo pone el sistema)", () => {
+  test("la ruta va directo al chat del comercio (wa.me)", () => {
     const i = SERVER.indexOf('app.get("/c/:ofertaId"');
     expect(i).toBeGreaterThan(-1);
     const ruta = SERVER.slice(i, i + 4000);
-    // El esquema nativo: lo resuelven WhatsApp Y WhatsApp Business -> el
-    // sistema muestra el selector de app.
-    expect(ruta).toContain("whatsapp://send?phone=");
+    // Directo al chat del comercio: no hay selector de app ni hoja intermedia.
+    // la persona cae en el chat del comercio, sin selector de app.
+    expect(ruta).toContain("wa.me/");
     // Y NO una hoja HTML nuestra ni un parametro de destino.
     expect(ruta).not.toContain("htmlHojaWhatsApp");
     expect(ruta).not.toContain("dest=");
@@ -137,22 +125,22 @@ describe("Enlace firmado de oferta - el link NO expone los datos del comercio", 
   });
 });
 
-describe.skipIf(!online)("Enlace de oferta (/c/:id) - selector del sistema y cobro", () => {
-  test("responde 302 al esquema nativo con el codigo de canje en el mensaje", async () => {
+describe.skipIf(!online)("Enlace de oferta (/c/:id) - directo al chat y cobro", () => {
+  test("responde 302 al chat del comercio con el codigo de canje en el mensaje", async () => {
     const token = await tokenAdmin();
-    await conOfertaDePrueba(token, { titulo: "Oferta del selector" }, async (oferta) => {
+    await conOfertaDePrueba(token, { titulo: "Oferta del enlace directo" }, async (oferta) => {
       const r = await fetch(`${BASE}/c/${oferta.id}?u=51900000000&s=firma`, {
         redirect: "manual",
         headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile", "X-Forwarded-For": ipPropia() },
       });
       expect(r.status).toBe(302);
       const location = String(r.headers.get("location") || "");
-      // Al chat del comercio, por el esquema nativo (el selector del sistema).
-      expect(location.startsWith(`whatsapp://send?phone=${TELEFONO_COMERCIO}&text=`)).toBe(true);
+      // Al chat del comercio, directo.
+      expect(location.startsWith(`https://wa.me/${TELEFONO_COMERCIO}?text=`)).toBe(true);
       // Y el codigo de canje en el mensaje: es lo que acredita el lead.
       expect(decodeURIComponent(location)).toContain("Mi codigo es #NV-");
       // El mensaje lleva el titulo de la oferta.
-      expect(decodeURIComponent(location)).toContain("Oferta del selector");
+      expect(decodeURIComponent(location)).toContain("Oferta del enlace directo");
     });
   });
 
@@ -166,7 +154,7 @@ describe.skipIf(!online)("Enlace de oferta (/c/:id) - selector del sistema y cob
       });
       // El enlace sigue llevando al chat (la persona no se queda sin salida).
       expect(r.status).toBe(302);
-      expect(String(r.headers.get("location") || "")).toContain("whatsapp://send?phone=");
+      expect(String(r.headers.get("location") || "")).toContain("https://wa.me/");
 
       if (!conBase) return;
       const client = new pg.Client(SQL);
