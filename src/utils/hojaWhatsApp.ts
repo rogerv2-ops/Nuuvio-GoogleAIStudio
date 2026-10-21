@@ -15,11 +15,15 @@
  *
  * REGLA INQUEBRANTABLE (ver AGENTS.md): TODO enlace a WhatsApp deja elegir
  * la app.
- * - Android: el esquema nativo `whatsapp://` lo resuelven WhatsApp y
- *   WhatsApp Business, asi que el sistema muestra el selector. Ahi no hace
- *   falta esta hoja: el servidor responde con un 302 al esquema.
- * - iOS y web: el sistema NO ofrece selector para esquemas propios, asi que
- *   la eleccion la pone esta hoja.
+ *
+ * La hoja se sirve en TODAS las plataformas (Android, iOS y web):
+ * - iOS: el sistema NO ofrece selector para esquemas propios, asi que la
+ *   eleccion la pone esta hoja.
+ * - Android: el selector del sistema existe, pero ocurre FUERA de nuestro
+ *   servidor (nadie nos avisa cuando la persona elige ahi). Con la hoja
+ *   nuestra, la eleccion vuelve como un request (`dest=`) y ahi se puede
+ *   registrar el clic y cobrar al comercio.
+ * - Web: la version web va primero (funciona sin apps instaladas).
  *
  * REGLA 2 (el telefono nunca se expone): el numero del comercio NO aparece
  * en este HTML. Cada boton vuelve al servidor (`/c/:id?...&dest=app`) y el
@@ -28,7 +32,7 @@
  * Modulo PURO: no toca la base de datos ni la red. Lo importa el servidor.
  */
 import {
-  opcionesWhatsAppPorPlataforma,
+  opcionesHojaServidor,
   type DestinoWhatsApp,
   type PlataformaWhatsApp,
 } from './whatsappLinks.ts';
@@ -100,7 +104,9 @@ export interface ParametrosHojaWhatsApp {
  */
 export function htmlHojaWhatsApp(params: ParametrosHojaWhatsApp): string {
   const plataforma: PlataformaWhatsApp = params.plataforma || 'web';
-  const opciones = opcionesWhatsAppPorPlataforma(plataforma);
+  // La hoja ofrece SIEMPRE las tres opciones (WhatsApp, WhatsApp Business,
+  // WhatsApp Web): ver `opcionesHojaServidor` para el porque.
+  const opciones = opcionesHojaServidor(plataforma);
   const titulo = params.tituloOferta ? String(params.tituloOferta).trim() : '';
 
   const filas = opciones

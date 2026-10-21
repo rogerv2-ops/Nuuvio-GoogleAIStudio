@@ -58,27 +58,41 @@ Los enlaces que el bot manda en el texto (`/c/:id?u=&s=`) son otro camino: no so
 ```
 Persona toca el enlace firmado  →  GET /c/:id?u=<tel>&s=<hmac>
         │
-        ├─ valida la firma HMAC, registra el clic, debita el pack (si toca)
-        │
-        ├─ Android ──► 302 a whatsapp://send?phone=…&text=…
-        │                        └─► el sistema muestra el selector
-        │
-        └─ iOS / web ──► 200: hoja de opciones (la sirve el servidor)
+        └─► 200: hoja de opciones (la sirve el servidor, en TODAS las plataformas)
                           │
                           ├─ "WhatsApp"         → /c/:id?…&dest=app
                           ├─ "WhatsApp Business"→ /c/:id?…&dest=business
                           └─ "WhatsApp Web"     → /c/:id?…&dest=web
                                    │
-                                   └─► 302 al enlace YA ARMADO
+                                   ▼
+                        GET /c/:id?…&dest=<elegido>
+                                   │
+                                   ├─ valida la firma HMAC
+                                   ├─ REGISTRA el clic y DEBITA el pack   ← acá se cobra
+                                   ├─ registra el destino (security_logs)
+                                   └─► 302 al enlace YA ARMADO → chat del comercio
 ```
+
+**La hoja no cobra nada.** Todavía no hay ningún chat abierto: no hay nada
+que cobrarle al comercio. El clic, el débito y el lead se registran **cuando
+la persona elige app**, que es el instante en que entra al chat del comercio
+(pedido del dueño, 2026-10-21: *"cobrar cuando se abre el whatsapp en ambos
+casos, cuando el usuario llega al whatsapp del comercio se cobra"*).
+
+**Por qué la hoja se sirve en Android también.** En iOS el sistema no ofrece
+selector para esquemas propios: no hay otra forma. En Android el selector del
+sistema existe, pero ocurre **fuera de nuestro servidor**: cuando la persona
+elige ahí, nadie nos avisa. Con la hoja nuestra, la elección vuelve como un
+request (`dest=`) y ahí se puede registrar y cobrar.
 
 Lo que **no** se rompe en ese camino:
 
 | | |
 |---|---|
 | **Los tokens** | `u` (quién recibe la oferta) y `s` (la firma HMAC) viajan intactos: la hoja los lleva en sus botones y el servidor vuelve a validar la firma cuando la persona elige. |
-| **El código de canje** | `NV-XXXXXX` sigue en el mensaje al comercio: es lo que acredita el lead. |
-| **La ventana de 24 h** | La hoja y la elección son el **mismo** interés: una sola fila en `click_logs`, un solo débito, el mismo código de canje. |
+| **El código de canje** | `NV-XXXXXX` sigue en el mensaje al comercio: es lo que acredita el lead. Se genera en el paso de la elección, así que el chat y la fila facturable son el mismo. |
+| **La ventana de 24 h** | Tocar dos opciones es **un** interés: una sola fila en `click_logs`, un solo débito, el mismo código de canje. |
+| **El momento del cobro** | Ver la hoja **no** registra ni cobra nada. El clic, el débito y el lead pasan al request con `dest=`. |
 | **El teléfono** | **No** va en el HTML de la hoja (regla 2): cada botón vuelve al servidor y el servidor responde con el enlace armado en el `Location` del 302. |
 | **El tracking** | La elección se registra en `security_logs` con `accion: "whatsapp_contacto"` y `canal: "enlace_firmado"`, igual que el botón de la landing. |
 | **La seguridad** | La hoja se sirve con `Cache-Control: no-store`, `Referrer-Policy: no-referrer` y `X-Robots-Tag: noindex`. Un `dest=` raro cae en `app` (nunca se inventa un esquema). |
@@ -87,8 +101,8 @@ Lo que **no** se rompe en ese camino:
 
 | Plataforma | Qué muestra el sistema | Qué hace la app | URL |
 |---|---|---|---|
-| Android | Selector del sistema con las apps que manejan el esquema `whatsapp` (WhatsApp y WhatsApp Business) | Un toque y el selector aparece | `whatsapp://send?phone=…&text=…` |
-| iOS | No hay selector para esquemas propios | Hoja de opciones: WhatsApp / Business / Web | `whatsapp://…`, `whatsappbusiness://…`, `https://web.whatsapp.com/send?…` |
+| Android | No hay selector propio del sistema para un esquema de la app: el selector nativo (WhatsApp / WhatsApp Business) aparece al abrir `whatsapp://` | La hoja de Yuddit ofrece las tres, y al elegir "WhatsApp" el sistema puede mostrar su propio selector | `whatsapp://send?phone=…&text=…`, `whatsappbusiness://…`, `https://web.whatsapp.com/send?…` |
+| iOS | No hay selector para esquemas propios | Hoja de opciones: WhatsApp / Business / Web | idem |
 | Escritorio | No hay selector | Hoja de opciones: WhatsApp Web / app / Business | idem |
 
 Detalles que importan:

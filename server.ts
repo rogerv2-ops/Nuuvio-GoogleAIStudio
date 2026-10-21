@@ -371,6 +371,58 @@ app.get("/api/whatsapp/contacto",rateLimit("whatsapp_contacto",30,60000),async(r
     return res.status(404).send("Oferta no encontrada");
   }
 
+  const plataformaEnlace = detectarPlataformaDesdeUA(String((req.headers && req.headers["user-agent"]) || ""));
+  const destPedido = String((req.query && req.query.dest) || "").trim();
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+
+  const rawWsp = oferta.comercioWhatsapp || oferta.comercioTelefono || oferta.telefonoComercio || "";
+  const cleanComercioWsp = rawWsp.replace(/\D/g, "");
+  if (!cleanComercioWsp) {
+    return res.redirect(302, "/");
+  }
+
+  if (!destPedido) {
+    // ---- LA HOJA: todavia NO se cobra nada ----
+    //
+    // La persona todavia no eligio app: no hay ningun chat abierto, asi que
+    // no hay nada que cobrarle al comercio. El clic se registra, se debita el
+    // pack y se cuenta el lead SOLO cuando elige destino (bloque de abajo).
+    //
+    // Pedido del dueno (2026-10-21): "que tanto en android como en ios se
+    // abra el selector de la app porque muchos tienen whatsapp normal y
+    // whatsapp business [...] y cobrar cuando se abre el whatsapp en ambos
+    // casos, cuando el usuario llega al whatsapp del comercio se cobra".
+    //
+    // Por eso la hoja se sirve en TODAS las plataformas:
+    // - iOS: el sistema NO ofrece selector para esquemas propios. La hoja es
+    //   la unica forma de dejar elegir la app.
+    // - Android: el selector del sistema ocurre FUERA de nuestro servidor
+    //   (nadie nos avisa cuando la persona elige ahi). Con la hoja nuestra,
+    //   la eleccion vuelve como un request (`dest=`) y ahi se puede cobrar.
+    //
+    // El numero del comercio NO aparece en el HTML: cada opcion vuelve al
+    // servidor y el servidor responde con el enlace YA ARMADO (regla 2).
+    //
+    // Los tokens (u, s) viajan intactos para que el servidor vuelva a
+    // validar la firma cuando la persona elija destino. La base la arma el
+    // modulo (un solo lugar conoce el formato del enlace).
+    const urlBaseHoja = urlBaseEnlaceFirmado(
+      ofertaId,
+      String((req.query && req.query.u) || ""),
+      String((req.query && req.query.s) || ""),
+    );
+    return res.status(200).type("html").send(htmlHojaWhatsApp({ urlBase: urlBaseHoja, plataforma: plataformaEnlace, tituloOferta: oferta.titulo }));
+  }
+
+  // ---- LA PERSONA ELIGIO APP: ACA SI SE COBRA ----
+  //
+  // Este es el instante en que la persona entra al chat del comercio, asi que
+  // es aqui donde se registra el clic y se le debita el pack al comercio.
+  // Antes se cobraba al tocar el enlace, sin que la persona hubiera abierto
+  // ningun chat.
+  //
   // Antifraude: solo los enlaces firmados por el bot (HMAC del secreto del servidor) pueden facturar.
   let firmaValida = false;
   if (tieneTelefonoValido && firma) {
@@ -417,75 +469,27 @@ app.get("/api/whatsapp/contacto",rateLimit("whatsapp_contacto",30,60000),async(r
     }
   }
 
-  const rawWsp = oferta.comercioWhatsapp || oferta.comercioTelefono || oferta.telefonoComercio || "";
-  const cleanComercioWsp = rawWsp.replace(/\D/g, "");
-  if (!cleanComercioWsp) {
-    return res.redirect(302, "/");
-  }
   const mensajeComercio = 'Hola, vi en Yuddit la oferta "' + oferta.titulo + '". Mi codigo es #' + codigoCanje;
 
-  // REGLA: TODO enlace a WhatsApp deja elegir la app (AGENTS.md, docs/reglas-whatsapp.md).
-  //
-  // Antes este 302 iba a `https://wa.me/...`, que NO ofrece selector: abria
-  // la app directo (la normal, o la de negocios si esa era la predeterminada)
-  // sin darle a la persona la eleccion. Medido por el dueno el 2026-10-21:
-  // "los enlaces de esas ofertas no abren en la hoja de seleccion de whatsapp
-  // normal o business".
-  //
-  // - Android: el esquema nativo `whatsapp://` lo resuelven WhatsApp Y
-  //   WhatsApp Business, asi que el sistema muestra el selector (un toque).
-  // - iOS y web: el sistema NO ofrece selector, asi que se sirve la hoja de
-  //   opciones, armada por el servidor.
-  //
-  // El numero del comercio NO aparece en el HTML: la hoja lo pide al servidor
-  // en el clic (cada opcion vuelve con `dest=` y el servidor responde con el
-  // enlace ya armado en el Location del 302).
-  const plataformaEnlace = detectarPlataformaDesdeUA(String((req.headers && req.headers["user-agent"]) || ""));
-  const destPedido = String((req.query && req.query.dest) || "").trim();
-  res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("X-Robots-Tag", "noindex, nofollow");
-
-  if (destPedido) {
-    // La persona ya eligio app: se registra QUE eligio (tracking) y se
-    // responde con el enlace armado. El clic NO se vuelve a facturar: la
-    // ventana de 24 h de (oferta, telefono) lo cubre.
-    const destinoElegido = normalizarDestino(destPedido);
-    try {
-      await insertSecurityLog({
-        accion: "whatsapp_contacto",
-        entidad: "oferta",
-        entidadId: ofertaId,
-        detalles: JSON.stringify({ destino: destinoElegido, plataforma: plataformaEnlace, ofertaId: ofertaId, codigoCanje: codigoCanje, canal: "enlace_firmado" }),
-      });
-    } catch (e) {
-      console.warn("[Clic] No se pudo guardar el destino elegido:", e);
-    }
-    const urlElegido = construirUrlWhatsApp(destinoElegido, plataformaEnlace, cleanComercioWsp, mensajeComercio);
-    if (!urlElegido) {
-      return res.redirect(302, "/");
-    }
-    return res.redirect(302, urlElegido);
+  // Se registra QUE app eligio (tracking) y se responde con el enlace
+  // armado. La ventana de 24 h cubre el caso de que la persona toque dos
+  // opciones: el segundo toque no vuelve a facturar.
+  const destinoElegido = normalizarDestino(destPedido);
+  try {
+    await insertSecurityLog({
+      accion: "whatsapp_contacto",
+      entidad: "oferta",
+      entidadId: ofertaId,
+      detalles: JSON.stringify({ destino: destinoElegido, plataforma: plataformaEnlace, ofertaId: ofertaId, codigoCanje: codigoCanje, canal: "enlace_firmado" }),
+    });
+  } catch (e) {
+    console.warn("[Clic] No se pudo guardar el destino elegido:", e);
   }
-
-  if (plataformaEnlace === "android") {
-    // Android: el sistema muestra el selector de app con el esquema nativo.
-    const urlApp = construirUrlWhatsApp("app", plataformaEnlace, cleanComercioWsp, mensajeComercio);
-    if (!urlApp) {
-      return res.redirect(302, "/");
-    }
-    return res.redirect(302, urlApp);
+  const urlElegido = construirUrlWhatsApp(destinoElegido, plataformaEnlace, cleanComercioWsp, mensajeComercio);
+  if (!urlElegido) {
+    return res.redirect(302, "/");
   }
-
-  // iOS y web: hoja de opciones. Los tokens (u, s) viajan intactos para que
-  // el servidor vuelva a validar la firma cuando la persona elija destino.
-  // La base la arma el modulo (un solo lugar conoce el formato del enlace).
-  const urlBaseHoja = urlBaseEnlaceFirmado(
-    ofertaId,
-    String((req.query && req.query.u) || ""),
-    String((req.query && req.query.s) || ""),
-  );
-  return res.status(200).type("html").send(htmlHojaWhatsApp({ urlBase: urlBaseHoja, plataforma: plataformaEnlace, tituloOferta: oferta.titulo }));
+  return res.redirect(302, urlElegido);
 });
 
 app.get("/api/ofertas/publicas",(_req,res)=>{const ahora=Date.now();const lista=serverOfertas.filter(o=>o.estado==="activa"&&new Date(o.venceEn).getTime()>ahora&&comercioTieneSaldo(o.comercioId||"merch_01")).sort((a,b)=>new Date(b.creadaEn||b.validadaEn||0).getTime()-new Date(a.creadaEn||a.validadaEn||0).getTime()).slice(0,7);res.json({ok:true,ofertas:lista.map(ofertaPublica)})});app.get("/api/ofertas",(_req,res)=>{const ahora=Date.now();const lista=serverOfertas.filter(o=>o.estado==="activa"&&new Date(o.venceEn).getTime()>ahora);res.json({ok:true,ofertas:lista.map(ofertaPublica)})});app.post("/api/ofertas/sync",async(req,res)=>{try{const auth=(req as any).auth;if(!auth){return res.status(401).json({ok:false,error:"No autorizado. Se requiere inicio de sesion."})}const{ofertas}=req.body;if(!Array.isArray(ofertas)){return res.status(400).json({ok:false,error:"Se esperaba un arreglo de ofertas"})}if(auth.rol==="admin"){serverOfertas=ofertas}else if(auth.rol==="comercio"&&auth.merchantId){const otras=serverOfertas.filter(o=>o.comercioId!==auth.merchantId);const idsOtras=new Set(otras.map(o=>o.id));const propias=ofertas.filter(o=>o&&o.comercioId===auth.merchantId&&!idsOtras.has(o.id));if(propias.length===0){return res.json({ok:true,count:serverOfertas.length})}serverOfertas=[...otras,...propias]}else{void logEventoSeguridad({operadorId:auth.usuarioId,operadorNombre:auth.nombre,accion:"Acceso denegado (sync ofertas)",entidad:"api",entidadId:"/api/ofertas/sync",detalles:"Rol "+auth.rol+" intento sincronizar ofertas"});return res.status(403).json({ok:false,error:"No autorizado para sincronizar ofertas"})}try{await replaceOffers(serverOfertas);await saveSetting("offers_initialized",true)}catch(e){console.warn("[Cloud SQL] Error persistiendo ofertas:",e)}res.json({ok:true,count:serverOfertas.length})}catch(err){res.status(500).json({ok:false,error:"Error al sincronizar ofertas"})}});app.post("/api/ofertas/activar",async(req,res)=>{try{const auth=(req as any).auth;if(!auth){return res.status(401).json({ok:false,error:"No autorizado. Se requiere inicio de sesion."})}const{ofertaId,operador}=req.body;const item=serverOfertas.find(o=>o.id===ofertaId);if(!item){return res.status(404).json({ok:false,error:"Oferta no encontrada"})}if(auth.rol!=="admin"&&item.comercioId!==auth.merchantId){void logEventoSeguridad({operadorId:auth.usuarioId,operadorNombre:auth.nombre,accion:"Acceso denegado (oferta ajena)",entidad:"oferta",entidadId:String(ofertaId||""),detalles:"Rol "+auth.rol+" intento activar oferta del comercio "+item.comercioId});return res.status(403).json({ok:false,error:"No autorizado para esta oferta"})}item.estado="activa";item.validadaEn=new Date().toISOString();item.validadaPor=operador||(auth.rol==="admin"?"Super Admin":auth.nombre||"Comercio");try{await syncOffers([item])}catch(e){console.warn("[Cloud SQL] Error persistiendo oferta activada:",e)}res.json({ok:true,oferta:item})}catch(err){res.status(500).json({ok:false,error:"Error al activar oferta"})}});app.get("/api/banners",(_req,res)=>{res.json({ok:true,banners:serverBanners})});app.post("/api/media/upload",requireRoles(["admin","comercio"]),rateLimit("upload",20,60000),async(req,res)=>{try{const{dataUrl,folder}=req.body||{};if(!dataUrl||typeof dataUrl!=="string"||!dataUrl.startsWith("data:image/")){return res.status(400).json({ok:false,error:"Se requiere dataUrl de imagen válido"})}const m=dataUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/);if(!m){return res.status(400).json({ok:false,error:"Formato de imagen no soportado (JPG, PNG, WEBP, GIF)"})}const buf=Buffer.from(m[2],"base64");if(buf.length>15*1024*1024){return res.status(400).json({ok:false,error:"Imagen demasiado pesada (máx 15 MB)"})}const sharp=(await import("sharp")).default;const safeFolder=String(folder||"general").replace(/[^a-z0-9_-]/gi,"").slice(0,32)||"general";const dir=path.join(UPLOADS_DIR,safeFolder);if(!fs.existsSync(dir)){fs.mkdirSync(dir,{recursive:true})}const id=`img_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;const out=path.join(dir,`${id}.webp`);await sharp(buf).rotate().resize({width:1600,height:1600,fit:"inside",withoutEnlargement:true}).webp({quality:80}).toFile(out);const stats=fs.statSync(out);return res.json({ok:true,url:`/uploads/${safeFolder}/${id}.webp`,bytes:stats.size,originalBytes:buf.length})}catch(err){console.error("Error en /api/media/upload:",err);return res.status(500).json({ok:false,error:"Error procesando imagen"})}});app.post("/api/banners/sync",requireAdmin,async(req,res)=>{try{const{banners}=req.body;if(Array.isArray(banners)){serverBanners=banners.map(b=>{if(b.imagenUrl&&(b.imagenUrl.includes("sustrae.com")||b.imagenUrl.includes("banner.webp"))){return{...b,imagenUrl:"/banner-ficha-oferta-mujer.webp"}}return b});guardarServerBanners();try{await syncBanners(serverBanners);await saveSetting("banners_initialized",true)}catch(e){console.warn("[Cloud SQL] Error persistiendo banners:",e)}deployTimestamp=Date.now().toString();res.json({ok:true,count:serverBanners.length,version:deployTimestamp})}else{res.status(400).json({ok:false,error:"Se esperaba un arreglo de banners"})}}catch(err){res.status(500).json({ok:false,error:"Error al sincronizar banners"})}});app.get("/api/version",(_req,res)=>{res.json({ok:true,version:deployTimestamp,timestamp:parseInt(deployTimestamp,10),serverTime:new Date().toISOString()})});app.post("/api/cache/purge",requireAdmin,(_req,res)=>{deployTimestamp=Date.now().toString();console.log(`[Yuddit Server] Cach\xE9 purgada. Nueva versi\xF3n de recursos: ${deployTimestamp}`);res.json({ok:true,version:deployTimestamp,timestamp:parseInt(deployTimestamp,10),message:"Todas las cach\xE9s de recursos est\xE1ticos han sido invalidadas en el servidor"})});async function despacharMensajeWhatsApp({telefono,texto,videoUrl,imageUrl}){const canal=waConfig.modoActivo;const cleanPhone=String(telefono||"").replace(/\D/g,"");if(canal==="waha"&&activeBaileysSocket&&wahaSession.status==="WORKING"){const jid=`${cleanPhone}@s.whatsapp.net`;if(videoUrl){const absVideoPath=videoUrl.startsWith("/videos/")?path.resolve(VIDEOS_DIR,path.basename(videoUrl)):null;if(absVideoPath&&fs.existsSync(absVideoPath)){const videoBuffer=await fs.promises.readFile(absVideoPath);await activeBaileysSocket.sendMessage(jid,{video:videoBuffer,caption:texto||"\u{1F3AC} \xA1Oferta exclusiva en video!"})}else{await activeBaileysSocket.sendMessage(jid,{video:{url:videoUrl},caption:texto||"\u{1F3AC} \xA1Oferta exclusiva en video!"})}}else if(imageUrl){await activeBaileysSocket.sendMessage(jid,{image:{url:imageUrl},caption:texto||"\u{1F4F8} Oferta comercial"})}else{await activeBaileysSocket.sendMessage(jid,{text:texto})}const logExito={id:`log_test_${Date.now()}`,timestamp:new Date().toISOString(),canal:"waha",direccion:"saliente",telefono,contenido:videoUrl?`[VIDEO MP4] ${texto}`:imageUrl?`[FOTO] ${texto}`:texto,estado:"entregado",detalles:videoUrl?`Video animado de oferta (Veo) despachado v\xEDa WhatsApp Web oficial a +${cleanPhone}`:`Mensaje REAL despachado v\xEDa WhatsApp Web oficial a +${cleanPhone}`};messageLogs.unshift(logExito);void insertChatLog(logExito).catch(()=>{});return{ok:true,mensaje:videoUrl?`\xA1Video de oferta animado despachado con \xE9xito a +${cleanPhone}!`:`\xA1Mensaje real de WhatsApp despachado con \xE9xito a +${cleanPhone}!`,canal,real:true,tipo:videoUrl?"video":imageUrl?"image":"text",log:logExito}}if(canal==="meta"&&waConfig.metaConfig.accessToken&&waConfig.metaConfig.phoneNumberId){const metaUrl=`https://graph.facebook.com/v21.0/${waConfig.metaConfig.phoneNumberId}/messages`;const payload={messaging_product:"whatsapp",to:cleanPhone};if(videoUrl){payload.type="video";payload.video={link:videoUrl,caption:texto}}else if(imageUrl){payload.type="image";payload.image={link:imageUrl,caption:texto}}else{payload.type="text";payload.text={body:texto}}const metaRes=await fetch(metaUrl,{method:"POST",headers:{"Authorization":`Bearer ${waConfig.metaConfig.accessToken}`,"Content-Type":"application/json"},body:JSON.stringify(payload)});const metaData=await metaRes.json();if(!metaRes.ok){throw new Error(metaData.error?.message||"Error en Meta Graph API")}const logMeta={id:`log_test_${Date.now()}`,timestamp:new Date().toISOString(),canal:"meta",direccion:"saliente",telefono,contenido:videoUrl?`[VIDEO MP4] ${texto}`:imageUrl?`[FOTO] ${texto}`:texto,estado:"entregado",detalles:`Mensaje ${videoUrl?"con VIDEO":""} despachado v\xEDa Meta Cloud API Oficial (ID: ${metaData.messages?.[0]?.id})`};messageLogs.unshift(logMeta);void insertChatLog(logMeta).catch(()=>{});return{ok:true,mensaje:`Mensaje despachado v\xEDa Meta Cloud API a +${cleanPhone}.`,canal,real:true,log:logMeta}}const logSimulado={id:`log_test_${Date.now()}`,timestamp:new Date().toISOString(),canal,direccion:"saliente",telefono,contenido:texto,estado:"entregado",detalles:`Simulaci\xF3n (Vincula WhatsApp mediante el c\xF3digo QR para enviar mensajes reales)`};messageLogs.unshift(logSimulado);void insertChatLog(logSimulado).catch(()=>{});return{ok:true,mensaje:`Mensaje de prueba registrado. Para entrega real, vincula tu WhatsApp escaneando el c\xF3digo QR.`,canal,real:false,log:logSimulado}}__name(despacharMensajeWhatsApp,"despacharMensajeWhatsApp");app.post("/api/whatsapp/test-message",requireAdmin,rateLimit("messaging",30,60000),async(req,res)=>{const{telefono,texto,videoUrl,imageUrl}=req.body;if(!telefono||!texto&&!videoUrl&&!imageUrl){return res.status(400).json({ok:false,error:"Tel\xE9fono y contenido (texto o multimedia) son requeridos"})}if(videoUrl&&/^https?:\/\//i.test(videoUrl)){const _ssrfV=await validarUrlExternaPermitida(videoUrl);if(!_ssrfV.ok){return res.status(400).json({ok:false,error:"URL de video no permitida"})}}if(imageUrl&&/^https?:\/\//i.test(imageUrl)){const _ssrfI=await validarUrlExternaPermitida(imageUrl);if(!_ssrfI.ok){return res.status(400).json({ok:false,error:"URL de imagen no permitida"})}}try{const r=await despacharMensajeWhatsApp({telefono,texto,videoUrl,imageUrl});return res.json(r)}catch(error){console.error("Error enviando mensaje:",error);res.status(500).json({ok:false,error:error.message||"Error al despachar mensaje"})}});app.get("/api/whatsapp/logs",(_req,res)=>{res.json({ok:true,logs:messageLogs.slice(0,50)})});var emailConfig={provider:process.env.EMAIL_PROVIDER||(process.env.RESEND_API_KEY?"resend":"smtp"),smtp:{host:process.env.SMTP_HOST||"smtp.gmail.com",port:Number(process.env.SMTP_PORT)||587,secure:process.env.SMTP_SECURE==="true",user:process.env.SMTP_USER||"",pass:process.env.SMTP_PASS||"",fromName:process.env.EMAIL_FROM_NAME||"Sustrae Imprenta",fromEmail:process.env.EMAIL_FROM||"no-reply@mail.sustrae.com"},resend:{apiKey:process.env.RESEND_API_KEY||"",fromEmail:process.env.RESEND_FROM_EMAIL||"no-reply@mail.sustrae.com",fromName:process.env.RESEND_FROM_NAME||"Sustrae Imprenta"}};let emailLogs=[];function generarPlantillaCorreoYuddit(params){return`<!DOCTYPE html>
