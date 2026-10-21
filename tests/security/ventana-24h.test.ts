@@ -151,10 +151,15 @@ describe("Ventana de 24h: no repetir ofertas y no contar dos veces el clic", () 
             const t = telefonoNuevo();
             await simular(token!, t, "hola");
             const texto = await simular(token!, t, "Carlos, 28, Miraflores");
-            const enlaces = [...texto.matchAll(/https?:\/\/\S+\/c\/\S+/g)].map((m) => m[0]);
-            if (enlaces.length === 0) throw new Error("el bot no mostro ninguna oferta");
-            const enlace = enlaces[0];
-            const ofertaId = enlace.match(/\/c\/([^?]+)/)![1];
+            // El enlace de NUESTRA oferta, no el primero: el mosaico muestra
+            // hasta 3 ofertas y las otras son de otros archivos de test (que
+            // corren en paralelo). Agarrar el primero hacia que el clic
+            // apuntara a una oferta que otro archivo ya habia borrado.
+            const enlace = [...texto.matchAll(/https?:\/\/\S+\/c\/\S+/g)]
+              .map((m) => m[0])
+              .find((u) => u.includes(`/c/${oferta.id}`));
+            if (!enlace) throw new Error("el bot no mostro NUESTRA oferta de prueba");
+            const ofertaId = oferta.id;
 
             const antes = await client.query(
               "select coalesce(sum(clics),0)::int as c from offers where id = $1",
