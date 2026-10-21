@@ -49,25 +49,19 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
             onClick={() => alCambiarSuperficie('web')}
           >
             {logo.imagenUrl ? (
-              <>
-                <img
-                  src={withResourceVersion(logo.imagenUrl)}
-                  alt="Yuddit"
-                  style={{ height: `${logo.altoPx}px` }}
-                  className="block w-auto max-w-[120px] sm:max-w-[200px] object-contain shrink-0"
-                />
-                <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
-              </>
+              <img
+                src={withResourceVersion(logo.imagenUrl)}
+                alt="Yuddit"
+                style={{ height: `${logo.altoPx}px` }}
+                className="block w-auto max-w-[120px] sm:max-w-[200px] object-contain shrink-0"
+              />
             ) : (
               <>
                 <div className="w-9 h-9 rounded-xl bg-[#1B4332] text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:bg-[#2D6A4F] transition-colors">
                   Y
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuddit</span>
-                    <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
-                  </div>
+                  <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuddit</span>
                   <p className="text-[11px] text-[#78716C] leading-none hidden sm:block">Plataforma de ofertas locales · Lima</p>
                 </div>
               </>

@@ -389,15 +389,12 @@ export const BannersConfigView: React.FC = () => {
             <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Previsualización de la Cabecera</span>
             <div className="rounded-2xl border border-stone-200 bg-[#FBF9F4] px-4 py-3 min-h-[96px] flex items-center justify-center gap-2 overflow-hidden">
               {logoImagenUrl ? (
-                <>
-                  <img
-                    src={withResourceVersion(logoImagenUrl)}
-                    alt="Vista previa del logo"
-                    style={{ height: `${logoAltoPx}px` }}
-                    className="block w-auto max-w-[240px] object-contain"
-                  />
-                  <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
-                </>
+                <img
+                  src={withResourceVersion(logoImagenUrl)}
+                  alt="Vista previa del logo"
+                  style={{ height: `${logoAltoPx}px` }}
+                  className="block w-auto max-w-[240px] object-contain"
+                />
               ) : (
                 <p className="text-[11px] text-stone-400 font-semibold">
                   Sin logo: la landing usa el logo por defecto (Y + Yuddit).
