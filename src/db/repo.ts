@@ -198,7 +198,7 @@ async function seedAudienceUsersIfEmpty(seedList){try{const existing=await getAl
  *
  * Prioridad: `id` > `email` > `telefono`.
  */
-async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDeleted=false;let regLogsDeleted=false;const targetId=params.id?params.id.trim():"";const targetEmail=params.email?params.email.trim().toLowerCase():"";const targetPhone=params.telefono?String(params.telefono).trim():"";try{if(targetId){await db.delete(audienceUsers).where(eq(audienceUsers.id,targetId));userDeleted=true}else if(targetEmail){const _idx=indiceCiego(targetEmail);await db.delete(audienceUsers).where(_idx?or(eq(audienceUsers.emailIdx,_idx),eq(audienceUsers.email,targetEmail)):eq(audienceUsers.email,targetEmail));userDeleted=true}else if(targetPhone){const _norm=normalizePhoneForMatching(targetPhone);const _tIdx=indiceCiego(_norm.core9||_norm.digits||targetPhone);if(_tIdx){await db.delete(audienceUsers).where(eq(audienceUsers.telefonoIdx,_tIdx));userDeleted=true}else{const _digits=_norm.digits;await db.delete(audienceUsers).where(sql`regexp_replace(coalesce(${audienceUsers.telefono},''), '\\D', '', 'g') = ${_digits}`);userDeleted=true}}}catch(error){console.error("[DB Repo] Error borrando usuario de DB:",error)}if(targetEmail){try{await db.delete(emailLogs).where(eq(emailLogs.toEmail,targetEmail));emailLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando emailLogs:",error)}}if(targetEmail||targetPhone){try{if(targetEmail){await db.delete(registrationLogs).where(eq(registrationLogs.email,targetEmail))}else{const _norm=normalizePhoneForMatching(targetPhone);await db.delete(registrationLogs).where(sql`regexp_replace(coalesce(${registrationLogs.telefono},''), '\\D', '', 'g') = ${_norm.digits}`)}regLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando registrationLogs:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if((targetEmail&&inMemoryRegLogs[i]?.email===targetEmail)||(targetPhone&&String(inMemoryRegLogs[i]?.telefono||"").replace(/\D/g,"")===normalizePhoneForMatching(targetPhone).digits)){inMemoryRegLogs.splice(i,1)}}}return{userDeleted,emailLogsDeleted,regLogsDeleted}}__name(deleteAndPurgeUser,"deleteAndPurgeUser");async function deleteRegistrationLog(idOrEmail){const query=idOrEmail.trim();try{await db.delete(registrationLogs).where(eq(registrationLogs.id,query));if(query.includes("@")){await db.delete(registrationLogs).where(eq(registrationLogs.email,query.toLowerCase()))}}catch(error){console.error("[DB Repo] Error eliminando log de registro:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if(inMemoryRegLogs[i]?.id===query||inMemoryRegLogs[i]?.email===query.toLowerCase()){inMemoryRegLogs.splice(i,1)}}return true}__name(deleteRegistrationLog,"deleteRegistrationLog");async function clearAllRegistrationLogs(){try{await db.delete(registrationLogs)}catch(error){console.error("[DB Repo] Error limpiando todos los registrationLogs:",error)}inMemoryRegLogs.length=0;return true}__name(clearAllRegistrationLogs,"clearAllRegistrationLogs");const inMemoryClickLogs=[];async function registerOfferClick(arg1: any, arg2?: string, arg3?: string): Promise<{ facturable: boolean; codigoCanje: string }> {
+async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDeleted=false;let regLogsDeleted=false;const targetId=params.id?params.id.trim():"";const targetEmail=params.email?params.email.trim().toLowerCase():"";const targetPhone=params.telefono?String(params.telefono).trim():"";try{if(targetId){await db.delete(audienceUsers).where(eq(audienceUsers.id,targetId));userDeleted=true}else if(targetEmail){const _idx=indiceCiego(targetEmail);await db.delete(audienceUsers).where(_idx?or(eq(audienceUsers.emailIdx,_idx),eq(audienceUsers.email,targetEmail)):eq(audienceUsers.email,targetEmail));userDeleted=true}else if(targetPhone){const _norm=normalizePhoneForMatching(targetPhone);const _tIdx=indiceCiego(_norm.core9||_norm.digits||targetPhone);if(_tIdx){await db.delete(audienceUsers).where(eq(audienceUsers.telefonoIdx,_tIdx));userDeleted=true}else{const _digits=_norm.digits;await db.delete(audienceUsers).where(sql`regexp_replace(coalesce(${audienceUsers.telefono},''), '\\D', '', 'g') = ${_digits}`);userDeleted=true}}}catch(error){console.error("[DB Repo] Error borrando usuario de DB:",error)}if(targetEmail){try{await db.delete(emailLogs).where(eq(emailLogs.toEmail,targetEmail));emailLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando emailLogs:",error)}}if(targetEmail||targetPhone){try{if(targetEmail){await db.delete(registrationLogs).where(eq(registrationLogs.email,targetEmail))}else{const _norm=normalizePhoneForMatching(targetPhone);await db.delete(registrationLogs).where(sql`regexp_replace(coalesce(${registrationLogs.telefono},''), '\\D', '', 'g') = ${_norm.digits}`)}regLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando registrationLogs:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if((targetEmail&&inMemoryRegLogs[i]?.email===targetEmail)||(targetPhone&&String(inMemoryRegLogs[i]?.telefono||"").replace(/\D/g,"")===normalizePhoneForMatching(targetPhone).digits)){inMemoryRegLogs.splice(i,1)}}}return{userDeleted,emailLogsDeleted,regLogsDeleted}}__name(deleteAndPurgeUser,"deleteAndPurgeUser");async function deleteRegistrationLog(idOrEmail){const query=idOrEmail.trim();try{await db.delete(registrationLogs).where(eq(registrationLogs.id,query));if(query.includes("@")){await db.delete(registrationLogs).where(eq(registrationLogs.email,query.toLowerCase()))}}catch(error){console.error("[DB Repo] Error eliminando log de registro:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if(inMemoryRegLogs[i]?.id===query||inMemoryRegLogs[i]?.email===query.toLowerCase()){inMemoryRegLogs.splice(i,1)}}return true}__name(deleteRegistrationLog,"deleteRegistrationLog");async function clearAllRegistrationLogs(){try{await db.delete(registrationLogs)}catch(error){console.error("[DB Repo] Error limpiando todos los registrationLogs:",error)}inMemoryRegLogs.length=0;return true}__name(clearAllRegistrationLogs,"clearAllRegistrationLogs");const inMemoryClickLogs=[];async function registerOfferClick(arg1: any, arg2?: string, arg3?: string): Promise<{ facturable: boolean; codigoCanje: string; nuevo: boolean }> {
   let ofertaId = "";
   let comercioId = "";
   let telefono = "";
@@ -250,7 +250,8 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
   // `nuevo`: el clic es un interes QUE NO SE HABIA REGISTRADO en la ventana.
   // `false` = la misma persona volvio a hacer clic en la misma oferta dentro
   // de las 24h: no se cuenta otra vez.
-
+  let esNuevo = false;
+  let codigoExistente = codigoCanje;
   try {
     facturable = await db.transaction(async (tx: any) => {
       await tx.execute(
@@ -270,7 +271,23 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
       // La ventana se ancla al último clic facturable; los no facturables no la reinician.
       const existeClicEn24h = !!(rows && rows.length > 0);
 
-      const debeFacturar = !existeClicEn24h && saldoDisponible;
+      if (existeClicEn24h) {
+        // MISMO INTERES DENTRO DE LA VENTANA: no se inserta otra fila.
+        //
+        // Antes se insertaba una fila con facturable=false por cada clic
+        // repetido. Medido el 2026-10-21: tres clics de la misma persona en
+        // la misma oferta dejaron TRES filas en click_logs y tres codigos de
+        // canje distintos (el segundo y el tercero no significaban nada), y el
+        // contador `oferta.clics` sumo tres.
+        //
+        // Ahora la ventana ES la fila: un interes, una fila. Y se devuelve el
+        // codigo de canje que ya existe, para que siga siendo atribuible.
+        codigoExistente = rows[0].codigoCanje;
+        esNuevo = false;
+        return false;
+      }
+
+      const debeFacturar = saldoDisponible;
       await tx.insert(clickLogs).values({
         id,
         ofertaId,
@@ -280,6 +297,7 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
         facturable: debeFacturar,
         creadoEn: now
       } as any);
+      esNuevo = true;
       return debeFacturar;
     });
     registroPersistido = true;
@@ -290,12 +308,12 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
   if (!registroPersistido) {
     // Sin fila en click_logs no existe ventana de 24h: facturar acá sería cobrar sin
     // registro y habilitar un segundo cobro al mismo teléfono. Fail-closed.
-    return { facturable: false, codigoCanje };
+    return { facturable: false, codigoCanje, nuevo: false };
   }
 
   // Si el clic ya estaba dentro de la ventana, se devuelve el codigo de canje
   // que ya existe (no uno nuevo): el mismo interes, el mismo codigo.
-  return { facturable, codigoCanje };
+  return { facturable, codigoCanje: esNuevo ? codigoCanje : codigoExistente, nuevo: esNuevo };
 }__name(registerOfferClick,"registerOfferClick");
 async function registerQualifiedLead(arg1, arg2, arg3) {
   return registerOfferClick(arg1, arg2, arg3);

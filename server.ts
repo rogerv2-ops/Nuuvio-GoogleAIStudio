@@ -369,14 +369,25 @@ app.get("/api/whatsapp/contacto",rateLimit("whatsapp_contacto",30,60000),async(r
   }
 
   const comercioId = oferta.comercioId || "merch_01";
-  const { facturable, codigoCanje } = await registerQualifiedLead({
+  const resultado = await registerQualifiedLead({
     ofertaId,
     comercioId,
     usuarioTelefono: u,
     saldoDisponible: firmaValida && comercioTieneSaldo(comercioId),
   });
+  const facturable = resultado.facturable;
+  const codigoCanje = resultado.codigoCanje;
 
-  oferta.clics = (oferta.clics || 0) + 1;
+  // El clic se cuenta UNA VEZ por ventana de 24h.
+  //
+  // Antes `oferta.clics` sumaba en cada clic, incluso los repetidos (que no
+  // facturan). Medido el 2026-10-21: tres clics de la misma persona en la
+  // misma oferta dejaron la oferta con +3 clics y +3 filas en click_logs.
+  // `nuevo` viene del repo: false = esta misma persona ya habia hecho clic
+  // en esta oferta dentro de la ventana.
+  if (resultado.nuevo) {
+    oferta.clics = (oferta.clics || 0) + 1;
+  }
   if (facturable) {
     oferta.leadsCalificados = (oferta.leadsCalificados || 0) + 1;
   }
