@@ -387,8 +387,10 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
                 <SelectorProvinciaDistrito
                   provincia={provincia}
                   distrito={distrito}
-                  onProvinciaChange={setProvincia}
-                  onDistritoChange={setDistrito}
+                  onChange={(v) => {
+                    setProvincia(v.provincia);
+                    setDistrito(v.distrito);
+                  }}
                   provinciaLabel="Provincia"
                   distritoLabel="Distrito"
                 />

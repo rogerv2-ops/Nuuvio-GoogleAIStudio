@@ -4,10 +4,19 @@ import { useGeografia, cargarDistritos, DistritoGeo } from '../../modules/geo';
 interface SelectorProvinciaDistritoProps {
   provincia: string;
   distrito: string;
-  onProvinciaChange: (codigo: string) => void;
-  onDistritoChange: (nombre: string) => void;
+  /**
+   * UN solo callback para los dos campos.
+   *
+   * Antes habia dos (`onProvinciaChange` y `onDistritoChange`) y el
+   * selector llamaba a los dos en el mismo evento: como los dos usaban el
+   * estado viejo del formulario, el segundo pisaba al primero y la
+   * provincia recien elegida se borraba. En la pantalla se veia como que
+   * "no se puede seleccionar nada".
+   */
+  onChange: (valores: { provincia: string; distrito: string }) => void;
   provinciaLabel?: string;
   distritoLabel?: string;
+  /** Si es false, se muestran TODAS las provincias del Peru. */
   soloActivas?: boolean;
   required?: boolean;
   className?: string;
@@ -28,11 +37,13 @@ interface SelectorProvinciaDistritoProps {
 export const SelectorProvinciaDistrito: React.FC<SelectorProvinciaDistritoProps> = ({
   provincia,
   distrito,
-  onProvinciaChange,
-  onDistritoChange,
+  onChange,
   provinciaLabel = 'Provincia',
   distritoLabel = 'Distrito',
-  soloActivas = false,
+  // Por defecto, SOLO las provincias que el negocio tiene encendidas: si se
+  // ofrece una zona sin servicio, la persona se registra en un sitio donde no
+  // hay ofertas (el bot le responde "todavia no operamos en tu zona").
+  soloActivas = true,
   required = false,
   className = '',
 }) => {
@@ -63,10 +74,9 @@ export const SelectorProvinciaDistrito: React.FC<SelectorProvinciaDistritoProps>
           value={provincia}
           required={required}
           onChange={(e) => {
-            onProvinciaChange(e.target.value);
             // Al cambiar de provincia, el distrito anterior deja de tener
-            // sentido: se limpia.
-            onDistritoChange('');
+            // sentido: se limpia. Los dos valores van en la misma llamada.
+            onChange({ provincia: e.target.value, distrito: '' });
           }}
           className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332] bg-white"
         >
@@ -87,7 +97,7 @@ export const SelectorProvinciaDistrito: React.FC<SelectorProvinciaDistritoProps>
           value={distrito}
           required={required}
           disabled={!provincia}
-          onChange={(e) => onDistritoChange(e.target.value)}
+          onChange={(e) => onChange({ provincia, distrito: e.target.value })}
           className="w-full p-2 text-xs border border-[#EAE5D9] rounded-xl focus:ring-1 focus:ring-[#1B4332] bg-white disabled:bg-stone-50 disabled:text-stone-400"
         >
           <option value="">
@@ -108,6 +118,14 @@ export const SelectorProvinciaDistrito: React.FC<SelectorProvinciaDistritoProps>
       {error && (
         <p className="sm:col-span-2 text-[11px] text-amber-700">
           No se pudo cargar el catálogo de provincias. Recarga la página e inténtalo de nuevo.
+        </p>
+      )}
+
+      {!error && !cargando && lista.length === 0 && (
+        <p className="sm:col-span-2 text-[11px] text-amber-700">
+          {soloActivas
+            ? 'Todavía no hay zonas de servicio activas. Escríbenos y te avisamos cuando abramos la tuya.'
+            : 'No se pudo cargar el catálogo de provincias.'}
         </p>
       )}
     </div>

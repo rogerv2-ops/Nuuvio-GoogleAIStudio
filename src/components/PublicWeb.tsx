@@ -851,8 +851,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     <SelectorProvinciaDistrito
                       provincia={formUser.provincia}
                       distrito={formUser.distrito}
-                      onProvinciaChange={(provincia) => setFormUser({ ...formUser, provincia })}
-                      onDistritoChange={(distrito) => setFormUser({ ...formUser, distrito })}
+                      onChange={(v) => setFormUser({ ...formUser, ...v })}
                     />
                   </div>
                   <div>
@@ -980,8 +979,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                     <SelectorProvinciaDistrito
                       provincia={formMerchant.provincia}
                       distrito={formMerchant.distrito}
-                      onProvinciaChange={(provincia) => setFormMerchant({ ...formMerchant, provincia })}
-                      onDistritoChange={(distrito) => setFormMerchant({ ...formMerchant, distrito })}
+                      onChange={(v) => setFormMerchant({ ...formMerchant, ...v })}
                       provinciaLabel="Provincia del Local"
                       distritoLabel="Distrito del Local"
                     />

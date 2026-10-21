@@ -45,7 +45,8 @@ const estado: EstadoGeo = {
   error: null,
 };
 
-let cargandoEnCurso: Promise<void> | null = null;
+/** La carga del catalogo en marcha (para esperarla, no para perderla). */
+let promesaEnCurso: Promise<void> | null = null;
 const escuchas = new Set<() => void>();
 
 function avisar(): void {
@@ -58,33 +59,66 @@ function avisar(): void {
   }
 }
 
-/** Carga las provincias y, si se piden, los distritos de una. */
+/**
+ * Carga el catalogo de provincias y, si se pide, los distritos de una.
+ *
+ * IMPORTANTE: esta funcion es "segura de esperar". Antes devolvia
+ * `if (estado.cargando) return;`, y eso era una CARRERA: el selector pide
+ * los distritos de la provincia elegida mientras el catalogo de provincias
+ * todavia esta cargando, la peticion se perdia y el desplegable de distritos
+ * se quedaba VACIO (no se podia seleccionar nada).
+ *
+ * Ahora, si ya hay una carga en marcha, se ESPERA a que termine y se sigue.
+ */
 export async function cargarGeografia(provincia?: string): Promise<void> {
-  if (estado.cargando) return;
-  estado.cargando = true;
-  estado.error = null;
-  avisar();
-  try {
-    const rProv = await fetch('/api/geo/provincias', { headers: { Accept: 'application/json' } });
-    const cuerpo: any = await rProv.json().catch(() => null);
-    if (!rProv.ok || !cuerpo?.ok || !Array.isArray(cuerpo.provincias)) {
-      throw new Error('No se pudo leer el catalogo de provincias.');
-    }
-    estado.provincias = cuerpo.provincias;
-
-    if (provincia && !estado.distritosPorProvincia[provincia]) {
-      const rDist = await fetch(`/api/geo/distritos?provincia=${encodeURIComponent(provincia)}`, {
-        headers: { Accept: 'application/json' },
-      });
-      const dist: any = await rDist.json().catch(() => null);
-      if (rDist.ok && dist?.ok && Array.isArray(dist.distritos)) {
-        estado.distritosPorProvincia[provincia] = dist.distritos;
+  if (promesaEnCurso) {
+    // Hay una carga en marcha: se espera y se continua con lo que falte.
+    await promesaEnCurso.catch(() => undefined);
+  } else if (!estado.provincias.length) {
+    promesaEnCurso = (async () => {
+      estado.cargando = true;
+      estado.error = null;
+      avisar();
+      try {
+        const rProv = await fetch('/api/geo/provincias', { headers: { Accept: 'application/json' } });
+        const cuerpo: any = await rProv.json().catch(() => null);
+        if (!rProv.ok || !cuerpo?.ok || !Array.isArray(cuerpo.provincias)) {
+          throw new Error('No se pudo leer el catalogo de provincias.');
+        }
+        estado.provincias = cuerpo.provincias;
+      } catch (e) {
+        estado.error = e instanceof Error ? e.message : String(e);
+      } finally {
+        estado.cargando = false;
+        avisar();
       }
+    })();
+    try {
+      await promesaEnCurso;
+    } finally {
+      promesaEnCurso = null;
+    }
+  }
+
+  // Y los distritos de la provincia pedida, si faltan.
+  if (provincia && !estado.distritosPorProvincia[provincia]) {
+    await cargarDistritosDeUna(provincia);
+  }
+}
+
+/** Pide los distritos de UNA provincia a la API. */
+async function cargarDistritosDeUna(provincia: string): Promise<void> {
+  try {
+    const rDist = await fetch(`/api/geo/distritos?provincia=${encodeURIComponent(provincia)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    const dist: any = await rDist.json().catch(() => null);
+    if (rDist.ok && dist?.ok && Array.isArray(dist.distritos)) {
+      estado.distritosPorProvincia[provincia] = dist.distritos;
+      avisar();
     }
   } catch (e) {
     estado.error = e instanceof Error ? e.message : String(e);
-  } finally {
-    estado.cargando = false;
     avisar();
   }
 }
@@ -146,10 +180,8 @@ export function useGeografia(): {
   useEffect(() => {
     const escucha = () => setVersion((v) => v + 1);
     escuchas.add(escucha);
-    if (!estado.provincias.length && !cargandoEnCurso) {
-      cargandoEnCurso = cargarGeografia().finally(() => {
-        cargandoEnCurso = null;
-      });
+    if (!estado.provincias.length) {
+      void cargarGeografia();
     }
     return () => {
       escuchas.delete(escucha);
