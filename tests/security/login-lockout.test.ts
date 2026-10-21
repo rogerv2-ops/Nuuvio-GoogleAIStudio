@@ -92,9 +92,19 @@ describe("bloqueo por intentos fallidos - el contador no esta en memoria", () =>
 });
 
 describe.skipIf(!conBase)("bloqueo por intentos fallidos - contra la base", () => {
+  // IP FIJA Y DISTINTA POR TEST. Antes cada test elegia una al azar entre
+  // 200: dos tests podían sacar la misma y compartian el bucket de "login"
+  // (10 intentos / 5 min / IP). Con 6-7 logins cada uno, dos tests en la
+  // misma IP sumaban 13 y el segundo recibia 429 en vez del 423 esperado:
+  // un test que fallaba por azar, no por el codigo. Se vio en produccion de
+  // tests el 2026-10-21 (IP 198.51.100.89).
+  const IP_TEST_A = "198.51.100.11";
+  const IP_TEST_B = "198.51.100.12";
+  const IP_TEST_C = "198.51.100.13";
+
   test("a los 5 intentos la cuenta queda bloqueada y el contador esta en la base", async () => {
     const email = `lockout_${Date.now()}@ci.test`;
-    const ip = `198.51.100.${1 + Math.floor(Math.random() * 200)}`;
+    const ip = IP_TEST_A;
 
     for (let i = 1; i <= 4; i++) {
       const r = await login(email, "clave-mala", ip);
@@ -118,7 +128,7 @@ describe.skipIf(!conBase)("bloqueo por intentos fallidos - contra la base", () =
 
   test("el bloqueo es por correo: otra cuenta no se ve afectada", async () => {
     const email = `lockout_otro_${Date.now()}@ci.test`;
-    const ip = `198.51.100.${1 + Math.floor(Math.random() * 200)}`;
+    const ip = IP_TEST_B;
     for (let i = 0; i < 5; i++) await login(email, "clave-mala", ip);
     expect((await login(email, "clave-mala", ip)).status).toBe(423);
 
@@ -132,7 +142,7 @@ describe.skipIf(!conBase)("bloqueo por intentos fallidos - contra la base", () =
     const admin = process.env.VUUV_ADMIN_EMAIL;
     const adminPass = process.env.VUUV_ADMIN_PASSWORD;
     if (!admin || !adminPass) return;
-    const ip = `198.51.100.${1 + Math.floor(Math.random() * 200)}`;
+    const ip = IP_TEST_C;
 
     // tres intentos fallidos con la clave correcta...
     for (let i = 0; i < 3; i++) {
