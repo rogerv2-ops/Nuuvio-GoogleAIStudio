@@ -286,7 +286,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#FBF9F4] text-[#1C1917] py-4 px-3 sm:px-4">
+    <div className="min-h-screen bg-[#D9F3DD] text-[#1C1917] py-4 px-3 sm:px-4">
       {/* Responsive layout - Vista Mobile Estricta max-w-[640px] */}
       <div className="w-full max-w-[640px] mx-auto space-y-4">
         {/* Toast de Verificación de Cuenta por 1 Clic */}

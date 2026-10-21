@@ -36,7 +36,9 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-[#FBF9F4]/95 backdrop-blur-md border-b border-[#EAE5D9] transition-colors">
+    <header className={`sticky top-0 z-50 backdrop-blur-md border-b border-[#EAE5D9] transition-colors ${
+      superficieActiva === 'web' ? 'bg-[#D9F3DD]/95' : 'bg-[#FBF9F4]/95'
+    }`}>
       <div className={`mx-auto flex items-center justify-between gap-3 ${
         superficieActiva === 'web'
           ? 'w-full max-w-[640px] px-3 sm:px-4 py-2.5'
