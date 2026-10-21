@@ -44,6 +44,19 @@ async function simular(token: string, telefono: string, texto: string): Promise<
   return j as SimResult;
 }
 
+/**
+ * El enlace firmado que el bot tiene que entregar EN EL TEXTO.
+ *
+ * No se mira `boton.url`: ese campo solo dice lo que el payload *quiso*
+ * mandar. Baileys v7 no soporta botones interactivos y los descarta sin
+ * error, asi que un test que mira `boton.url` da verde mientras la persona
+ * no recibe nada. Lo unico que se puede verificar es lo que viaja en `texto`.
+ */
+function enlaceDeLaOferta(res: SimResult, ofertaId: string): string {
+  const textos = res.respuestas.map((a) => a.texto).join("\n");
+  return (textos.match(new RegExp(`https?://\\S+/c/${ofertaId}[^\\s]*`)) || [])[0] || "";
+}
+
 describe.skipIf(!online || !hayAdmin)("Bot: confirmacion de zona de un toque (enlace de oferta)", () => {
   let token: string | null = null;
   let ofertaTest: any = null;
@@ -95,20 +108,25 @@ describe.skipIf(!online || !hayAdmin)("Bot: confirmacion de zona de un toque (en
     const tel = telefonoNuevo();
     await simular(token!, tel, construirMensajeContactoWhatsApp({ titulo: ofertaTest.titulo, ref: ofertaTest.id }));
     const res = await simular(token!, tel, "sí");
-    const conBoton = res.respuestas.find((a) => a.tipo === "tarjeta_con_boton_cta");
-    expect(conBoton).toBeTruthy();
-    expect(conBoton!.texto).toContain(ofertaTest.titulo);
-    expect(conBoton!.boton?.url).toContain(`/c/${ofertaTest.id}`);
-    expect(conBoton!.boton?.url).toContain("s=");
+    const texto = res.respuestas.map((a) => a.texto).join("\n");
+    expect(texto).toContain(ofertaTest.titulo);
+    // OJO: antes este test buscaba `tipo === "tarjeta_con_boton_cta"` y
+    // pasaba, pero el boton NUNCA llegaba al telefono: Baileys v7 descarta
+    // los botones en silencio. El test certificaba el payload, no la
+    // entrega. Lo que si llega es el enlace en el texto.
+    const enlace = enlaceDeLaOferta(res, ofertaTest.id);
+    expect(enlace).toContain(`/c/${ofertaTest.id}`);
+    expect(enlace).toContain("s=");
   });
 
   test("R3: si responde otro distrito -> guarda ese distrito y envia LA oferta", async () => {
     const tel = telefonoNuevo();
     await simular(token!, tel, construirMensajeContactoWhatsApp({ titulo: ofertaTest.titulo, ref: ofertaTest.id }));
     const res = await simular(token!, tel, "yo estoy en San Miguel");
-    const conBoton = res.respuestas.find((a) => a.tipo === "tarjeta_con_boton_cta");
-    expect(conBoton).toBeTruthy();
-    expect(conBoton!.texto).toContain(ofertaTest.titulo);
+    const texto = res.respuestas.map((a) => a.texto).join("\n");
+    expect(texto).toContain(ofertaTest.titulo);
+    const enlace = enlaceDeLaOferta(res, ofertaTest.id);
+    expect(enlace).toContain(`/c/${ofertaTest.id}`);
   });
 
   test("R4: si responde que no -> le pregunta su distrito como siempre", async () => {
@@ -133,10 +151,11 @@ describe.skipIf(!online || !hayAdmin)("Bot: confirmacion de zona de un toque (en
     await simular(token!, tel, "hola");
     await simular(token!, tel, "Carlos, 28, Miraflores");
     const res = await simular(token!, tel, construirMensajeContactoWhatsApp({ titulo: ofertaTest.titulo, ref: ofertaTest.id }));
-    const conBoton = res.respuestas.find((a) => a.tipo === "tarjeta_con_boton_cta");
-    expect(conBoton).toBeTruthy();
-    expect(conBoton!.texto).toContain(ofertaTest.titulo);
-    expect(conBoton!.boton?.url).toContain(`/c/${ofertaTest.id}`);
+    const texto = res.respuestas.map((a) => a.texto).join("\n");
+    expect(texto).toContain(ofertaTest.titulo);
+    const enlace = enlaceDeLaOferta(res, ofertaTest.id);
+    expect(enlace).toContain(`/c/${ofertaTest.id}`);
+    expect(enlace).toContain("s=");
     // No puede caer al mosaico (una sola imagen con todas).
     expect(res.respuestas.some((a) => a.tipo === "imagen_con_caption")).toBe(false);
   });

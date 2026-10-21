@@ -12,6 +12,7 @@ Yuddit (formerly vuuy/nuuvio): WhatsApp bot + offers platform for Lima, Peru. Si
 | **2. El teléfono no se expone** | El número **no** va en el HTML, ni en el bundle, ni en un endpoint público. Se resuelve en el servidor **en el momento del clic** y se responde con el enlace ya armado (`Cache-Control: no-store`). `/api/whatsapp/config` **no** es ruta pública: sigue así. El payload público de ofertas no lleva teléfonos. | `GET /api/whatsapp/contacto` (público) |
 | **3. Todo contacto se registra y se atribuye** | El clic entra en `click_logs` **con `facturable: false`** (sin teléfono del usuario y sin firma HMAC: solo `/c/:id` con HMAC factura) y el destino elegido se guarda en `security_logs` (`accion: "whatsapp_contacto"`). El mensaje lleva el título de la oferta, su `ref` y el código de canje. | `src/db/repo.ts` (`registerOfferClick`), `server.ts` |
 | **4. Un botón que no abre, avisa** | Nunca un `return` silencioso: si el servidor no responde, la interfaz muestra el error. | `src/utils/whatsappNative.ts` |
+| **5. Todo enlace accionable va EN EL TEXTO, no en un botón** | El motor en producción es **Baileys v7**, que **no soporta botones**: `templateButtons` y `buttons` no existen en su tipo de mensaje y la librería los **descarta en silencio** (sin error, sin log). Un botón que se pierde es un lead que no llega al comercio. El enlace firmado `/c/:id?u=&s=` va **escrito en el texto**; WhatsApp lo linkifica solo. | `server.ts` (`enviarOfertaEspecifica`, `dispatchOffersMosaic`), `docs/reglas-whatsapp.md` |
 
 Cómo se aplica:
 
