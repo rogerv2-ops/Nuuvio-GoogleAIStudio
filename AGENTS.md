@@ -8,7 +8,7 @@ Yuddit (formerly vuuy/nuuvio): WhatsApp bot + offers platform for Lima, Peru. Si
 
 | Regla | Cómo se cumple | Dónde |
 |---|---|---|
-| **1. Siempre se puede elegir la app** | Android: esquema nativo `whatsapp://` → el sistema muestra el selector (WhatsApp / WhatsApp Business) con **un solo toque**. iOS y web: el sistema no ofrece selector, así que lo pone la hoja de opciones (WhatsApp / WhatsApp Business / WhatsApp Web). | `src/utils/whatsappLinks.ts` (reglas puras), `src/components/WhatsAppChooser.tsx` (hoja) |
+| **1. Siempre se puede elegir la app** | Android: esquema nativo `whatsapp://` → el sistema muestra el selector (WhatsApp / WhatsApp Business) con **un solo toque**. iOS y web: el sistema no ofrece selector, así que lo pone la hoja de opciones (WhatsApp / WhatsApp Business / WhatsApp Web). **Vale para TODOS los enlaces, también los firmados `/c/:id` que manda el bot** (medido el 2026-10-21: esos iban a `wa.me`, que no ofrece selector). | `src/utils/whatsappLinks.ts` (reglas puras), `src/components/WhatsAppChooser.tsx` (hoja del SPA), `src/utils/hojaWhatsApp.ts` (hoja del servidor, para `/c/:id`) |
 | **2. El teléfono no se expone** | El número **no** va en el HTML, ni en el bundle, ni en un endpoint público. Se resuelve en el servidor **en el momento del clic** y se responde con el enlace ya armado (`Cache-Control: no-store`). `/api/whatsapp/config` **no** es ruta pública: sigue así. El payload público de ofertas no lleva teléfonos. | `GET /api/whatsapp/contacto` (público) |
 | **3. Todo contacto se registra y se atribuye** | El clic entra en `click_logs` **con `facturable: false`** (sin teléfono del usuario y sin firma HMAC: solo `/c/:id` con HMAC factura) y el destino elegido se guarda en `security_logs` (`accion: "whatsapp_contacto"`). El mensaje lleva el título de la oferta, su `ref` y el código de canje. | `src/db/repo.ts` (`registerOfferClick`), `server.ts` |
 | **4. Un botón que no abre, avisa** | Nunca un `return` silencioso: si el servidor no responde, la interfaz muestra el error. | `src/utils/whatsappNative.ts` |
@@ -19,7 +19,7 @@ Cómo se aplica:
 - **Nunca reescribas una URL de WhatsApp a mano** fuera de `src/utils/whatsappLinks.ts`. Duplicar las reglas es exactamente como se rompe la elección de app.
 - **El mensaje al bot tiene que disparar su intención de "pedir ofertas"** (`esIntencionOfertas`, en `src/utils/securityGuards.ts`). La palabra va **en plural**: "quiero ver las **ofertas** de Yuddit: {título}". El mensaje viejo ("Hola quiero aprovechar esta **oferta**: …") no la disparaba, así que el bot no entendía el pedido.
 - **La landing enruta al bot, no al comercio**: así los teléfonos de los comercios no llegan al público. El lead llega al comercio por el enlace firmado `/c/:id`, que sí factura.
-- **Excepción documentada**: los enlaces `/c/:id` que el bot manda *dentro de* WhatsApp van directo al chat (la persona ya está en WhatsApp).
+- **Los enlaces `/c/:id` también dejan elegir la app** (2026-10-21): el bot los manda por WhatsApp y la persona los toca desde el chat. Antes iban a `wa.me`, que abre la app directo sin dejar elegir. Ahora: en Android, 302 al esquema `whatsapp://` (selector del sistema); en iOS y web, el servidor sirve la hoja de opciones. El teléfono del comercio **no** va en el HTML: cada botón vuelve al servidor con `dest=` y el servidor responde con el enlace ya armado.
 
 Lo que **tiene que ver la persona** (si no, no está bien):
 
@@ -31,7 +31,7 @@ Lo que **tiene que ver la persona** (si no, no está bien):
 
 **Estado de la verificación en dispositivos reales** (2026-10-19): **Android ✅** y **web ✅** (probados por el dueño). **iPhone ⏳ pendiente.** Por eso: **ningún cambio que toque un enlace a WhatsApp se da por cerrado sin probarlo en un Android y en la web** — el CI no alcanza, porque verifica URLs, no lo que ve la persona.
 
-- Spec completa, tablas y verificación: `docs/reglas-whatsapp.md`. Tests que vigilan las reglas: `tests/security/whatsapp-contacto.test.ts`.
+- Spec completa, tablas y verificación: `docs/reglas-whatsapp.md`. Tests que vigilan las reglas: `tests/security/whatsapp-contacto.test.ts` (botones de la landing) y `tests/security/enlace-oferta-whatsapp.test.ts` (enlaces firmados `/c/:id`).
 
 ## Reglas inquebrantables — Yuddit es PULL, no PUSH
 
