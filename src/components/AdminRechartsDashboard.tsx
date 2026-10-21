@@ -41,6 +41,18 @@ import { ofertasModule } from '../modules/ofertas';
 import { DISTRITOS_LIMA, CATEGORIAS_OFERTAS } from '../data/seedData';
 import { Merchant, Offer } from '../types';
 
+
+/** Dias que cubre el rango seleccionado (con un maximo razonable). */
+function diasDelRango(inicio: string, fin: string): number {
+  try {
+    const a = new Date(`${inicio}T00:00:00`);
+    const b = new Date(`${fin}T00:00:00`);
+    const ms = Math.abs(b.getTime() - a.getTime());
+    return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)) + 1);
+  } catch {
+    return 30;
+  }
+}
 export const AdminRechartsDashboard: React.FC = () => {
   // Estado para forzar actualización reactiva en tiempo real
   const [version, setVersion] = useState(0);
@@ -103,10 +115,13 @@ export const AdminRechartsDashboard: React.FC = () => {
   // Comparativa contra el periodo anterior inmediatamente igual
   const comparativaPeriodoAnterior = useMemo(() => {
     const infoAnt = helperCalcularPeriodoAnterior(rangoFecha.fechaInicio, rangoFecha.fechaFin);
-    const priorComercios = Math.max(1, Math.round(kpis.totalComercios * 0.86));
-    const priorOfertas = Math.max(1, Math.round(kpis.totalOfertas * 0.82));
-    const priorRatio = Math.max(0.1, Number((Number(kpis.ratioOfertasPorComercio) * 0.9).toFixed(1)));
-    const priorDistritos = Math.max(1, kpis.distritosConComercios - 1);
+    // El "periodo anterior" tambien era inventado (un porcentaje del valor
+    // actual). Sin un periodo anterior REAL no hay tendencia: el
+    // `TrendBadge` muestra "sin dato" en vez de un 0% sin meaning.
+    const priorComercios: number | null = null;
+    const priorOfertas: number | null = null;
+    const priorRatio: number | null = null;
+    const priorDistritos: number | null = null;
 
     return {
       infoAnt,
@@ -117,39 +132,54 @@ export const AdminRechartsDashboard: React.FC = () => {
     };
   }, [rangoFecha.fechaInicio, rangoFecha.fechaFin, kpis]);
 
-  // Generación de Serie Temporal para el Gráfico Principal según el rango seleccionado
-  const datosSerieTemporal = useMemo(() => {
-    const inicioParts = rangoFecha.fechaInicio.split('-');
-    const finParts = rangoFecha.fechaFin.split('-');
-    const start = new Date(Number(inicioParts[0]), Number(inicioParts[1]) - 1, Number(inicioParts[2]));
-    const end = new Date(Number(finParts[0]), Number(finParts[1]) - 1, Number(finParts[2]));
+  /**
+   * Serie temporal REAL, pedida al servidor.
+   *
+   * Antes este bloque recorria los dias del rango e inventaba una
+   * progresion suave (un factor de progreso fijo) y unos leads "estimados"
+   * (`ofertasAcumuladas * 4.2 + (i % 3) * 6`). Era un grafico suave y falso.
+   *
+   * Ahora sale de las fechas de la base (`offers.created_at`,
+   * `click_logs.creado_en`, `audience_users.created_at`).
+   *
+   * Los COMERCIOS no aparecen: viven en un JSON sin historico, asi que no
+   * hay "comercios registrados por dia" que medir. Se dibuja la serie de
+   * ofertas y la de leads, que si se miden.
+   */
+  const [serieDiaria, setSerieDiaria] = useState<any[]>([]);
 
-    const diffMs = Math.abs(end.getTime() - start.getTime());
-    const totalDias = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+  useEffect(() => {
+    let vivo = true;
+    const cargar = async () => {
+      try {
+        const dias = Math.max(7, Math.min(120, diasDelRango(rangoFecha.fechaInicio, rangoFecha.fechaFin)));
+        const r = await fetch(`/api/analitica/serie-diaria?dias=${dias}`, {
+          headers: { Accept: 'application/json' },
+        });
+        const cuerpo: any = await r.json().catch(() => null);
+        if (r.ok && cuerpo?.ok && Array.isArray(cuerpo.serie) && vivo) {
+          setSerieDiaria(cuerpo.serie);
+        }
+      } catch {
+        // sin serie, el grafico queda vacio (no inventado)
+      }
+    };
+    void cargar();
+    return () => {
+      vivo = false;
+    };
+  }, [rangoFecha.fechaInicio, rangoFecha.fechaFin]);
 
-    const resultado = [];
-    const temp = new Date(start);
-
-    for (let i = 0; i < totalDias; i++) {
-      const diaTexto = temp.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' });
-      
-      const factorProgreso = totalDias === 1 ? 1 : (i + 1) / totalDias;
-      const comerciosAcumulados = Math.max(1, Math.round(kpis.totalComercios * (0.45 + 0.55 * factorProgreso)));
-      const ofertasAcumuladas = Math.max(1, Math.round(kpis.totalOfertas * (0.35 + 0.65 * factorProgreso)));
-      const leadsEstimados = Math.round(ofertasAcumuladas * 4.2 + (i % 3) * 6);
-
-      resultado.push({
-        fecha: diaTexto,
-        comerciosRegistrados: comerciosAcumulados,
-        ofertasPublicadas: ofertasAcumuladas,
-        leadsGenerados: leadsEstimados
-      });
-
-      temp.setDate(temp.getDate() + 1);
-    }
-
-    return resultado;
-  }, [kpis.totalComercios, kpis.totalOfertas, rangoFecha.fechaInicio, rangoFecha.fechaFin]);
+  const datosSerieTemporal = useMemo(
+    () =>
+      serieDiaria.map((f) => ({
+        fecha: f.fecha,
+        ofertasPublicadas: Number(f.ofertasAcumuladas || 0),
+        leadsGenerados: Number(f.leadsAcumulados || 0),
+        usuariosRegistrados: Number(f.usuariosAcumulados || 0),
+      })),
+    [serieDiaria],
+  );
 
   // Datos para Gráfico de Distribución por Distritos (Barras)
   const datosPorDistrito = useMemo(() => {
@@ -489,14 +519,14 @@ export const AdminRechartsDashboard: React.FC = () => {
                   height={36}
                   formatter={value => (
                     <span className="text-xs font-semibold text-stone-700">
-                      {value === 'comerciosRegistrados' ? 'Comercios Registrados' : 'Ofertas Publicadas'}
+                      {value === 'usuariosRegistrados' ? 'Usuarios Registrados' : 'Ofertas Publicadas'}
                     </span>
                   )}
                 />
                 <Area
                   type="monotone"
-                  dataKey="comerciosRegistrados"
-                  name="comerciosRegistrados"
+                  dataKey="usuariosRegistrados"
+                  name="usuariosRegistrados"
                   stroke="#10B981"
                   strokeWidth={2.5}
                   fillOpacity={1}
@@ -532,14 +562,14 @@ export const AdminRechartsDashboard: React.FC = () => {
                   height={36}
                   formatter={value => (
                     <span className="text-xs font-semibold text-stone-700">
-                      {value === 'comerciosRegistrados' ? 'Comercios Registrados' : 'Ofertas Publicadas'}
+                      {value === 'usuariosRegistrados' ? 'Usuarios Registrados' : 'Ofertas Publicadas'}
                     </span>
                   )}
                 />
                 <Line
                   type="monotone"
-                  dataKey="comerciosRegistrados"
-                  name="comerciosRegistrados"
+                  dataKey="usuariosRegistrados"
+                  name="usuariosRegistrados"
                   stroke="#10B981"
                   strokeWidth={3}
                   dot={{ r: 4, fill: '#10B981' }}
@@ -575,11 +605,11 @@ export const AdminRechartsDashboard: React.FC = () => {
                   height={36}
                   formatter={value => (
                     <span className="text-xs font-semibold text-stone-700">
-                      {value === 'comerciosRegistrados' ? 'Comercios Registrados' : 'Ofertas Publicadas'}
+                      {value === 'usuariosRegistrados' ? 'Usuarios Registrados' : 'Ofertas Publicadas'}
                     </span>
                   )}
                 />
-                <Bar dataKey="comerciosRegistrados" name="comerciosRegistrados" fill="#10B981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="usuariosRegistrados" name="usuariosRegistrados" fill="#10B981" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="ofertasPublicadas" name="ofertasPublicadas" fill="#6366F1" radius={[4, 4, 0, 0]} />
               </BarChart>
             )}

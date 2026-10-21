@@ -580,6 +580,163 @@ async function obtenerMetricasGlobales() {
 }
 __name(obtenerMetricasGlobales, "obtenerMetricasGlobales");
 
+/**
+ * Serie mensual REAL (para el grafico de evolucion).
+ *
+ * Antes el widget ejecutivo fabricaba seis meses de historia (Mayo-Octubre)
+ * multiplicando el valor actual por porcentajes fijos: un grafico que
+ * parece bien y no mide nada. Esto se arma con las fechas de la base:
+ * `audience_users.created_at`, `click_logs.creado_en` y
+ * `offers.created_at`.
+ *
+ * Un mes sin datos es 0. No se rellena.
+ */
+async function obtenerSerieMensual(meses) {
+  try {
+    const cuantos = Math.max(1, Math.min(Number(meses) || 6, 24));
+    const desde = new Date();
+    desde.setDate(1);
+    desde.setHours(0, 0, 0, 0);
+    desde.setMonth(desde.getMonth() - (cuantos - 1));
+    const desdeIso = desde.toISOString();
+
+    const r = await db.execute(sql`
+      select
+        to_char(date_trunc('month', created_at), 'YYYY-MM') as mes,
+        count(*)::int as usuarios
+      from audience_users
+      where created_at >= ${desdeIso}
+      group by 1
+    `);
+    const usuariosPorMes = new Map<string, number>();
+    for (const f of (r && r.rows) || []) usuariosPorMes.set(String(f.mes), Number(f.usuarios || 0));
+
+    const r2 = await db.execute(sql`
+      select
+        to_char(date_trunc('month', creado_en), 'YYYY-MM') as mes,
+        count(*)::int as clics,
+        count(*) filter (where facturable = true)::int as leads
+      from click_logs
+      where creado_en >= ${desdeIso}
+      group by 1
+    `);
+    const clicsPorMes = new Map<string, { clics: number; leads: number }>();
+    for (const f of (r2 && r2.rows) || []) {
+      clicsPorMes.set(String(f.mes), { clics: Number(f.clics || 0), leads: Number(f.leads || 0) });
+    }
+
+    const r3 = await db.execute(sql`
+      select to_char(date_trunc('month', created_at), 'YYYY-MM') as mes, count(*)::int as ofertas
+      from offers where created_at >= ${desdeIso} group by 1
+    `);
+    const ofertasPorMes = new Map<string, number>();
+    for (const f of (r3 && r3.rows) || []) ofertasPorMes.set(String(f.mes), Number(f.ofertas || 0));
+
+    // Los meses del calendario, en orden. Los que no tienen datos van en 0.
+    const salida: { mes: string; etiqueta: string; usuarios: number; clics: number; leads: number; ofertas: number }[] = [];
+    for (let i = 0; i < cuantos; i++) {
+      const d = new Date(desde);
+      d.setMonth(desde.getMonth() + i);
+      const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const etiqueta = d.toLocaleDateString("es-PE", { month: "short" }).replace(".", "");
+      const c = clicsPorMes.get(clave);
+      salida.push({
+        mes: clave,
+        etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1),
+        usuarios: usuariosPorMes.get(clave) || 0,
+        clics: c?.clics || 0,
+        leads: c?.leads || 0,
+        ofertas: ofertasPorMes.get(clave) || 0,
+      });
+    }
+    return salida;
+  } catch (error) {
+    console.error("[DB Repo] Error calculando la serie mensual:", error);
+    return [];
+  }
+}
+__name(obtenerSerieMensual, "obtenerSerieMensual");
+
+/**
+ * Serie diaria REAL (para el grafico por dias del panel de Analitica).
+ *
+ * Antes el dashboard fabricaba una serie diaria: recorria los dias del
+ * rango y inventaba una progresion suave ("factorProgreso") y unos leads
+ * estimados (`ofertas * 4.2 + (i % 3) * 6`). Ahora sale de las fechas de
+ * la base.
+ *
+ * Los COMERCIOS no se incluyen: viven en un JSON (`app_settings`) sin
+ * historico, asi que no hay "comercios registrados por dia" que medir.
+ */
+async function obtenerSerieDiaria(dias) {
+  try {
+    const cuantos = Math.max(1, Math.min(Number(dias) || 30, 120));
+    const desde = new Date();
+    desde.setHours(0, 0, 0, 0);
+    desde.setDate(desde.getDate() - (cuantos - 1));
+    const desdeIso = desde.toISOString();
+
+    const r = await db.execute(sql`
+      select
+        to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as dia,
+        count(*)::int as usuarios
+      from audience_users where created_at >= ${desdeIso} group by 1
+    `);
+    const usuariosPorDia = new Map<string, number>();
+    for (const f of (r && r.rows) || []) usuariosPorDia.set(String(f.dia), Number(f.usuarios || 0));
+
+    const r2 = await db.execute(sql`
+      select
+        to_char(date_trunc('day', creado_en), 'YYYY-MM-DD') as dia,
+        count(*)::int as clics,
+        count(*) filter (where facturable = true)::int as leads
+      from click_logs where creado_en >= ${desdeIso} group by 1
+    `);
+    const clicsPorDia = new Map<string, { clics: number; leads: number }>();
+    for (const f of (r2 && r2.rows) || []) {
+      clicsPorDia.set(String(f.dia), { clics: Number(f.clics || 0), leads: Number(f.leads || 0) });
+    }
+
+    const r3 = await db.execute(sql`
+      select to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as dia, count(*)::int as ofertas
+      from offers where created_at >= ${desdeIso} group by 1
+    `);
+    const ofertasPorDia = new Map<string, number>();
+    for (const f of (r3 && r3.rows) || []) ofertasPorDia.set(String(f.dia), Number(f.ofertas || 0));
+
+    const salida: { dia: string; fecha: string; usuarios: number; clics: number; leads: number; ofertas: number; usuariosAcumulados: number; ofertasAcumuladas: number; leadsAcumulados: number }[] = [];
+    let acumUsuarios = 0;
+    let acumOfertas = 0;
+    let acumLeads = 0;
+    for (let i = 0; i < cuantos; i++) {
+      const d = new Date(desde);
+      d.setDate(desde.getDate() + i);
+      const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const c = clicsPorDia.get(clave);
+      acumUsuarios += usuariosPorDia.get(clave) || 0;
+      acumOfertas += ofertasPorDia.get(clave) || 0;
+      acumLeads += c?.leads || 0;
+      salida.push({
+        dia: clave,
+        fecha: d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' }),
+        usuarios: usuariosPorDia.get(clave) || 0,
+        clics: c?.clics || 0,
+        leads: c?.leads || 0,
+        ofertas: ofertasPorDia.get(clave) || 0,
+        // Los acumulados van HASTA ESE DIA (no el total final).
+        usuariosAcumulados: acumUsuarios,
+        ofertasAcumuladas: acumOfertas,
+        leadsAcumulados: acumLeads,
+      });
+    }
+    return salida;
+  } catch (error) {
+    console.error("[DB Repo] Error calculando la serie diaria:", error);
+    return [];
+  }
+}
+__name(obtenerSerieDiaria, "obtenerSerieDiaria");
+
 /** Las mismas metricas, pero de un solo comercio. */
 async function obtenerMetricasComercio(comercioId) {
   try {
@@ -656,4 +813,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria};

@@ -105,12 +105,20 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
 
   // 2. Métricas y KPIs de Atribución Globales
   const kpisAtribucion = useMemo(() => {
-    // Estimación sólida basada en eventos reales y factores de tráfico
-    const visitasTotales = Math.max(eventosVisitasUtm.length * 18 + 142, 198);
+    // ANTES: `visitasTotales = Math.max(eventosVisitasUtm.length * 18 + 142, 198)`
+    // (una "estimacion" con un minimo de 198 visitas inventadas) y la tasa de
+    // conversion se calculaba sobre ese numero.
+    //
+    // AHORA: las visitas a la landing NO se persisten en ningun lado, asi
+    // que no se miden: se muestran como "sin medir". Los registros con
+    // atribucion y los usuarios verificados SI son reales (vienen de la
+    // tabla `audience_users`).
+    const visitasTotales: number | null = null;
     const registrosConAtribucion = usuarios.filter(u => u.utm?.source || u.invitadoPor).length;
     const registrosTotales = usuarios.length;
-    const tasaConversionVisitas = visitasTotales > 0 ? ((registrosTotales / visitasTotales) * 100).toFixed(1) : '0';
-    
+    // Sin visitas medidas no hay tasa de conversion que calcular.
+    const tasaConversionVisitas: string | null = null;
+
     // Usuarios que verificaron su correo en 1 clic
     const usuariosVerificados = usuarios.filter(estaVerificado).length;
     const tasaVerificacion = registrosTotales > 0 ? ((usuariosVerificados / registrosTotales) * 100).toFixed(1) : '0';
@@ -128,9 +136,12 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
   // Comparativa contra el periodo anterior inmediatamente igual
   const comparativaPeriodoAnterior = useMemo(() => {
     const infoAnt = helperCalcularPeriodoAnterior(rangoFecha.fechaInicio, rangoFecha.fechaFin);
-    const priorVisitas = Math.max(1, Math.round(kpisAtribucion.visitasTotales * 0.82));
-    const priorRegistros = Math.max(1, Math.round(kpisAtribucion.registrosTotales * 0.78));
-    const priorVerificados = Math.max(1, Math.round(kpisAtribucion.usuariosVerificados * 0.80));
+    // El "periodo anterior" tambien era inventado (un porcentaje del
+    // valor actual). Ahora es `null` cuando no hay un periodo anterior REAL:
+    // el `TrendBadge` muestra "sin dato" en vez de un 0% que no significa nada.
+    const priorVisitas: number | null = null;
+    const priorRegistros: number | null = null;
+    const priorVerificados: number | null = null;
 
     return {
       infoAnt,
@@ -422,7 +433,7 @@ export const UtmAttributionDashboardWidget: React.FC = () => {
             <Eye className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums leading-none">
-            {kpisAtribucion.visitasTotales.toLocaleString()}
+            {kpisAtribucion.visitasTotales !== null ? kpisAtribucion.visitasTotales.toLocaleString() : 'sin medir'}
           </div>
           <div className="pt-1">
             <TrendBadge

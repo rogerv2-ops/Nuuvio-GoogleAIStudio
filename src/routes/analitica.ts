@@ -21,7 +21,12 @@
  * se puede medir se devuelve como `null`: la pantalla dice "sin medir" en
  * vez de inventar un numero.
  */
-import { obtenerMetricasComercio, obtenerMetricasGlobales } from "../db/repo.ts";
+import {
+  obtenerMetricasComercio,
+  obtenerMetricasGlobales,
+  obtenerSerieDiaria,
+  obtenerSerieMensual,
+} from "../db/repo.ts";
 
 export function registrarRutasAnalitica(app: any, ctx: any): void {
   const requireAdmin = ctx.requireAdmin;
@@ -56,6 +61,51 @@ export function registrarRutasAnalitica(app: any, ctx: any): void {
       } catch (error) {
         console.error("[Analitica] Error serviendo las metricas:", error);
         res.status(500).json({ ok: false, error: "Error obteniendo las metricas." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/analitica/series?meses=6
+   *
+   * La serie mensual REAL, para el grafico de evolucion. Antes el widget
+   * fabricaba seis meses de historia multiplicando el valor actual por
+   * porcentajes fijos.
+   */
+  app.get(
+    "/api/analitica/series",
+    requireAdmin,
+    rateLimit("analitica", 60, 60000),
+    async (req: any, res: any) => {
+      try {
+        const meses = Number(req.query?.meses || 6);
+        const serie = await obtenerSerieMensual(meses);
+        res.json({ ok: true, serie });
+      } catch (error) {
+        console.error("[Analitica] Error sirviendo la serie mensual:", error);
+        res.status(500).json({ ok: false, error: "Error obteniendo la serie mensual." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/analitica/serie-diaria?dias=30
+   *
+   * La serie diaria REAL. Antes el dashboard de Analitica fabricaba una
+   * progresion por dias y unos leads "estimados".
+   */
+  app.get(
+    "/api/analitica/serie-diaria",
+    requireAdmin,
+    rateLimit("analitica", 60, 60000),
+    async (req: any, res: any) => {
+      try {
+        const dias = Number(req.query?.dias || 30);
+        const serie = await obtenerSerieDiaria(dias);
+        res.json({ ok: true, serie });
+      } catch (error) {
+        console.error("[Analitica] Error sirviendo la serie diaria:", error);
+        res.status(500).json({ ok: false, error: "Error obteniendo la serie diaria." });
       }
     },
   );
