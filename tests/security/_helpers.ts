@@ -64,8 +64,8 @@ export async function get(path: string, token?: string | null) {
   return fetch(BASE + path, { headers: authHeaders(token) });
 }
 
-export async function post(path: string, body: any, token?: string | null) {
-  const headers: Record<string, string> = { "Content-Type": "application/json", ...authHeaders(token) };
+export async function post(path: string, body: any, token?: string | null, extraHeaders?: Record<string, string>) {
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...authHeaders(token), ...(extraHeaders || {}) };
   return fetch(BASE + path, { method: "POST", headers, body: JSON.stringify(body) });
 }
 
