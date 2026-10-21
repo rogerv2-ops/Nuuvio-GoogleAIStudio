@@ -41,7 +41,7 @@ Extraídos del código (`server.ts` 40 + `src/routes/audience.ts` 11 + `src/rout
 
 ---
 
-## 2. Datos — 14 tablas, con filas reales en producción
+## 2. Datos — 15 tablas, con filas reales en producción
 
 | Tabla | Filas | Qué guarda | Estado |
 |---|---|---|---|
@@ -59,6 +59,7 @@ Extraídos del código (`server.ts` 40 + `src/routes/audience.ts` 11 + `src/rout
 | `login_failures` | 1 | Bloqueo por intentos fallidos | ✅ |
 | `registration_logs` | **0** | Auditoría del registro web | ⚠️ **Vacía: el registro por WhatsApp no pasa por acá** |
 | `users` | 0 | Tabla legacy (uid/email), no usada | 🗑️ Muerta |
+| `geo_territorios` | 2.095 | Catálogo geográfico del Perú (UBIGEO del INEI): 25 departamentos, 196 provincias, 1.874 distritos. `activo` = dónde opera el negocio | ✅ (PR #29) |
 
 ---
 

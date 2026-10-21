@@ -1,4 +1,4 @@
-var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs,sessions,authUsers,loginFailures}from"./schema.ts";import{eq,desc,and,or,gte,notInArray,sql}from"drizzle-orm";import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../utils/pii.ts";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio Yuddit",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");/**
+var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});import{db}from"./index.ts";import{appSettings,offers,banners,audienceUsers,emailLogs,registrationLogs,clickLogs,securityLogs,sessions,authUsers,loginFailures,geoTerritorios}from"./schema.ts";import{eq,desc,and,or,gte,notInArray,sql}from"drizzle-orm";import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../utils/pii.ts";async function getSetting(key,defaultValue){try{const rows=await db.select().from(appSettings).where(eq(appSettings.key,key));if(rows.length>0&&rows[0].value){return JSON.parse(rows[0].value)}return defaultValue}catch(error){console.error(`[DB Repo] Error al obtener setting '${key}':`,error);return defaultValue}}__name(getSetting,"getSetting");async function saveSetting(key,value){try{const valString=JSON.stringify(value);await db.insert(appSettings).values({key,value:valString,updatedAt:new Date}).onConflictDoUpdate({target:appSettings.key,set:{value:valString,updatedAt:new Date}})}catch(error){console.error(`[DB Repo] Error al guardar setting '${key}':`,error);throw new Error(`Failed to save setting '${key}'`,{cause:error})}}__name(saveSetting,"saveSetting");async function getAllOffers(){try{const rows=await db.select().from(offers);return rows.map(r=>({...r,precioNormal:Number(r.precioNormal),precioOferta:Number(r.precioOferta),lat:Number(r.lat),lng:Number(r.lng),likes:r.likes||0,vistas:r.vistas||0,clics:r.clics||0,leadsCalificados:r.leadsCalificados||0}))}catch(error){console.error("[DB Repo] Error al obtener ofertas:",error);return[]}}__name(getAllOffers,"getAllOffers");async function replaceOffers(offersList){try{const _oids=offersList.map(o=>o.id);if(_oids.length>0){await db.delete(offers).where(notInArray(offers.id,_oids))}else{await db.delete(offers)}}catch(error){console.error("[DB Repo] Error limpiando ofertas obsoletas:",error)}return await syncOffers(offersList)}__name(replaceOffers,"replaceOffers");async function syncOffers(offersList){try{for(const o of offersList){await db.insert(offers).values({id:o.id,codigoUrl:o.codigoUrl||`oferta-${o.id}`,comercioId:o.comercioId||"comercio-default",comercioNombre:o.comercioNombre||"Comercio Yuddit",comercioWhatsapp:o.comercioWhatsapp||"51987654321",titulo:o.titulo||"",descripcion:o.descripcion||"",tipo:o.tipo||"descuento_porcentaje",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"Gastronom\xEDa y Caf\xE9",distrito:o.distrito||"Miraflores",provincia:o.provincia||"Lima",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date(Date.now()+30*864e5).toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,creadaEn:o.creadaEn||new Date().toISOString(),updatedAt:new Date}).onConflictDoUpdate({target:offers.id,set:{titulo:o.titulo||"",descripcion:o.descripcion||"",precioNormal:String(o.precioNormal??0),precioOferta:String(o.precioOferta??0),stock:o.stock??null,categoria:o.categoria||"",distrito:o.distrito||"",provincia:o.provincia||"",lat:String(o.lat??-12.12),lng:String(o.lng??-77.03),imagenes:o.imagenes||[],venceEn:o.venceEn||new Date().toISOString(),estado:o.estado||"activa",likes:o.likes||0,vistas:o.vistas||0,clics:o.clics||0,leadsCalificados:o.leadsCalificados||0,videoUrl:o.videoUrl||null,updatedAt:new Date}})}}catch(error){console.error("[DB Repo] Error sincronizando ofertas:",error);throw new Error("Failed to sync offers",{cause:error})}}__name(syncOffers,"syncOffers");async function getAllBanners(){try{const rows=await db.select().from(banners);return rows}catch(error){console.error("[DB Repo] Error al obtener banners:",error);return[]}}__name(getAllBanners,"getAllBanners");async function syncBanners(bannerList){try{const _bids=bannerList.map(b=>b.id);if(_bids.length>0){await db.delete(banners).where(notInArray(banners.id,_bids))}else{await db.delete(banners)}for(const b of bannerList){await db.insert(banners).values({id:b.id,titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}).onConflictDoUpdate({target:banners.id,set:{titulo:b.titulo,subtitulo:b.subtitulo,imagenUrl:b.imagenUrl,enlaceUrl:b.enlaceUrl||null,activado:b.activado!==false,orden:b.orden||1}})}}catch(error){console.error("[DB Repo] Error sincronizando banners:",error);throw new Error("Failed to sync banners",{cause:error})}}__name(syncBanners,"syncBanners");/**
  * Identidad de la audiencia: el CORREO es opcional.
  *
  * Antes: `email` era NOT NULL y, cuando el usuario no traia correo (que es el
@@ -386,4 +386,148 @@ async function debitarClicAtomico(comercioId){const consulta=sql`
      )
        AND saldo_clics > 0
     RETURNING id, saldo_clics`;for(let intento=0;intento<2;intento++){const resultado=await db.execute(consulta);const filas=(resultado&&resultado.rows)?resultado.rows:(Array.isArray(resultado)?resultado:[]);if(filas.length>0){return{exito:true,saldoRestante:Number(filas[0].saldo_clics),packId:filas[0].id}}}return{exito:false,saldoRestante:0,packId:null}}__name(debitarClicAtomico,"debitarClicAtomico");
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico};
+
+/**
+ * Sincroniza el catalogo geografico (UBIGEGO del INEI) en la tabla
+ * `geo_territorios`.
+ *
+ * Es idempotente: hace UPSERT por codigo, asi que se puede volver a correr
+ * con un listado mas nuevo sin duplicar ni perder nada. NO toca la columna
+ * `activo` (que decide si el negocio opera ahi): esa la decide el negocio,
+ * no el catalogo.
+ */
+async function sincronizarTerritorios(lista) {
+  try {
+    if (!Array.isArray(lista) || lista.length === 0) {
+      return { ok: false, sembrados: 0, error: "lista vacia" };
+    }
+    await db.transaction(async (tx) => {
+      for (const t of lista) {
+        await tx
+          .insert(geoTerritorios)
+          .values({
+            codigo: t.codigo,
+            nombre: t.nombre,
+            nivel: t.nivel,
+            codigoPadre: t.codigoPadre || null,
+            departamento: t.departamento,
+            provincia: t.provincia,
+            activo: false,
+            // `any`: mismo problema de Drizzle 0.38 con columnas nullable.
+          } as any)
+          .onConflictDoUpdate({
+            target: geoTerritorios.codigo,
+            // `any`: Drizzle 0.38 no tipa bien el `set` cuando la tabla tiene
+            // columnas nullable (mismo patron que el resto de este archivo).
+            set: {
+              nombre: t.nombre,
+              nivel: t.nivel,
+              codigoPadre: t.codigoPadre || null,
+              departamento: t.departamento,
+              provincia: t.provincia,
+              updatedAt: new Date(),
+            } as any,
+          });
+      }
+    });
+    return { ok: true, sembrados: lista.length };
+  } catch (error) {
+    console.error("[DB Repo] Error sincronizando el catalogo geografico:", error);
+    return { ok: false, sembrados: 0, error: String((error && error.message) || error) };
+  }
+}
+__name(sincronizarTerritorios, "sincronizarTerritorios");
+
+/**
+ * Lee el catalogo geografico. Filtros opcionales: `nivel` ("departamento",
+ * "provincia", "distrito"), `departamento` y `provincia` (codigos de 2
+ * digitos), `codigoPadre` y `soloActivos`.
+ */
+async function listarTerritorios(filtros) {
+  try {
+    const condiciones = [];
+    if (filtros && filtros.nivel) condiciones.push(eq(geoTerritorios.nivel, String(filtros.nivel)));
+    if (filtros && filtros.departamento) condiciones.push(eq(geoTerritorios.departamento, String(filtros.departamento)));
+    if (filtros && filtros.provincia) condiciones.push(eq(geoTerritorios.provincia, String(filtros.provincia)));
+    if (filtros && filtros.codigoPadre) condiciones.push(eq(geoTerritorios.codigoPadre, String(filtros.codigoPadre)));
+    if (filtros && filtros.soloActivos) condiciones.push(eq(geoTerritorios.activo, true));
+    const consulta = condiciones.length
+      ? db.select().from(geoTerritorios).where(and(...condiciones))
+      : db.select().from(geoTerritorios);
+    const filas = await consulta;
+    return filas.map((r) => ({
+      codigo: r.codigo,
+      nombre: r.nombre,
+      nivel: r.nivel,
+      codigoPadre: r.codigoPadre,
+      departamento: r.departamento,
+      provincia: r.provincia,
+      activo: r.activo === true,
+    }));
+  } catch (error) {
+    console.error("[DB Repo] Error consultando el catalogo geografico:", error);
+    return [];
+  }
+}
+__name(listarTerritorios, "listarTerritorios");
+
+/**
+ * Marca como ACTIVAS las provincias indicadas (y desactiva las demas).
+ *
+ * La unidad de negocio es la PROVINCIA: Yuddit abre una provincia cuando
+ * entra en esa zona, y el panel de gestion va activando una a una a medida
+ * que se expande. El distrito es la UBICACION de la persona dentro de la
+ * provincia activa, no la zona de servicio.
+ *
+ * La columna `activo` de los distritos se deja en false a proposito: lo
+ * que decide si un distrito se sirve es su provincia.
+ */
+async function activarProvincias(codigos) {
+  try {
+    if (!Array.isArray(codigos) || codigos.length === 0) {
+      return { ok: true, activados: 0 };
+    }
+    const lista = codigos.map((c) => String(c).trim()).filter(Boolean);
+    // Las provincias se activan; el resto se desactiva. Asi el panel puede
+    // encender y apagar sin dejar residuos. Los distritos NUNCA se activan
+    // solos: lo que decide si un distrito se sirve es su provincia.
+    await db.execute(sql`update geo_territorios set activo = false, updated_at = now() where nivel <> 'provincia'`);
+    await db.execute(sql`update geo_territorios set activo = false, updated_at = now() where nivel = 'provincia'`);
+    if (lista.length > 0) {
+      await db.execute(
+        sql`update geo_territorios set activo = true, updated_at = now() where nivel = 'provincia' and codigo in (${sql.join(
+          lista,
+          sql`, `,
+        )})`,
+      );
+    }
+    const n = await db.execute(
+      sql`select count(*)::int as n from geo_territorios where nivel = 'provincia' and activo = true`,
+    );
+    const filas = n && n.rows ? n.rows : [];
+    return { ok: true, activados: filas.length ? Number(filas[0].n) : 0 };
+  } catch (error) {
+    console.error("[DB Repo] Error activando provincias:", error);
+    return { ok: false, activados: 0 };
+  }
+}
+__name(activarProvincias, "activarProvincias");
+
+/** Cuenta los territorios por nivel (para verificar la siembra). */
+async function contarTerritorios() {
+  try {
+    const filas = await db
+      .select({ nivel: geoTerritorios.nivel, c: sql`count(*)::int` })
+      .from(geoTerritorios)
+      .groupBy(geoTerritorios.nivel);
+    const out = {};
+    for (const f of filas) out[f.nivel] = Number(f.c);
+    return out;
+  } catch (error) {
+    console.error("[DB Repo] Error contando el catalogo geografico:", error);
+    return {};
+  }
+}
+__name(contarTerritorios, "contarTerritorios");
+
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias};
