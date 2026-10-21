@@ -1,6 +1,63 @@
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import fs from "fs";
 import path from "path";
+
+/**
+ * FUENTES DEL RENDER.
+ *
+ * Sin una fuente cargada, `fillText` NO DIBUJA NADA y no tira error: la
+ * tarjeta sale con los recuadros y los logos, pero sin titulo, sin precio,
+ * sin comercio y sin distrito. Es lo que le llegaba a la gente por WhatsApp
+ * (medido el 2026-10-21: el contenedor corria con 0 fuentes instaladas).
+ *
+ * Se registran a mano las de DejaVu (que vienen en la imagen del Docker)
+ * y se usa una familia con NOMBRE PROPIO en vez de "sans-serif": asi el
+ * render no depende de como resuelva fontconfig el alias generico.
+ *
+ * Si la fuente no esta (imagen vieja, entorno sin fuentes), se registra la
+ * primera que se encuentre en el sistema; si no hay ninguna, el render
+ * sigue funcionando (con las cajas) en vez de romperse.
+ */
+const FAMILIA_TITULO = "YudditTitulo";
+const FAMILIA_TEXTO = "YudditTexto";
+
+function registrarFuentes(): void {
+  const rutas: { archivo: string; alias: string }[] = [
+    { archivo: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", alias: FAMILIA_TITULO },
+    { archivo: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", alias: FAMILIA_TEXTO },
+  ];
+  for (const r of rutas) {
+    try {
+      if (fs.existsSync(r.archivo)) GlobalFonts.registerFromPath(r.archivo, r.alias);
+    } catch {
+      // si esta ruta no existe, se prueba la siguiente
+    }
+  }
+  // Respaldo: si las de arriba no estaban, se usa la primera familia que el
+  // sistema tenga, con alias de nombre propio.
+  if (!GlobalFonts.has(FAMILIA_TITULO)) {
+    const primera = GlobalFonts.families[0];
+    if (primera?.family) {
+      try {
+        GlobalFonts.setAlias(primera.family, FAMILIA_TITULO);
+        GlobalFonts.setAlias(primera.family, FAMILIA_TEXTO);
+      } catch {
+        // sin fonts registradas: el render sale sin texto (y el test lo avisa)
+      }
+    }
+  }
+}
+
+registrarFuentes();
+
+/** La familia de texto del render (con respaldo si no hay fuentes). */
+export function familiaTitulo(): string {
+  return GlobalFonts.has(FAMILIA_TITULO) ? FAMILIA_TITULO : "sans-serif";
+}
+
+export function familiaTexto(): string {
+  return GlobalFonts.has(FAMILIA_TEXTO) ? FAMILIA_TEXTO : "sans-serif";
+}
 
 /**
  * DTO de entrada para el render de tarjetas y mosaicos.
@@ -175,7 +232,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   const esNueva = oferta.creadaEn ? Date.now() - new Date(oferta.creadaEn).getTime() < 48 * 3600 * 1000 : true;
   if (esNueva) {
     ctx.save();
-    ctx.font = "bold 13px sans-serif";
+    ctx.font = `bold 13px ${familiaTitulo()}`;
     const textNuevo = "NUEVO";
     const textW = ctx.measureText(textNuevo).width;
     const bWidth = textW + 36;
@@ -196,7 +253,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   }
 
   ctx.save();
-  ctx.font = "bold 13px sans-serif";
+  ctx.font = `bold 13px ${familiaTitulo()}`;
   let expText = "EXPIRA EN 2H 55M";
   if (oferta.venceEn) {
     const d = new Date(oferta.venceEn);
@@ -240,7 +297,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
 
   const pNormText = `S/ ${pNorm.toFixed(2)}`;
   ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-  ctx.font = "bold 14px sans-serif";
+  ctx.font = `bold 14px ${familiaTitulo()}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillText(pNormText, tagX + tagWidth - 16, tagY + 12);
@@ -255,7 +312,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
 
   const pOferText = `S/ ${pOfer.toFixed(2)}`;
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = "900 30px sans-serif";
+  ctx.font = `900 30px ${familiaTitulo()}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
   ctx.fillText(pOferText, tagX + tagWidth - 16, tagY + tagHeight - 8);
@@ -265,7 +322,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   if (descuentoPct > 0 || oferta.tipo === "2x1") {
     ctx.save();
     const descText = oferta.tipo === "2x1" ? "2X1" : `${descuentoPct}% OFF`;
-    ctx.font = "900 14px sans-serif";
+    ctx.font = `900 14px ${familiaTitulo()}`;
     const descW = ctx.measureText(descText).width + 24;
     const descH = 34;
     const descX = width - 26 - descW;
@@ -306,7 +363,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   ctx.shadowBlur = 14;
   ctx.shadowOffsetY = 4;
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = "900 32px sans-serif";
+  ctx.font = `900 32px ${familiaTitulo()}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "bottom";
 
@@ -353,7 +410,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   // Comercio y Badge inferior de Distrito (solo distrito, sin '10 km · ')
   ctx.save();
   drawStoreIcon(ctx, 32, height - 58, 24, 24, "#34D399");
-  ctx.font = "900 20px sans-serif";
+  ctx.font = `900 20px ${familiaTitulo()}`;
   ctx.fillStyle = "#FFFFFF";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -361,7 +418,7 @@ export async function renderOfferCardImage(oferta: any): Promise<Buffer> {
   ctx.fillText(cName, 64, height - 46);
 
   const distBadgeLabel = (oferta.distrito || "Lima").trim();
-  ctx.font = "900 15px sans-serif";
+  ctx.font = `900 15px ${familiaTitulo()}`;
   const distTextW = ctx.measureText(distBadgeLabel).width;
   const distBadgeW = distTextW + 48;
   const distBadgeH = 38;
@@ -454,7 +511,7 @@ export async function renderMosaicImage(ofertas: OfferCardData[]): Promise<Buffe
     ctx.lineWidth = 3.5;
     ctx.stroke();
 
-    ctx.font = "900 28px sans-serif";
+    ctx.font = `900 28px ${familiaTitulo()}`;
     ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";

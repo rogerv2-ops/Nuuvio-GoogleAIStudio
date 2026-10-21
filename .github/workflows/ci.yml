@@ -160,6 +160,26 @@ jobs:
         # `bun run build` y el assertion `test -f dist/index.html`.
         run: docker build -t yuddit:ci .
 
+      - name: La imagen puede dibujar TEXTO (las tarjetas de WhatsApp)
+        # Sin fuentes, @napi-rs/canvas dibuja los recuadros pero NO el texto:
+        # fillText no lanza error, la imagen sale vacia y la gente recibe
+        # tarjetas sin titulo, sin precio y sin comercio. Pasa en imagenes
+        # slim (el Dockerfile base no trae fuentes).
+        # Medido el 2026-10-21: produccion corria con 0 fuentes instaladas.
+        run: |
+          docker run --rm --entrypoint bun yuddit:ci -e '
+            const { createCanvas, GlobalFonts } = require("@napi-rs/canvas");
+            const c = createCanvas(200, 80);
+            const ctx = c.getContext("2d");
+            ctx.font = "900 24px sans-serif";
+            const ancho = ctx.measureText("Yuddit").width;
+            console.log("familias:", GlobalFonts.families.length, "| ancho de texto:", ancho);
+            if (!(ancho > 10)) {
+              console.error("SIN FUENTES: la imagen no dibuja texto. Las tarjetas saldran vacias.");
+              process.exit(1);
+            }
+          '
+
       - name: Levantar la imagen y comprobar que responde
         run: |
           docker run -d --name yuddit-ci --network host \
