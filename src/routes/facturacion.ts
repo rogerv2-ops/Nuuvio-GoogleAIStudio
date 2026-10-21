@@ -26,21 +26,33 @@
  * solo para sembrar la tabla la primera vez (en el servidor), nunca para
  * mostrarse.
  *
- * NOTA DE ALCANCE: este archivo expone SOLO la lectura. La compra de packs
- * (`POST`) NO se expone todavia, y a proposito: hoy no hay pasarela de pago
- * y acreditar un pack desde el navegador seria darle clics gratis a
- * cualquiera con una cuenta de comercio. Cuando se implemente la compra,
- * el endpoint tiene que validar un pago confirmado por el servidor.
+ * NOTA DE ALCANCE: este archivo expone SOLO la lectura, mas la acreditacion
+ * MANUAL que el admin hace (POST /api/facturacion/packs/acreditar). La compra
+ * de packs con pasarela (`POST` de compra) NO se expone, y a proposito: hoy no
+ * hay pasarela de pago y comprar desde el navegador seria darle clics gratis a
+ * cualquiera con una cuenta de comercio. Cuando se implemente la compra, el
+ * endpoint tiene que validar un pago confirmado por el servidor.
  */
-import { listarClickPacks } from "../db/repo.ts";
+import { listarClickPacks, insertarClickPack } from "../db/repo.ts";
+import { facturacionModule } from "../modules/facturacion";
 
 let _rateLimit: any;
 function rateLimit(...args: any[]): any {
   return _rateLimit(...args);
 }
+let _requireAdmin: any;
+function requireAdmin(...args: any[]): any {
+  return _requireAdmin(...args);
+}
+let _logEventoSeguridad: any;
+function logEventoSeguridad(...args: any[]): any {
+  return _logEventoSeguridad ? _logEventoSeguridad(...args) : undefined;
+}
 
 export function registrarRutasFacturacion(app: any, ctx: any): void {
   _rateLimit = ctx.rateLimit;
+  _requireAdmin = ctx.requireAdmin;
+  _logEventoSeguridad = ctx.logEventoSeguridad;
 
   /**
    * GET /api/facturacion/packs
@@ -86,4 +98,97 @@ export function registrarRutasFacturacion(app: any, ctx: any): void {
       res.status(500).json({ ok: false, error: "Error obteniendo los packs de clics." });
     }
   });
+
+  /**
+   * POST /api/facturacion/packs/acreditar
+   *
+   * Acredita saldo de clics a un comercio. SOLO el administrador.
+   *
+   * POR QUE EXISTE (decision del dueno, 2026-10-21)
+   *
+   * `/api/ofertas/publicas` filtra por `comercioTieneSaldo`: la oferta activa
+   * de un comercio SIN saldo no llega a la landing. Un comercio nuevo (el que
+   * se registra por WhatsApp) no tiene pack, asi que su oferta aprobada se
+   * quedaba invisible sin aviso: el admin aprobaba y no pasaba nada.
+   *
+   * El dueno eligio la via manual ("Boton de acreditar pack (admin)"): el
+   * admin le carga N clics al comercio y el cobro real ocurre FUERA de la app
+   * (Yape/transferencia); la app solo lo registra. Cuando exista pasarela de
+   * pago, esta misma ruta pasa a registrar una compra verificada por el
+   * servidor.
+   *
+   * La acreditacion escribe un PACK NUEVO en `click_packs` (la verdad del
+   * saldo) con id `pack_acc_*`: asi queda en el historial de "Pagos y cobros"
+   * como cualquier pack y el debito por clic lo consume igual.
+   *
+   * Fail-closed: comercio vacio, clics fuera de 1..10000 o monto negativo se
+   * rechazan con 400 y NO se escribe nada en la base.
+   */
+  app.post(
+    "/api/facturacion/packs/acreditar",
+    requireAdmin,
+    rateLimit("facturacion_acreditar", 30, 60000),
+    async (req: any, res: any) => {
+      try {
+        const body = req.body || {};
+        const comercioId = String(body.comercioId || "").trim();
+        const clics = Math.floor(Number(body.clics ?? body.cantidad));
+        const monto = Number(body.monto ?? 0);
+
+        if (!comercioId) {
+          res.status(400).json({ ok: false, error: "Falta el comercio a acreditar." });
+          return;
+        }
+        if (!Number.isFinite(clics) || clics <= 0 || clics > 10000) {
+          res.status(400).json({
+            ok: false,
+            error: "La cantidad de clics debe estar entre 1 y 10000.",
+          });
+          return;
+        }
+        if (!Number.isFinite(monto) || monto < 0) {
+          res.status(400).json({ ok: false, error: "El monto cobrado no puede ser negativo." });
+          return;
+        }
+
+        const actor = (req as any).auth || {};
+        const pack = {
+          id: `pack_acc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          comercioId,
+          totalClics: clics,
+          saldoClics: clics,
+          precioUnitario: Math.round((monto / clics) * 100) / 100,
+          montoTotal: Math.round(monto * 100) / 100,
+          estado: "activo",
+          compradoEn: new Date().toISOString(),
+        };
+
+        await insertarClickPack(pack as any);
+
+        // El cache del servidor es lo que decide si la oferta se ve. Sin
+        // recargarlo, el comercio seguiria "sin saldo" hasta el proximo
+        // arranque: el admin acreditaria y la oferta seguiria invisible.
+        await facturacionModule.recargarCache();
+
+        void logEventoSeguridad({
+          operadorId: actor.usuarioId,
+          operadorNombre: actor.nombre,
+          accion: "Saldo de clics acreditado",
+          entidad: "facturacion",
+          entidadId: comercioId,
+          detalles: `${clics} clic(s) por S/. ${pack.montoTotal} (pack ${pack.id})`,
+        });
+
+        const packs = await listarClickPacks();
+        const saldoTotal = packs
+          .filter((p: any) => p.comercioId === comercioId && p.estado === "activo")
+          .reduce((acc: number, p: any) => acc + Number(p.saldoClics || 0), 0);
+
+        res.json({ ok: true, pack, saldoTotal });
+      } catch (err) {
+        console.error("[Facturacion] Error acreditando saldo de clics:", err);
+        res.status(500).json({ ok: false, error: "Error acreditando el saldo de clics." });
+      }
+    }
+  );
 }

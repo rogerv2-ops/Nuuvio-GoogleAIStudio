@@ -19,17 +19,20 @@ export async function servidorOnline(): Promise<boolean> {
  *
  * OJO: el limite es POR IP y el servidor es local, asi que el cache es
  * justamente lo que evita que un testtumbe a los demas.
+ *
+ * El cache es de CUALQUIER credencial (admin y comercio): los archivos de
+ * tests comparten la sesion y la suite gasta un solo login por cuenta.
  */
-let sesionAdminCache: { email: string; password: string; token: string | null } | null = null;
+const cacheSesiones = new Map<string, string | null>();
 
 export async function login(email: string, password: string): Promise<string | null> {
-  if (sesionAdminCache && sesionAdminCache.email === email && sesionAdminCache.password === password) {
-    if (sesionAdminCache.token) return sesionAdminCache.token;
+  const clave = `${email}|${password}`;
+  if (cacheSesiones.has(clave)) {
+    const token = cacheSesiones.get(clave) || null;
+    if (token) return token;
   }
   const token = await loginSinCache(email, password);
-  if (email === ADMIN.email && password === ADMIN.password) {
-    sesionAdminCache = { email, password, token };
-  }
+  cacheSesiones.set(clave, token);
   return token;
 }
 
