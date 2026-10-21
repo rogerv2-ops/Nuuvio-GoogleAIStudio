@@ -66,6 +66,47 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
     setTimeout(() => setGuardadoExitoso(false), 3000);
   };
 
+  // --- Acreditar saldo de clics (decision del dueno 2026-10-21) -------------
+  //
+  // Una oferta activa de un comercio SIN saldo no se ve en la landing
+  // (`/api/ofertas/publicas` filtra por `comercioTieneSaldo`). El admin le
+  // acredita los clics aqui; el cobro real es por fuera (Yape/transferencia) y
+  // el monto es lo que el admin escribe.
+  const [acreditando, setAcreditando] = useState<string | null>(null);
+  const [clicsAcreditar, setClicksAcreditar] = useState(50);
+  const [montoAcreditar, setMontoAcreditar] = useState(0);
+  const [avisoSaldo, setAvisoSaldo] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
+  const [guardandoSaldo, setGuardandoSaldo] = useState(false);
+
+  const handleAcreditarSaldo = async (comercioId: string, nombreComercio: string) => {
+    setGuardandoSaldo(true);
+    setAvisoSaldo(null);
+    try {
+      const r = await fetch('/api/facturacion/packs/acreditar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comercioId, clics: Number(clicsAcreditar), monto: Number(montoAcreditar) }),
+      });
+      const j: any = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok) {
+        setAvisoSaldo({ tipo: 'error', texto: (j && j.error) || 'No se pudo acreditar el saldo.' });
+        return;
+      }
+      // El saldo vive en la base: hay que releerlo para ver el numero nuevo.
+      await facturacionModule.recargarCache();
+      setVersion(v => v + 1);
+      setAcreditando(null);
+      setAvisoSaldo({
+        tipo: 'ok',
+        texto: `Se acreditaron ${j.pack.totalClics} clic(s) a ${nombreComercio}. Saldo actual: ${j.saldoTotal}.`,
+      });
+    } catch (e: any) {
+      setAvisoSaldo({ tipo: 'error', texto: 'No se pudo acreditar el saldo: ' + (e?.message || 'error de red') });
+    } finally {
+      setGuardandoSaldo(false);
+    }
+  };
+
   const clicsTotalesComprados = packs.reduce((acc, p) => acc + p.totalClics, 0);
   const saldoTotalDisponible = packs.reduce((acc, p) => acc + p.saldoClics, 0);
   const ingresosTotales = packs.reduce((acc, p) => acc + p.montoTotal, 0);
@@ -225,8 +266,25 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
               Monitoreo del saldo activo de clics contratados por cada comercio de la red.
+              Un comercio <strong>sin saldo</strong> no muestra sus ofertas en la landing: acreditale
+              los clics que compro (el cobro se registra aparte, por Yape o transferencia).
             </p>
           </div>
+
+          {avisoSaldo && (
+            <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+              avisoSaldo.tipo === 'ok'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}>
+              {avisoSaldo.tipo === 'ok' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600" />
+              )}
+              <span>{avisoSaldo.texto}</span>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -249,18 +307,61 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
                       <td className="py-3 font-black text-sky-800">{saldo} clics</td>
                       <td className="py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          saldo > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+                          saldo > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {saldo > 0 ? 'Activo' : 'Sin saldo'}
+                          {saldo > 0 ? 'Activo' : 'Sin saldo (no se ve)'}
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        <button
-                          onClick={() => onNavegar('/gestion/campanas-cobro/planes')}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-[11px] font-bold"
-                        >
-                          Recargar
-                        </button>
+                        {acreditando === c.id ? (
+                          <div className="inline-flex items-end gap-1.5 flex-wrap justify-end">
+                            <label className="text-left">
+                              <span className="block text-[10px] font-bold text-stone-500">Clics</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={10000}
+                                value={clicsAcreditar}
+                                onChange={(e) => setClicksAcreditar(Number(e.target.value))}
+                                className="w-20 p-1.5 bg-stone-50 border border-stone-200 rounded-lg text-[11px] font-bold text-stone-900"
+                              />
+                            </label>
+                            <label className="text-left">
+                              <span className="block text-[10px] font-bold text-stone-500">Cobrado (S/.)</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={montoAcreditar}
+                                onChange={(e) => setMontoAcreditar(Number(e.target.value))}
+                                className="w-24 p-1.5 bg-stone-50 border border-stone-200 rounded-lg text-[11px] font-bold text-stone-900"
+                              />
+                            </label>
+                            <button
+                              onClick={() => handleAcreditarSaldo(c.id, c.nombreComercial)}
+                              disabled={guardandoSaldo}
+                              className="px-2.5 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-60 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                            >
+                              {guardandoSaldo ? 'Guardando…' : 'Acreditar'}
+                            </button>
+                            <button
+                              onClick={() => setAcreditando(null)}
+                              className="px-2 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-[11px] font-bold cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setAvisoSaldo(null);
+                              setAcreditando(c.id);
+                            }}
+                            className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                          >
+                            Acreditar saldo
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ofertasModule } from '../../../modules/ofertas';
 import { comerciosModule } from '../../../modules/comercios';
+import { facturacionModule } from '../../../modules/facturacion';
 import { Offer } from '../../../types';
 import {CATEGORIAS_OFERTAS} from '../../../data/seedData';
 import { getCategoryFallbackImage, handleImgError } from '../../../utils/imageFallbacks';
@@ -41,11 +42,33 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
 
   useEffect(() => {
     const unsub = ofertasModule.suscribir(() => setVersion(v => v + 1));
-    return () => unsub();
+    // El saldo de clics se lee de la base (tabla `click_packs`): sin esto, el
+    // panel no puede avisar que una oferta activa NO se ve por falta de saldo.
+    void facturacionModule.recargarCache();
+    const unsubF = facturacionModule.suscribir(() => setVersion(v => v + 1));
+    return () => {
+      unsub();
+      unsubF();
+    };
   }, []);
 
   const todasOfertas = useMemo(() => ofertasModule.listarOfertas(), [version]);
   const pendientesModeracion = useMemo(() => ofertasModule.listarPendientesModeracion(), [version]);
+
+  /**
+   * Saldo de clics del comercio de la oferta.
+   *
+   * `/api/ofertas/publicas` filtra por `comercioTieneSaldo`: una oferta
+   * ACTIVA de un comercio sin saldo NO se ve en la landing. Antes esto era
+   * invisible para el admin (aprobaba y no pasaba nada).
+   */
+  const saldoDeOferta = (o: Offer): number => {
+    try {
+      return facturacionModule.obtenerSaldoComercio(String(o.comercioId || ''));
+    } catch {
+      return 0;
+    }
+  };
 
   // KPIs analíticos principales
   const totalActivas = useMemo(() => {
@@ -494,6 +517,25 @@ export const OfertasDomainView: React.FC<OfertasDomainViewProps> = ({ subruta, o
                         }`}>
                           {of.estado === 'en_validacion' ? 'En validación' : of.estado}
                         </span>
+                        {of.estado === 'activa' && saldoDeOferta(of) <= 0 && (
+                          <div className="mt-1.5 space-y-1">
+                            <span className="block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                              No visible: sin saldo
+                            </span>
+                            <span className="block text-[10px] text-stone-500">
+                              Esta oferta no llega a la landing hasta que el comercio tenga saldo de clics.
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavegar('/gestion/campanas-cobro/campanas');
+                              }}
+                              className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-[10px] font-bold cursor-pointer"
+                            >
+                              Acreditar saldo
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 text-right flex items-center justify-end gap-1.5">
                         {of.estado === 'en_validacion' && (
