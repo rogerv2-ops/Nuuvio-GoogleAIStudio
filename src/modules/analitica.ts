@@ -1,96 +1,185 @@
 /**
  * MODULO 12: analitica (esquema: ana)
- * Todos los KPIs calculados SOLO leyendo core-events.
+ *
+ * Los KPIs se miden en el SERVIDOR (que es el unico que puede ver la base) y
+ * llegan por `GET /api/analitica/kpis`. Antes se calculaban aqui con
+ * `coreEvents` (eventos EN MEMORIA del navegador) y con minimos inventados:
+ * el panel mostraba 240 usuarios, 625 vistas y 12 ventas con la base vacia.
+ *
  * North-Star Metric: Leads calificados entregados por semana.
+ *
+ * REGLA: si un numero no se puede medir, es `null`. La pantalla muestra
+ * "sin medir". Un numero inventado es peor que un hueco: hides el dato
+ * que falta y hace decidir sobre algo que no existe.
  */
 import { coreEvents } from '../core/events';
 
 export interface GlobalKPIs {
+  /** Leads calificados de la ultima semana (la North-Star). */
   northStarLeadsSemanales: number;
-  totalVistasOfertas: number;
+  /** Vistas de oferta. `null` = todavia no se miden (no hay contador). */
+  totalVistasOfertas: number | null;
   totalClicsContactar: number;
-  ctrPromedioGlobal: number;
-  ventasConfirmadas: number;
+  /** CTR en %. `null` = no hay vistas medidas con las que calcularlo. */
+  ctrPromedioGlobal: number | null;
+  /** Ventas confirmadas. `null` = no hay donde registrarlas todavia. */
+  ventasConfirmadas: number | null;
   comerciosActivos: number;
   ofertasActivas: number;
   usuariosRegistrados: number;
-  tiempoMedianoValidacionHoras: number;
+  /** Tiempo mediano de validacion. `null` = no se registra. */
+  tiempoMedianoValidacionHoras: number | null;
 }
 
 export interface MerchantKPIs {
   comercioId: string;
-  vistasTotales: number;
+  vistasTotales: number | null;
   clicsTotales: number;
   leadsCalificados: number;
-  ctr: number;
-  ventasConfirmadas: number;
+  ctr: number | null;
+  ventasConfirmadas: number | null;
   gastoTotalSoles: number;
 }
 
+type Escucha = () => void;
+
 class AnaliticaModule {
-  public calcularKPIsGlobales(): GlobalKPIs {
-    const todosEventos = coreEvents.consultar();
+  private globales: GlobalKPIs | null = null;
+  private porComercio = new Map<string, MerchantKPIs>();
+  private escuchas: Escucha[] = [];
+  private cargando = false;
 
-    const mostradas = todosEventos.filter(e => e.tipoEvento === 'oferta_mostrada').length;
-    const clics = todosEventos.filter(e => e.tipoEvento === 'clic_contactar').length;
-    const leadsCalificados = todosEventos.filter(e => 
-      e.tipoEvento === 'clic_contactar' && (e.datos?.facturable === true || e.datos?.facturable === undefined)
-    ).length;
-    const ventas = todosEventos.filter(e => e.tipoEvento === 'venta_confirmada').length;
-    const usuarios = todosEventos.filter(e => e.tipoEvento === 'usuario_registrado').length;
+  /** `true` cuando los KPIs vienen de la base (no de un valor de ejemplo). */
+  public get medido(): boolean {
+    return this.globales !== null;
+  }
 
-    const ctr = mostradas > 0 ? Number(((clics / mostradas) * 100).toFixed(1)) : 0;
-
+  /**
+   * Los KPIs globales medidos.
+   *
+   * Mientras no se han cargado devuelve un valor POR DEFECTO con `null` en
+   * lo que no se puede medir, para que la pantalla pueda pintar "sin
+   * medir" en vez de romperse.
+   */
+  public obtenerKPIsGlobales(): GlobalKPIs {
+    if (this.globales) return this.globales;
     return {
-      northStarLeadsSemanales: Math.max(leadsCalificados, 18),
-      totalVistasOfertas: Math.max(mostradas, 625),
-      totalClicsContactar: Math.max(clics, 85),
-      ctrPromedioGlobal: ctr > 0 ? ctr : 13.6,
-      ventasConfirmadas: Math.max(ventas, 12),
-      comerciosActivos: 4,
-      ofertasActivas: 4,
-      usuariosRegistrados: Math.max(usuarios, 240),
-      tiempoMedianoValidacionHoras: 2.5 // Meta < 24h
+      northStarLeadsSemanales: 0,
+      totalVistasOfertas: null,
+      totalClicsContactar: 0,
+      ctrPromedioGlobal: null,
+      ventasConfirmadas: null,
+      comerciosActivos: 0,
+      ofertasActivas: 0,
+      usuariosRegistrados: 0,
+      tiempoMedianoValidacionHoras: null,
     };
   }
 
-  public calcularKPIsComercio(comercioId: string): MerchantKPIs {
-    const eventosComercio = coreEvents.consultar().filter(e => 
-      (e.datos?.comercioId === comercioId) || 
-      (e.actorId === comercioId && e.actorTipo === 'comercio')
+  /** Los KPIs de un comercio (mismo criterio: `null` = sin medir). */
+  public obtenerKPIsComercio(comercioId: string): MerchantKPIs {
+    return (
+      this.porComercio.get(comercioId) || {
+        comercioId,
+        vistasTotales: null,
+        clicsTotales: 0,
+        leadsCalificados: 0,
+        ctr: null,
+        ventasConfirmadas: null,
+        gastoTotalSoles: 0,
+      }
     );
+  }
 
-    const vistas = eventosComercio.filter(e => e.tipoEvento === 'oferta_mostrada').length;
-    const clics = eventosComercio.filter(e => e.tipoEvento === 'clic_contactar').length;
-    const leads = eventosComercio.filter(e => e.tipoEvento === 'clic_contactar' && e.datos?.facturable !== false).length;
-    const ventas = eventosComercio.filter(e => e.tipoEvento === 'venta_confirmada').length;
+  /**
+   * Pide los KPIs al servidor y avisa a quien este escuchando.
+   *
+   * Con la sesion ya activa: por eso la llama el panel al montar.
+   */
+  public async recargar(comercioId?: string): Promise<void> {
+    this.cargando = true;
+    try {
+      const url = comercioId
+        ? `/api/analitica/kpis?comercioId=${encodeURIComponent(comercioId)}`
+        : '/api/analitica/kpis';
+      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      const cuerpo: any = await r.json().catch(() => null);
+      if (!r.ok || !cuerpo?.ok || !cuerpo.metricas) {
+        throw new Error(cuerpo?.error || `HTTP ${r.status}`);
+      }
+      if (comercioId) {
+        const m = cuerpo.metricas;
+        this.porComercio.set(comercioId, {
+          comercioId: m.comercioId,
+          vistasTotales: m.totalVistasOfertas ?? null,
+          clicsTotales: Number(m.totalClicsContactar || 0),
+          leadsCalificados: Number(m.leadsCalificados || 0),
+          ctr: m.ctrPromedioGlobal ?? null,
+          ventasConfirmadas: m.ventasConfirmadas ?? null,
+          gastoTotalSoles: Number(m.gastoTotalSoles || 0),
+        });
+      } else {
+        const m = cuerpo.metricas;
+        this.globales = {
+          northStarLeadsSemanales: Number(m.northStarLeadsSemanales || 0),
+          totalVistasOfertas: m.totalVistasOfertas ?? null,
+          totalClicsContactar: Number(m.totalClicsContactar || 0),
+          ctrPromedioGlobal: m.ctrPromedioGlobal ?? null,
+          ventasConfirmadas: m.ventasConfirmadas ?? null,
+          comerciosActivos: Number(m.comerciosActivos || 0),
+          ofertasActivas: Number(m.ofertasActivas || 0),
+          usuariosRegistrados: Number(m.usuariosRegistrados || 0),
+          tiempoMedianoValidacionHoras: m.tiempoMedianoValidacionHoras ?? null,
+        };
+      }
+    } catch (e) {
+      console.warn('[Analitica] No se pudieron cargar los KPIs:', e);
+    } finally {
+      this.cargando = false;
+      this.notificar();
+    }
+  }
 
-    const ctr = vistas > 0 ? Number(((clics / vistas) * 100).toFixed(1)) : (clics > 0 ? 12.5 : 0);
+  /**
+   * El embudo de conversion, con los numeros MEDIDOS.
+   *
+   * Las etapas que no se miden (las ventas) se omiten: un embudo con una
+   * etapa inventada no es un embudo.
+   */
+  public obtenerEmbudoConversion(): { etapa: string; valor: number; porcentaje: number }[] {
+    const k = this.globales;
+    if (!k) return [];
+    const etapas: { etapa: string; valor: number }[] = [];
+    if (k.totalVistasOfertas !== null) {
+      etapas.push({ etapa: 'Ofertas Vistas en WhatsApp / Web', valor: k.totalVistasOfertas });
+    }
+    etapas.push({ etapa: 'Interés / Clics en Contactar', valor: k.totalClicsContactar });
+    etapas.push({ etapa: 'Leads Calificados (WhatsApp Abierto)', valor: k.northStarLeadsSemanales });
+    if (k.ventasConfirmadas !== null) {
+      etapas.push({ etapa: 'Ventas Confirmadas por Negocios', valor: k.ventasConfirmadas });
+    }
+    const base = etapas[0]?.valor || 0;
+    return etapas.map((e) => ({
+      ...e,
+      porcentaje: base > 0 ? Math.round((e.valor / base) * 100) : 0,
+    }));
+  }
 
-    return {
-      comercioId,
-      vistasTotales: vistas || 142,
-      clicsTotales: clics || 19,
-      leadsCalificados: leads || 18,
-      ctr: ctr || 13.4,
-      ventasConfirmadas: ventas || 3,
-      gastoTotalSoles: (leads || 18) * 1.20
+  public suscribir(escucha: Escucha): () => void {
+    this.escuchas.push(escucha);
+    return () => {
+      this.escuchas = this.escuchas.filter((e) => e !== escucha);
     };
   }
 
-  public obtenerEmbudoConversion(): { etapa: string; valor: number; porcentaje: number }[] {
-    const kpis = this.calcularKPIsGlobales();
-    const vistas = kpis.totalVistasOfertas;
-    const clics = kpis.totalClicsContactar;
-    const leads = kpis.northStarLeadsSemanales;
-    const ventas = kpis.ventasConfirmadas;
-
-    return [
-      { etapa: 'Ofertas Vistas en WhatsApp / Web', valor: vistas, porcentaje: 100 },
-      { etapa: 'Interés / Clics en Contactar', valor: clics, porcentaje: Math.round((clics / vistas) * 100) },
-      { etapa: 'Leads Calificados (WhatsApp Abierto)', valor: leads, porcentaje: Math.round((leads / vistas) * 100) },
-      { etapa: 'Ventas Confirmadas por Negocios', valor: ventas, porcentaje: Math.round((ventas / vistas) * 100) }
-    ];
+  private notificar(): void {
+    for (const e of this.escuchas) {
+      try {
+        e();
+      } catch {
+        // un listener que falla no puede tumbar a los demas
+      }
+    }
   }
 }
 

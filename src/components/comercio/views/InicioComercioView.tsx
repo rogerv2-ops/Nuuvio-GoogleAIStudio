@@ -33,7 +33,9 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
   const ofertasEnRevision = ofertas.filter(o => o.estado === 'en_validacion');
   const ofertasStockBajo = ofertasActivas.filter(o => (o.stock || 0) > 0 && (o.stock || 0) <= 5);
 
-  const ctrTexto = kpis.ctr ? `${kpis.ctr}%` : '13.3%';
+  // Sin numero inventado: si el CTR no se puede medir (no hay vistas
+  // registradas), se dice 'sin medir'.
+  const ctrTexto = kpis.ctr !== null ? `${kpis.ctr}%` : 'sin medir';
 
   return (
     <div className="space-y-6">
@@ -83,7 +85,7 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight mt-2 font-mono">
-            {(kpis.clicsTotales || 19).toLocaleString()}
+            {kpis.clicsTotales.toLocaleString('es-PE')}
           </div>
           <p className="text-[11px] text-stone-400 mt-1">
             Personas que tocaron "Lo quiero"
@@ -102,7 +104,7 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight mt-2 font-mono">
-            {(kpis.vistasTotales || 142).toLocaleString()}
+            {kpis.vistasTotales !== null ? kpis.vistasTotales.toLocaleString('es-PE') : '—'}
           </div>
           <p className="text-[11px] text-stone-400 mt-1">
             Apariciones en catálogo y respuestas
@@ -198,7 +200,7 @@ export const InicioComercioView: React.FC<InicioComercioViewProps> = ({
             </button>
           </div>
           <div className="pt-1 flex items-center justify-between text-[11px] text-stone-500 border-t border-stone-100">
-            <span>Ventas reportadas este mes: <strong>{kpis.ventasConfirmadas || 3}</strong></span>
+            <span>Ventas reportadas este mes: <strong>{kpis.ventasConfirmadas !== null ? kpis.ventasConfirmadas : 'sin medir'}</strong></span>
             <button 
               onClick={() => alNavegar('/comercio/ventas')}
               className="text-emerald-700 font-bold hover:underline cursor-pointer"

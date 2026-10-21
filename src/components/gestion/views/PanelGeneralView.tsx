@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { comerciosModule } from '../../../modules/comercios';
 import { ofertasModule } from '../../../modules/ofertas';
-import { analiticaModule } from '../../../modules/analitica';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { coreConfig } from '../../../core/config';
 import { coreEvents } from '../../../core/events';
@@ -26,7 +25,6 @@ interface PanelGeneralViewProps {
 export const PanelGeneralView: React.FC<PanelGeneralViewProps> = ({ onNavegar }) => {
   const [mostrarExplicacionModelo, setMostrarExplicacionModelo] = useState(false);
 
-  const kpis = analiticaModule.calcularKPIsGlobales();
   const comerciosPendientes = comerciosModule.listarPendientes();
   const ofertasPendientes = ofertasModule.listarPendientesModeracion();
   const kanbanItems = comerciosModule.getKanbanItems();
