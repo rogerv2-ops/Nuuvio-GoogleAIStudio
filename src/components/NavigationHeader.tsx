@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Store, LogOut, Lock, ArrowLeft, Shield } from 'lucide-react';
 import { AuthSession } from '../core/security';
+import { bannersModule, LogoLanding } from '../modules/banners';
+import { withResourceVersion } from '../utils/resourceVersion';
 
 export type ActiveSurface = 'web' | 'comercio' | 'gestion' | 'bienvenida';
 
@@ -21,6 +23,18 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   const esAdmin = sesion?.rol === 'admin';
   const esGestion = superficieActiva === 'gestion';
 
+  // Logo configurado en la seccion de Banners. Si no hay, se mantiene el logo
+  // por defecto (la "Y" + el nombre): nunca queda un hueco vacio en la cabecera.
+  const [logo, setLogo] = useState<LogoLanding>(() => bannersModule.obtenerLogo());
+
+  useEffect(() => {
+    bannersModule.sincronizarConServidor();
+    const desuscribir = bannersModule.suscribir(() => {
+      setLogo(bannersModule.obtenerLogo());
+    });
+    return () => desuscribir();
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 bg-[#FBF9F4]/95 backdrop-blur-md border-b border-[#EAE5D9] transition-colors">
       <div className={`mx-auto flex items-center justify-between gap-3 ${
@@ -34,16 +48,30 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
             className="flex items-center gap-2 cursor-pointer select-none group" 
             onClick={() => alCambiarSuperficie('web')}
           >
-            <div className="w-9 h-9 rounded-xl bg-[#1B4332] text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:bg-[#2D6A4F] transition-colors">
-              Y
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuddit</span>
+            {logo.imagenUrl ? (
+              <>
+                <img
+                  src={withResourceVersion(logo.imagenUrl)}
+                  alt="Yuddit"
+                  style={{ height: `${logo.altoPx}px` }}
+                  className="block w-auto max-w-[120px] sm:max-w-[200px] object-contain shrink-0"
+                />
                 <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
-              </div>
-              <p className="text-[11px] text-[#78716C] leading-none hidden sm:block">Plataforma de ofertas locales · Lima</p>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="w-9 h-9 rounded-xl bg-[#1B4332] text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:bg-[#2D6A4F] transition-colors">
+                  Y
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xl tracking-tight text-[#1C1917]">Yuddit</span>
+                    <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
+                  </div>
+                  <p className="text-[11px] text-[#78716C] leading-none hidden sm:block">Plataforma de ofertas locales · Lima</p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Si estamos en el panel exclusivo de administración, mostrar distintivo */}

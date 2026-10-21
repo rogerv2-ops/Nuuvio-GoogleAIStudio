@@ -4,7 +4,7 @@ import {
   ArrowUp, ArrowDown, Check, RefreshCw, Sparkles, Layers,
   ExternalLink, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Edit2, X, AlertTriangle
 } from 'lucide-react';
-import { bannersModule, FeedBanner } from '../../../modules/banners';
+import { bannersModule, FeedBanner, LogoLanding, LOGO_LANDING_ALTO_MIN, LOGO_LANDING_ALTO_MAX } from '../../../modules/banners';
 import { withResourceVersion } from '../../../utils/resourceVersion';
 
 export const BannersConfigView: React.FC = () => {
@@ -23,6 +23,12 @@ export const BannersConfigView: React.FC = () => {
   const [formActivado, setFormActivado] = useState(true);
   const [modoOrigen, setModoOrigen] = useState<'url' | 'upload'>('url');
 
+  // Logo de la landing: se configura aquí y lo consume la cabecera pública.
+  const [logo, setLogo] = useState<LogoLanding>(() => bannersModule.obtenerLogo());
+  const [logoImagenUrl, setLogoImagenUrl] = useState(() => bannersModule.obtenerLogo().imagenUrl);
+  const [logoAltoPx, setLogoAltoPx] = useState(() => bannersModule.obtenerLogo().altoPx);
+  const [logoModoOrigen, setLogoModoOrigen] = useState<'url' | 'upload'>('url');
+
   const [notificacion, setNotificacion] = useState<string | null>(null);
 
   const refrescarLista = () => {
@@ -30,13 +36,76 @@ export const BannersConfigView: React.FC = () => {
   };
 
   useEffect(() => {
-    bannersModule.sincronizarConServidor();
+    bannersModule.sincronizarConServidor().then(() => {
+      const actual = bannersModule.obtenerLogo();
+      setLogo(actual);
+      setLogoImagenUrl(actual.imagenUrl);
+      setLogoAltoPx(actual.altoPx);
+    });
     refrescarLista();
     const unsub = bannersModule.suscribir(() => {
       refrescarLista();
     });
     return () => unsub();
   }, []);
+
+  const handleSubirLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen no debe superar los 10 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      if (event.target?.result) {
+        const local = event.target.result as string;
+        const anterior = logoImagenUrl;
+        setLogoImagenUrl(local);
+        try {
+          const { subirImagenAlServidor } = await import('../../../utils/uploadMedia');
+          const url = await subirImagenAlServidor(local, 'logo');
+          setLogoImagenUrl(url);
+        } catch (err) {
+          setLogoImagenUrl(anterior);
+          alert('No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGuardarLogo = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (logoImagenUrl.startsWith('data:')) {
+      alert('La imagen aún se está subiendo al servidor. Espera a que termine.');
+      return;
+    }
+
+    const guardado = bannersModule.actualizarLogo({
+      imagenUrl: logoImagenUrl.trim(),
+      altoPx: logoAltoPx
+    });
+    setLogo(guardado);
+    setLogoImagenUrl(guardado.imagenUrl);
+    setNotificacion(
+      guardado.imagenUrl
+        ? 'Logo de la landing actualizado.'
+        : 'Logo quitado: la landing vuelve al logo por defecto (Y + Yuddit).'
+    );
+    setTimeout(() => setNotificacion(null), 3000);
+  };
+
+  const handleQuitarLogo = () => {
+    const guardado = bannersModule.quitarLogo();
+    setLogo(guardado);
+    setLogoImagenUrl('');
+    setNotificacion('Logo quitado: la landing vuelve al logo por defecto (Y + Yuddit).');
+    setTimeout(() => setNotificacion(null), 3000);
+  };
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,6 +281,151 @@ export const BannersConfigView: React.FC = () => {
             <span>Restaurar Predeterminados</span>
           </button>
         </div>
+      </div>
+
+      {/* LOGO DE LA LANDING */}
+      <div className="bg-white rounded-3xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-100">
+          <div>
+            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-700" />
+              <span>Logo de la Landing</span>
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Reemplaza el logo de la cabecera pública (hoy la "Y" + "Yuddit"). Se configura solo el ALTO: el ancho se calcula solo, así la imagen nunca se deforma.
+            </p>
+          </div>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border self-start sm:self-auto ${
+            logo.imagenUrl
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-stone-100 text-stone-600 border-stone-200'
+          }`}>
+            {logo.imagenUrl ? 'Logo personalizado' : 'Logo por defecto'}
+          </span>
+        </div>
+
+        <form onSubmit={handleGuardarLogo} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-700 block">
+              Origen de la Imagen del Logo
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLogoModoOrigen('url')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  logoModoOrigen === 'url'
+                    ? 'bg-[#1B4332] text-white shadow-xs'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <LinkIcon className="w-3.5 h-3.5" />
+                <span>Ingresar URL</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogoModoOrigen('upload')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  logoModoOrigen === 'upload'
+                    ? 'bg-[#1B4332] text-white shadow-xs'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Subir Archivo</span>
+              </button>
+            </div>
+
+            {logoModoOrigen === 'url' ? (
+              <input
+                type="text"
+                placeholder="/logo-yuddit.svg o https://ejemplo.com/logo.png"
+                value={logoImagenUrl}
+                onChange={(e) => setLogoImagenUrl(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-mono text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332]"
+              />
+            ) : (
+              <div className="p-4 bg-stone-50 border-2 border-dashed border-stone-200 rounded-2xl text-center space-y-2">
+                <Upload className="w-6 h-6 text-stone-400 mx-auto" />
+                <p className="text-xs text-stone-600 font-bold">Selecciona el logo de tu equipo</p>
+                <p className="text-[10px] text-stone-400">WEBP, PNG, JPG o SVG convertido a WEBP. Fondo transparente recomendado.</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSubirLogo}
+                  className="block w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Tamaño proporcional: solo alto, el ancho lo calcula el navegador */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-700 block">
+              Tamaño del Logo (alto)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={LOGO_LANDING_ALTO_MIN}
+                max={LOGO_LANDING_ALTO_MAX}
+                step={4}
+                value={logoAltoPx}
+                onChange={(e) => setLogoAltoPx(Number(e.target.value))}
+                className="flex-1 accent-[#1B4332] cursor-pointer"
+                aria-label="Alto del logo en píxeles"
+              />
+              <span className="text-[11px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200 rounded-lg px-2 py-1 whitespace-nowrap">
+                {logoAltoPx} px de alto · ancho proporcional
+              </span>
+            </div>
+            <p className="text-[10px] text-stone-400">
+              Solo se guarda el alto. El ancho se ajusta solo para mantener la proporción de la imagen.
+            </p>
+          </div>
+
+          {/* Previsualización con el tamaño real */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Previsualización de la Cabecera</span>
+            <div className="rounded-2xl border border-stone-200 bg-[#FBF9F4] px-4 py-3 min-h-[96px] flex items-center justify-center gap-2 overflow-hidden">
+              {logoImagenUrl ? (
+                <>
+                  <img
+                    src={withResourceVersion(logoImagenUrl)}
+                    alt="Vista previa del logo"
+                    style={{ height: `${logoAltoPx}px` }}
+                    className="block w-auto max-w-[240px] object-contain"
+                  />
+                  <span className="text-xs text-[#2D6A4F] font-semibold bg-[#D8F3DC] px-2 py-0.5 rounded-full">Lima</span>
+                </>
+              ) : (
+                <p className="text-[11px] text-stone-400 font-semibold">
+                  Sin logo: la landing usa el logo por defecto (Y + Yuddit).
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            {logo.imagenUrl && (
+              <button
+                type="button"
+                onClick={handleQuitarLogo}
+                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Quitar Logo</span>
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-5 py-2.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>Guardar Logo</span>
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* FORMULARIO DE CREACIÓN / EDICIÓN DE BANNER */}

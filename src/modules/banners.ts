@@ -14,6 +14,40 @@ export interface FeedBanner {
   creadoEn: string;
 }
 
+/**
+ * Logo de la landing (cabecera publica).
+ *
+ * Se configura en la seccion de Banners y se guarda en el servidor
+ * (app_settings.landing_logo) junto al resto de la configuracion del sitio.
+ * Solo se guarda el ALTO: el ancho lo calcula el navegador, asi la imagen
+ * siempre mantiene su proporcion y nunca se deforma.
+ */
+export interface LogoLanding {
+  imagenUrl: string;
+  altoPx: number;
+}
+
+export const LOGO_LANDING_ALTO_MIN = 24;
+export const LOGO_LANDING_ALTO_MAX = 160;
+
+export const DEFAULT_LOGO_LANDING: LogoLanding = {
+  imagenUrl: '',
+  altoPx: 40
+};
+
+const LOCAL_STORAGE_KEY_LOGO = 'vuuy_landing_logo_v1';
+
+function normalizarLogo(raw: unknown): LogoLanding {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_LOGO_LANDING };
+  const datos = raw as Partial<LogoLanding>;
+  const imagenUrl = typeof datos.imagenUrl === 'string' ? datos.imagenUrl.trim() : '';
+  const alto = Math.round(Number(datos.altoPx));
+  const altoPx = Number.isFinite(alto)
+    ? Math.min(LOGO_LANDING_ALTO_MAX, Math.max(LOGO_LANDING_ALTO_MIN, alto))
+    : DEFAULT_LOGO_LANDING.altoPx;
+  return { imagenUrl, altoPx };
+}
+
 const LOCAL_STORAGE_KEY_BANNERS = 'vuuy_feed_banners_v2';
 
 export const DEFAULT_BANNERS: FeedBanner[] = [
@@ -51,12 +85,37 @@ export const DEFAULT_BANNERS: FeedBanner[] = [
 
 class BannersModule {
   private banners: FeedBanner[] = [];
+  private logo: LogoLanding = { ...DEFAULT_LOGO_LANDING };
   private listeners: (() => void)[] = [];
   private sincronizadoConServidor = false;
 
   constructor() {
     this.cargar();
+    this.cargarLogo();
     this.sincronizarConServidor();
+  }
+
+  private cargarLogo() {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY_LOGO);
+        if (raw) {
+          this.logo = normalizarLogo(JSON.parse(raw));
+        }
+      }
+    } catch {
+      // Usar el logo por defecto
+    }
+  }
+
+  private guardarLogoLocal() {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_KEY_LOGO, JSON.stringify(this.logo));
+      }
+    } catch {
+      // El logo igual vive en el servidor
+    }
   }
 
   private migrarBannerUrls(lista: FeedBanner[]): FeedBanner[] {
@@ -101,6 +160,10 @@ class BannersModule {
           // El servidor es la fuente de verdad: reflejamos su lista, incluso si está vacía.
           const bannersServidor = this.migrarBannerUrls(data.banners);
           this.banners = bannersServidor;
+          if (data.logo !== undefined && data.logo !== null) {
+            this.logo = normalizarLogo(data.logo);
+            this.guardarLogoLocal();
+          }
           this.sincronizadoConServidor = true;
           try {
             localStorage.setItem(LOCAL_STORAGE_KEY_BANNERS, JSON.stringify(this.banners));
@@ -114,13 +177,21 @@ class BannersModule {
     }
   }
 
-  private guardarEnServidor() {
+  /**
+   * Guarda en el servidor. El logo viaja SOLO cuando se esta cambiando el
+   * logo (`incluirLogo`): asi guardar un banner desde un navegador que todavia
+   * no leyo la configuracion no pisa el logo que ya esta publicado.
+   */
+  private guardarEnServidor(incluirLogo = false) {
     if (typeof window === 'undefined') return;
+
+    const payload: { banners: FeedBanner[]; logo?: LogoLanding } = { banners: this.banners };
+    if (incluirLogo) payload.logo = this.logo;
 
     fetch('/api/banners/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ banners: this.banners })
+      body: JSON.stringify(payload)
     }).catch(err => {
       console.warn('[Banners] Error guardando en servidor:', err);
     });
@@ -157,6 +228,30 @@ class BannersModule {
     return this.banners
       .filter(b => b.activado)
       .sort((a, b) => a.orden - b.orden);
+  }
+
+  public obtenerLogo(): LogoLanding {
+    return { ...this.logo };
+  }
+
+  /**
+   * Guarda el logo de la landing y lo sincroniza con el servidor.
+   * El endpoint exige sesion de admin: desde la landing solo se lee.
+   */
+  public actualizarLogo(datos: Partial<LogoLanding>): LogoLanding {
+    const base: LogoLanding = { ...this.logo };
+    if (typeof datos.imagenUrl === 'string') base.imagenUrl = datos.imagenUrl;
+    if (datos.altoPx !== undefined) base.altoPx = datos.altoPx;
+    this.logo = normalizarLogo(base);
+    this.guardarLogoLocal();
+    this.guardarEnServidor(true);
+    this.notificar();
+    return this.obtenerLogo();
+  }
+
+  /** Vuelve al logo por defecto (la "Y" + el nombre en la cabecera). */
+  public quitarLogo(): LogoLanding {
+    return this.actualizarLogo({ imagenUrl: '' });
   }
 
   public crearBanner(datos: Omit<FeedBanner, 'id' | 'creadoEn'>): FeedBanner {

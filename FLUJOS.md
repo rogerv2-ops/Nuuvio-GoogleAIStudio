@@ -41,6 +41,9 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 ## F4. Banners
 `BannersConfigView`: pestaña URL o archivo → upload a disco (`banners/`) → preview → Guardar → `POST /api/banners/sync {banners[]}` → `syncBanners` (upsert por id). `GET /api/banners` → `PublicWeb` header. Regla server: URLs sustrae/banner.webp se normalizan al banner local. **Probar:** subir imagen, `GET /api/banners` trae `/uploads/banners/...`.
 
+### F4.b Logo de la landing (2026-10-21)
+`BannersConfigView` → bloque "Logo de la Landing": URL o archivo (upload a `logo/`) + **alto en px** (24–160, el ancho lo calcula el navegador: siempre proporcional) → `POST /api/banners/sync {banners[], logo:{imagenUrl, altoPx}}` → `saveSetting('landing_logo')`. `GET /api/banners` devuelve también `logo`; `NavigationHeader` (cabecera pública) lo renderiza con `height: altoPx` y `width:auto`, y si no hay logo mantiene el de siempre (la "Y" + "Yuddit"). El logo no es un banner: no entra en la rotación. **Probar:** guardar logo → recargar la landing → el header muestra la imagen con ese alto y sin deformarse; "Quitar Logo" vuelve al logo por defecto.
+
 ## F5. Comercios y panel comercio
 - `GET /api/comercios` → 10 comercios DB. `POST /api/comercios/sync {comercios, kanban}` → `merchants_list` + `merchants_kanban` (settings).
 - Vistas comercio: Inicio (resumen), MisOfertas (CRUD propio), MiNegocio (datos), Resultados/Ventas (de `click_logs`+clics), Historial, Campañas. Todo vía estos endpoints + `facturacionModule.inicializar` (click packs, persistidos en la tabla `click_packs`).
