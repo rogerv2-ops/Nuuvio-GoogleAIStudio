@@ -1,0 +1,1 @@
+CREATE INDEX "eventos_actor_tipo_creado_idx" ON "eventos" USING btree ("actor_id","tipo_evento","creado_en");

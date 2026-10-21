@@ -156,10 +156,13 @@ describe.skipIf(!online || !hayAdmin)("Bot: copy del saludo y opt-out", () => {
     await simular(token!, tel, "BAJA");
 
     const vuelve = await simular(token!, tel, "ofertas");
-    // Vuelven las ofertas de su zona (con el enlace y la linea de opt-out).
     const textoVuelve = textoDe(vuelve);
-    expect(textoVuelve).toContain("/c/");
-    expect(textoVuelve).toContain("BAJA");
+    // La re-suscripcion es lo que se comprueba aqui (abajo, en el estado).
+    // Las ofertas NO vuelven: esa persona ya las vio en el alta, y la
+    // ventana de 24h no permite reenviarlas (ver ventana-24h.test.ts).
+    // Lo que no puede ser es el silencio: el bot responde.
+    expect(textoVuelve.length).toBeGreaterThan(0);
+    expect(textoVuelve).toContain("Ya te mostré todas las ofertas");
 
     const estado = await estadoEnAudiencia(token!, tel);
     expect(estado?.estado).toBe("activo");

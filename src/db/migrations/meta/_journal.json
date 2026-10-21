@@ -43,6 +43,13 @@
       "when": 1792558459026,
       "tag": "0005_audiencia_codigos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792591013051,
+      "tag": "0006_eventos_indice_actor",
+      "breakpoints": true
     }
   ]
 }

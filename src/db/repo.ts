@@ -851,7 +851,35 @@ async function sanearActorIdEventos() {
 }
 __name(sanearActorIdEventos, "sanearActorIdEventos");
 
-
+/**
+ * Las ofertas que se le MOSTRARON a una persona en las ultimas horas.
+ *
+ * Es lo que sostiene la regla de 24h del bot: no volver a enviar las
+ * mismas ofertas dentro de la ventana. La fuente son las impresiones
+ * (`eventos` tipo `oferta_mostrada`), que ya guardan quien y cuando.
+ */
+async function listarOfertasVistas(indiceActor, horas) {
+  try {
+    const idx = String(indiceActor || "");
+    if (!idx) return [];
+    const desde = new Date(Date.now() - Math.max(1, Number(horas) || 24) * 3600 * 1000);
+    const r = await db
+      .select({ ofertaId: sql`datos->>'ofertaId'` })
+      .from(eventos)
+      .where(
+        and(
+          eq(eventos.tipoEvento, "oferta_mostrada"),
+          eq(eventos.actorId, idx),
+          gte(eventos.creadoEn, desde)
+        )
+      );
+    return [...new Set((r || []).map((x: any) => x.ofertaId).filter(Boolean))];
+  } catch (error) {
+    console.error("[DB Repo] Error listando las ofertas vistas:", error);
+    return [];
+  }
+}
+__name(listarOfertasVistas, "listarOfertasVistas");
 
 /**
  * Guarda eventos de negocio.
@@ -1027,4 +1055,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos,indiceDeActor,sanearActorIdEventos};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos,indiceDeActor,sanearActorIdEventos,listarOfertasVistas};
