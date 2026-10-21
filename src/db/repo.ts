@@ -513,6 +513,27 @@ async function activarProvincias(codigos) {
 }
 __name(activarProvincias, "activarProvincias");
 
+/**
+ * Activa o desactiva UNA provincia (toggle del panel de gestion).
+ *
+ * La zona de servicio de Yuddit es la provincia: el distrito es la ubicacion
+ * de la persona dentro de una provincia activa.
+ */
+async function establecerProvinciaActiva(codigo, activo) {
+  try {
+    const c = String(codigo || "").trim();
+    if (!c) return { ok: false, error: "falta el codigo" };
+    const res = await db.execute(
+      sql`update geo_territorios set activo = ${activo === true}, updated_at = now() where nivel = 'provincia' and codigo = ${c}`,
+    );
+    return { ok: true, filas: res && res.rowCount !== undefined ? res.rowCount : 0 };
+  } catch (error) {
+    console.error("[DB Repo] Error cambiando el estado de una provincia:", error);
+    return { ok: false, error: String((error && error.message) || error) };
+  }
+}
+__name(establecerProvinciaActiva, "establecerProvinciaActiva");
+
 /** Cuenta los territorios por nivel (para verificar la siembra). */
 async function contarTerritorios() {
   try {
@@ -530,4 +551,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva};
