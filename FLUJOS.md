@@ -38,6 +38,10 @@ Cada flujo: actor → pasos con request/response → tablas → cómo verificarl
 5. Pedir: `/c/:ofertaId` o `/api/go/pedir?ofertaId=` → 302 a `api.whatsapp.com/send?phone=BOT&text=Hola, quiero la oferta: ...`.
 **Tablas:** `offers`, `click_logs` (canjes). **Probar:** crear oferta, aprobarla, verla en `GET /api/ofertas`.
 
+## F3.b Acreditar saldo de clics a un comercio (2026-10-21)
+`GET /api/ofertas/publicas` filtra por `comercioTieneSaldo`: la oferta **activa** de un comercio sin saldo no llega a la landing (un comercio nuevo no tiene pack en `click_packs`, así que su oferta aprobada quedaba invisible sin aviso). El admin lo resuelve en el panel: **Campañas y Cobro → Campañas activas → "Acreditar saldo"** (clics + monto cobrado; monto 0 = bonificación) → `POST /api/facturacion/packs/acreditar {comercioId, clics, monto}` (**solo admin**: comercio → 403, sin token → 401) → escribe un pack nuevo `pack_acc_*` en `click_packs` (saldo = clics, `precio_unitario` = monto/clics) → recarga el cache del servidor → la oferta se ve de inmediato, sin reiniciar. Fail-closed: comercio vacío, clics fuera de 1..10000 o monto negativo → 400 y no se escribe nada. Auditoría en `security_logs` (`Saldo de clics acreditado`). El panel marca "Sin saldo (no se ve)" y, en la lista de ofertas, "No visible: sin saldo".
+**Tablas:** `click_packs`, `security_logs`. **Probar:** `bun test tests/security/acreditar-saldo.test.ts tests/security/acreditar-saldo-bordes.test.ts` (la oferta aparece en `/api/ofertas/publicas` después de acreditar).
+
 ## F4. Banners
 `BannersConfigView`: pestaña URL o archivo → upload a disco (`banners/`) → preview → Guardar → `POST /api/banners/sync {banners[]}` → `syncBanners` (upsert por id). `GET /api/banners` → `PublicWeb` header. Regla server: URLs sustrae/banner.webp se normalizan al banner local. **Probar:** subir imagen, `GET /api/banners` trae `/uploads/banners/...`.
 

@@ -313,6 +313,7 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
                         </span>
                       </td>
                       <td className="py-3 text-right">
+                        <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
                         {acreditando === c.id ? (
                           <div className="inline-flex items-end gap-1.5 flex-wrap justify-end">
                             <label className="text-left">
@@ -352,16 +353,25 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => {
-                              setAvisoSaldo(null);
-                              setAcreditando(c.id);
-                            }}
-                            className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold cursor-pointer"
-                          >
-                            Acreditar saldo
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                setAvisoSaldo(null);
+                                setAcreditando(c.id);
+                              }}
+                              className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                            >
+                              Acreditar saldo
+                            </button>
+                            <button
+                              onClick={() => onNavegar('/gestion/campanas-cobro/planes')}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-[11px] font-bold cursor-pointer"
+                            >
+                              Recargar
+                            </button>
+                          </>
                         )}
+                        </div>
                       </td>
                     </tr>
                   );

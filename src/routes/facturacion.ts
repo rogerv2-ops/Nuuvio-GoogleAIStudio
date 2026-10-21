@@ -132,7 +132,7 @@ export function registrarRutasFacturacion(app: any, ctx: any): void {
       try {
         const body = req.body || {};
         const comercioId = String(body.comercioId || "").trim();
-        const clics = Math.floor(Number(body.clics ?? body.cantidad));
+        const clics = Math.floor(Number(body.clics));
         const monto = Number(body.monto ?? 0);
 
         if (!comercioId) {
