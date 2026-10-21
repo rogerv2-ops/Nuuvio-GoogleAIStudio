@@ -46,8 +46,9 @@ Consecuencias practices:
 
 - **Ningun texto puede prometer un envio proactivo.** Nada de "te avisaremos", "te aviso cuando entren ofertas nuevas", "recibirás más ofertas", "resumen diario", "te escribimos". Si el bot no tiene nada nuevo que mostrar, se lo dice y la persona vuelve a escribir.
 - **La unica forma de que alguien reciba algo es que haya escrito.** Por eso el bot responde al mensaje del boton "Lo quiero" aunque ya le haya mandado esa oferta: es una peticion suya.
-- **No hay envios programados a usuarios.** El "resumen diario" del panel es una SIMULACION: no envia ningun correo. Si alguna vez se quisiera activar un envio automatico, hay que pedirlo explicitamente y cambiar esta regla.
+- **El bot de WhatsApp no tiene envios programados a nadie.** Si alguna vez se quisiera, hay que pedirlo explicitamente y cambiar esta regla.
 - **El opt-out significa "dejar de RESPONDER"**, no "dejar de notificar": el bot contesta "ya no te respondemos con ofertas; si quieres volver, escribenos *Ofertas*".
+- **El digest es el otro canal y no viola la regla**: es por CORREO, con consentimiento explicito (`consentimientos.correo`), y es el unico envio proactivo de Yuddit. La regla de pull/no-push es del bot de WhatsApp. Cuando se implemente de verdad, tiene que salir de la tabla de consentimiento, no de un "te avisaremos" del bot.
 
 Hay un test que vigila esta regla (`tests/security/pull-no-push.test.ts`): escanea el texto que ve la persona y falla si vuelve a aparecer una promesa de envio proactivo.
 

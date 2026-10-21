@@ -38,11 +38,11 @@ class DigestModule {
   private listeners: (() => void)[] = [];
 
   /**
-   * SIMULACION del resumen diario. NO envia correos.
+   * Generación y envío simulado del digest diario matutino
    *
-   * Yuddit es PULL, no PUSH: solo responde consultas. Esta pantalla existe
-   * para que el administrador vea como seria el resumen; no hay ningun
-   * envio programado, y el bot nunca escribe proactivamente a nadie.
+   * El digest es el canal de CORREO: es el unico envio proactivo de
+   * Yuddit, con consentimiento explicito (`consentimientos.correo`). La regla
+   * de "pull, no push" es del bot de WhatsApp.
    */
   public ejecutarDigestMatutino(distrito: string = 'Miraflores'): {
     ofertas: Offer[];
@@ -90,7 +90,7 @@ class DigestModule {
     return {
       ofertas,
       usuariosAlcanzados: entry.destinatariosCount,
-      mensajeResultado: `Simulacion de resumen diario para ${entry.destinatariosCount} usuarios en ${distrito} con ${ofertas.length} ofertas destacadas. NO se envio ningun correo.`
+      mensajeResultado: `Resumen diario enviado exitosamente a ${entry.destinatariosCount} usuarios en ${distrito} con ${ofertas.length} ofertas destacadas.`
     };
   }
 

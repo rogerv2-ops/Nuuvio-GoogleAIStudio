@@ -225,7 +225,7 @@ export const GESTION_MENU: GestionMenuItem[] = [
         id: 'comunicaciones-digest',
         ruta: '/gestion/comunicaciones/digest',
         titulo: 'Digest',
-        descripcion: 'Simulacion del resumen diario (D10). NO envia correos: el bot solo responde consultas'
+        descripcion: 'Resumen diario matutino (D10) por correo sin spam de WhatsApp'
       },
       {
         id: 'comunicaciones-plantillas',

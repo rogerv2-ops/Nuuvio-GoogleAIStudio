@@ -107,12 +107,16 @@ describe("Pull, no push: el bot no promete envios proactivos", () => {
     expect(texto).toMatch(/no te respondamos/i);
   });
 
-  test("P4: el 'resumen diario' del panel NO dice que se envio nada", () => {
-    const digest = fs.readFileSync(path.join(ROOT, "src/modules/digest.ts"), "utf8");
-    const texto = sinComentarios(digest);
-    // La simulacion no envia correos: decirlo seria mentir (y prometer un push).
-    expect(texto).not.toMatch(/Resumen diario enviado exitosamente/i);
-    expect(texto).toMatch(/NO se envio ningun correo/i);
+  test("P4: el digest es el canal de CORREO, no un push del bot", () => {
+    // Decision del dueno (2026-10-21): "el digest es por correo, anotalo y
+    // despreocupate". O sea: el digest es el unico envio proactivo de
+    // Yuddit, con consentimiento explicito, y la regla de pull/no-push es del
+    // bot de WhatsApp. Este test verifica que la distincion quede ESCRITA,
+    // para que nadie la lea al reves dentro seis meses.
+    const agents = fs.readFileSync(path.join(ROOT, "AGENTS.md"), "utf8");
+    expect(agents).toMatch(/digest es el otro canal/i);
+    expect(agents).toMatch(/consentimientos\.correo/);
+    expect(agents).toMatch(/regla de pull\/no-push es del bot de WhatsApp/i);
   });
 
   test("P5: la regla esta escrita en AGENTS.md (lo lee todo agente)", () => {

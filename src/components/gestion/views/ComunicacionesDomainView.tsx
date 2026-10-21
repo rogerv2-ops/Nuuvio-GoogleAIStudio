@@ -192,7 +192,7 @@ export const ComunicacionesDomainView: React.FC<ComunicacionesDomainViewProps> =
           <div>
             <h3 className="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500" />
-              <span>Resumen Diario Matutino (simulacion, no envia)</span>
+              <span>Resumen Diario Matutino (Digest D10)</span>
             </h3>
             <p className="text-xs text-stone-500 mt-1 max-w-xl">
               Genera y despacha el resumen matutino personalizado con las 3 ofertas más relevantes por cercanía para los usuarios del distrito elegido.
