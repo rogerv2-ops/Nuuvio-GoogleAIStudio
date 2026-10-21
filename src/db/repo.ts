@@ -247,6 +247,10 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
   // no se factura. Nunca facturar por encima de un error de base de datos.
   let facturable = false;
   let registroPersistido = false;
+  // `nuevo`: el clic es un interes QUE NO SE HABIA REGISTRADO en la ventana.
+  // `false` = la misma persona volvio a hacer clic en la misma oferta dentro
+  // de las 24h: no se cuenta otra vez.
+
   try {
     facturable = await db.transaction(async (tx: any) => {
       await tx.execute(
@@ -265,6 +269,7 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
         );
       // La ventana se ancla al último clic facturable; los no facturables no la reinician.
       const existeClicEn24h = !!(rows && rows.length > 0);
+
       const debeFacturar = !existeClicEn24h && saldoDisponible;
       await tx.insert(clickLogs).values({
         id,
@@ -288,6 +293,8 @@ async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDel
     return { facturable: false, codigoCanje };
   }
 
+  // Si el clic ya estaba dentro de la ventana, se devuelve el codigo de canje
+  // que ya existe (no uno nuevo): el mismo interes, el mismo codigo.
   return { facturable, codigoCanje };
 }__name(registerOfferClick,"registerOfferClick");
 async function registerQualifiedLead(arg1, arg2, arg3) {
@@ -771,6 +778,64 @@ async function obtenerSerieDiaria(dias) {
 __name(obtenerSerieDiaria, "obtenerSerieDiaria");
 
 /**
+ * Convierte el "actor" de un evento en su indice ciego cuando es una
+ * persona concreta.
+ *
+ * `audience_users` guarda el telefono CIFRADO y un indice ciego
+ * (`telefono_idx`) para poder consultar sin descifrar. La tabla `eventos`
+ * tiene que seguir la misma regla: si el actor es un telefono (o un id de
+ * audiencia, que lo lleva embebido: `usr_wa_519...`), se guarda SU indice
+ * ciego, no el telefono.
+ *
+ * Sin esto, la tabla de eventos se convertia en una copia en texto plano
+ * de la lista de telefonos de los clientes.
+ *
+ * Un actor que NO es una persona (por ejemplo "anonimo" o "ref_VUUY-CV88")
+ * se queda como esta: no es PII y sirve para agrupar.
+ */
+function indiceDeActor(actorId) {
+  const v = String(actorId || "").trim();
+  if (!v) return null;
+  const m = v.match(/(\d{9,15})/);
+  if (!m) return v.slice(0, 120);
+  const _norm = normalizePhoneForMatching(m[1]);
+  return indiceCiego(_norm.core9 || _norm.digits || m[1]);
+}
+__name(indiceDeActor, "indiceDeActor");
+
+/**
+ * Convierte a indice ciego los `actor_id` de los eventos que se guardaron
+ * en texto plano (la tabla se creo asi y hay filas con el telefono).
+ *
+ * Es idempotente: solo toca los que parecen un telefono, y un indice
+ * ciego (64 hex) no lo parece.
+ */
+async function sanearActorIdEventos() {
+  try {
+    const filas = await db.select({ id: eventos.id, actorId: eventos.actorId }).from(eventos);
+    let corregidos = 0;
+    for (const f of filas) {
+      const actual = String(f.actorId || "");
+      if (!actual || !/\d{9,15}/.test(actual)) continue;
+      const idx = indiceDeActor(actual);
+      if (!idx || idx === actual) continue;
+      await db.update(eventos).set({ actorId: idx, updatedAt: new Date() } as any).where(eq(eventos.id, f.id));
+      corregidos++;
+    }
+    if (corregidos > 0) {
+      console.log("[Eventos] " + corregidos + " actor(es) convertidos a indice ciego (telefono en texto plano eliminado).");
+    }
+    return { ok: true, corregidos };
+  } catch (error) {
+    console.error("[DB Repo] Error saneando los actor_id de los eventos:", error);
+    return { ok: false, corregidos: 0 };
+  }
+}
+__name(sanearActorIdEventos, "sanearActorIdEventos");
+
+
+
+/**
  * Guarda eventos de negocio.
  *
  * REGLA DE LA CASA: un dominio que tiene su PROPIA tabla no emite evento.
@@ -944,4 +1009,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio,obtenerSerieMensual,obtenerSerieDiaria,insertarEvento,insertarEventos,contarEventos,listarEventos,indiceDeActor,sanearActorIdEventos};
