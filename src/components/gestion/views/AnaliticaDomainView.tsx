@@ -8,6 +8,7 @@ import { UtmAttributionDashboardWidget } from '../../UtmAttributionDashboardWidg
 import { EstadisticasOfertasWhatsAppPanel } from '../EstadisticasOfertasWhatsAppPanel';
 import { DateRangeSelector, DateRangeValue, helperObtenerRangoPorPreset } from '../../common/DateRangeSelector';
 import { TrendBadge, helperCalcularPeriodoAnterior } from '../../common/TrendBadge';
+import { useKPIsAnalitica } from '../../common/useKPIsAnalitica';
 import { analiticaModule } from '../../../modules/analitica';
 import { usuariosModule, estaVerificado } from '../../../modules/usuarios';
 import { comerciosModule } from '../../../modules/comercios';
@@ -23,7 +24,8 @@ export const AnaliticaDomainView: React.FC<AnaliticaDomainViewProps> = ({ subrut
   const [rangoFechaUsuarios, setRangoFechaUsuarios] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
   const [rangoFechaComercios, setRangoFechaComercios] = useState<DateRangeValue>(() => helperObtenerRangoPorPreset('30d'));
 
-  const kpis = analiticaModule.calcularKPIsGlobales();
+  // Los KPIs se miden en el servidor (la base es la unica fuente de verdad).
+  const { globales: kpis } = useKPIsAnalitica();
   const embudo = analiticaModule.obtenerEmbudoConversion();
   const usuarios = usuariosModule.listarUsuarios();
   const comercios = comerciosModule.listarComercios();

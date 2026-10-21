@@ -32,7 +32,7 @@ import { usuariosModule } from '../../modules/usuarios';
 import { comerciosModule } from '../../modules/comercios';
 import { ofertasModule } from '../../modules/ofertas';
 import { clicsAtribucionModule } from '../../modules/clics';
-import { analiticaModule } from '../../modules/analitica';
+import { useKPIsAnalitica } from '../common/useKPIsAnalitica';
 import { facturacionModule } from '../../modules/facturacion';
 import { useSaldoFacturacion } from '../common/useSaldoFacturacion';
 import { TrendBadge } from '../common/TrendBadge';
@@ -50,16 +50,20 @@ export const ExecutiveMetricsRechartsWidget: React.FC<ExecutiveMetricsRechartsWi
   const comercios = comerciosModule.listarComercios();
   const ofertas = ofertasModule.listarOfertas();
   const ventas = clicsAtribucionModule.listarTodasLasVentas();
-  const kpisGlobales = analiticaModule.calcularKPIsGlobales();
+  // Los KPIs se miden en el servidor: el widget ya no inventa numeros.
+  const { globales: kpisGlobales } = useKPIsAnalitica();
   // El saldo se lee de la base (tabla `click_packs`), no de la semilla.
   const versionFacturacion = useSaldoFacturacion();
   const packs = useMemo(() => facturacionModule.listarTodosLosPacks(), [versionFacturacion]);
 
-  const totalUsuariosCount = Math.max(usuarios.length, 1280);
-  const comerciosActivosCount = comercios.filter(c => c.estado === 'activo').length || 82;
-  const leadsGeneradosCount = kpisGlobales.totalClicsContactar || 2140;
-  const ventasConfirmadasCount = ventas.length || 380;
-  const ofertasActivasCount = ofertas.filter(o => o.estado === 'activa').length || 45;
+  // SIN pisos inventados. Antes ponia: usuarios >= 1280, comercios >= 82,
+  // leads >= 2140, ventas >= 380 y ofertas >= 45, con la base vacia. Ahora
+  // es lo que hay, y si no se puede medir se muestra "sin medir".
+  const totalUsuariosCount = kpisGlobales.usuariosRegistrados;
+  const comerciosActivosCount = kpisGlobales.comerciosActivos;
+  const leadsGeneradosCount = kpisGlobales.totalClicsContactar;
+  const ventasConfirmadasCount = kpisGlobales.ventasConfirmadas;
+  const ofertasActivasCount = kpisGlobales.ofertasActivas;
   // Sin piso inventado: si no hay saldo, se muestra 0. Antes ponia 12500
   // clics aunque la base tuviera 184.
   const totalClicsSaldo = packs.reduce((acc, p) => acc + p.saldoClics, 0);

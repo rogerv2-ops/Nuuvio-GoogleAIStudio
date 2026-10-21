@@ -13,7 +13,7 @@ import { ofertasModule } from '../../modules/ofertas';
 import { clicsAtribucionModule } from '../../modules/clics';
 import { facturacionModule } from '../../modules/facturacion';
 import { puntosModule } from '../../modules/puntos';
-import { analiticaModule } from '../../modules/analitica';
+import { useKPIsAnalitica } from '../common/useKPIsAnalitica';
 import { coreSecurity } from '../../core/security';
 import { getCategoryFallbackImage, handleImgError } from '../../utils/imageFallbacks';
 import { OBTENER_COMERCIO_MENU, normalizarRutaComercio } from './comercioMenuConfig';
@@ -251,7 +251,8 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
   const ofertas = ofertasModule.listarOfertasPorComercio(comercio?.id || '');
   const ventas = clicsAtribucionModule.listarVentasPorComercio(comercio?.id || '');
   const saldoClics = facturacionModule.obtenerSaldoComercio(comercio?.id || '');
-  const kpis = analiticaModule.calcularKPIsComercio(comercio?.id || '');
+  // Los KPIs del comercio se miden en el servidor (la base es la verdad).
+  const { comercio: kpis } = useKPIsAnalitica(comercio?.id || undefined);
 
   // Menú dinámico
   const menuConfig = useMemo(() => {

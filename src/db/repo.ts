@@ -514,6 +514,111 @@ async function activarProvincias(codigos) {
 __name(activarProvincias, "activarProvincias");
 
 /**
+ * METRICAS DEL PANEL, medidas en la base.
+ *
+ * Antes, los KPIs del panel se calculaban con `coreEvents` (eventos EN
+ * MEMORIA del navegador) y con minimos inventados: el panel mostraba 240
+ * usuarios, 625 vistas, 12 ventas y 13,6% de CTR con la base vacia.
+ *
+ * Aca se mide lo que HAY. Lo que no se puede medir (las ventas
+ * confirmadas: no hay tabla que las registre) se devuelve como `null` para
+ * que la pantalla pueda decir "sin medir" en vez de inventar un numero.
+ */
+async function obtenerMetricasGlobales() {
+  try {
+    const ahoraIso = new Date().toISOString();
+    const hace7diasIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const r = await db.execute(sql`
+      select
+        (select count(*)::int from offers where estado = 'activa' and vence_en > ${ahoraIso}) as ofertas_activas,
+        (select count(*)::int from offers) as ofertas_total,
+        (select coalesce(sum(vistas), 0)::int from offers) as vistas_ofertas,
+        (select count(*)::int from click_logs) as clics,
+        (select count(*)::int from click_logs where facturable = true) as leads,
+        (select count(*)::int from click_logs where facturable = true and creado_en >= ${hace7diasIso}) as leads_semana,
+        (select count(*)::int from audience_users) as usuarios,
+        (select count(*)::int from audience_users where estado = 'activo') as usuarios_activos,
+        (select count(*)::int from chat_logs) as chats,
+        (select count(*)::int from click_packs) as packs,
+        (select coalesce(sum(saldo_clics), 0)::int from click_packs) as saldo_clics
+    `);
+    const fila: any = (r && r.rows && r.rows[0]) || {};
+
+    // Los comercios viven en `app_settings.merchants_list` (JSON).
+    const lista = await getSetting("merchants_list", []);
+    const comercios = Array.isArray(lista) ? lista : [];
+    const comerciosActivos = comercios.filter((m: any) => m && m.estado === "activo").length;
+
+    const clics = Number(fila.clics || 0);
+    const vistas = Number(fila.vistas_ofertas || 0);
+    return {
+      ofertasActivas: Number(fila.ofertas_activas || 0),
+      ofertasTotal: Number(fila.ofertas_total || 0),
+      // Las vistas NO se incrementan en ningun lado todavia: no se miden.
+      totalVistasOfertas: vistas > 0 ? vistas : null,
+      totalClicsContactar: clics,
+      northStarLeadsSemanales: Number(fila.leads_semana || 0),
+      leadsCalificados: Number(fila.leads || 0),
+      // El CTR solo existe si hay vistas medidas.
+      ctrPromedioGlobal: vistas > 0 ? Number(((clics / vistas) * 100).toFixed(1)) : null,
+      // Las ventas confirmadas no tienen tabla: no se miden.
+      ventasConfirmadas: null,
+      comerciosActivos,
+      comerciosTotales: comercios.length,
+      usuariosRegistrados: Number(fila.usuarios || 0),
+      usuariosActivos: Number(fila.usuarios_activos || 0),
+      chats: Number(fila.chats || 0),
+      packs: Number(fila.packs || 0),
+      saldoClics: Number(fila.saldo_clics || 0),
+      // El tiempo de validacion no se registra en ninguna parte.
+      tiempoMedianoValidacionHoras: null,
+    };
+  } catch (error) {
+    console.error("[DB Repo] Error calculando las metricas del panel:", error);
+    return null;
+  }
+}
+__name(obtenerMetricasGlobales, "obtenerMetricasGlobales");
+
+/** Las mismas metricas, pero de un solo comercio. */
+async function obtenerMetricasComercio(comercioId) {
+  try {
+    const id = String(comercioId || "").trim();
+    if (!id) return null;
+    const ahoraIso = new Date().toISOString();
+    const r = await db.execute(sql`
+      select
+        (select count(*)::int from offers where comercio_id = ${id} and estado = 'activa' and vence_en > ${ahoraIso}) as ofertas_activas,
+        (select coalesce(sum(vistas), 0)::int from offers where comercio_id = ${id}) as vistas_ofertas,
+        (select count(*)::int from click_logs where comercio_id = ${id}) as clics,
+        (select count(*)::int from click_logs where comercio_id = ${id} and facturable = true) as leads,
+        (select coalesce(sum(saldo_clics), 0)::int from click_packs where comercio_id = ${id}) as saldo_clics
+    `);
+    const fila: any = (r && r.rows && r.rows[0]) || {};
+    const clics = Number(fila.clics || 0);
+    const vistas = Number(fila.vistas_ofertas || 0);
+    return {
+      comercioId: id,
+      ofertasActivas: Number(fila.ofertas_activas || 0),
+      totalVistasOfertas: vistas > 0 ? vistas : null,
+      totalClicsContactar: clics,
+      northStarLeadsSemanales: Number(fila.leads || 0),
+      leadsCalificados: Number(fila.leads || 0),
+      ctrPromedioGlobal: vistas > 0 ? Number(((clics / vistas) * 100).toFixed(1)) : null,
+      ventasConfirmadas: null,
+      saldoClics: Number(fila.saldo_clics || 0),
+      // El gasto en soles: lo que el comercio debe a la plataforma por los
+      // clics que leVendieron (el precio unitario del pack).
+      gastoTotalSoles: 0,
+    };
+  } catch (error) {
+    console.error("[DB Repo] Error calculando las metricas de un comercio:", error);
+    return null;
+  }
+}
+__name(obtenerMetricasComercio, "obtenerMetricasComercio");
+
+/**
  * Activa o desactiva UNA provincia (toggle del panel de gestion).
  *
  * La zona de servicio de Yuddit es la provincia: el distrito es la ubicacion
@@ -551,4 +656,4 @@ async function contarTerritorios() {
 }
 __name(contarTerritorios, "contarTerritorios");
 
-export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva};
+export{insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs,insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsByUser,purgeExpiredSessions,migrarPiiAudiencia,normalizarEmailsAudiencia,getLoginFailureDb,registrarLoginFallidoDb,limpiarLoginFallidoDb,getAuthUsersDb,insertAuthUserDb,updateAuthUserDb,deleteAuthUserDb,consumeTotpBackupHashDb,migrateAuthUsersABTablaDb,listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico,sincronizarTerritorios,listarTerritorios,contarTerritorios,activarProvincias,establecerProvinciaActiva,obtenerMetricasGlobales,obtenerMetricasComercio};
