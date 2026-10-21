@@ -104,6 +104,10 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
   const [promptVideoPersonalizado, setPromptVideoPersonalizado] = useState('');
   const [mostrarOpcionesVideo, setMostrarOpcionesVideo] = useState(false);
 
+  // Version del saldo de clics: se incrementa cuando el modulo recarga desde
+  // la base, para que la pantalla se repinte con el saldo real.
+  const [versionFacturacion, setVersionFacturacion] = useState(0);
+
   const handleSubirFotoOferta = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -273,6 +277,15 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
   // antes del login (401 silencioso -> lista vacia) y el login no recarga la pagina.
   useEffect(() => {
     comerciosModule.recargar();
+  }, []);
+
+  // El saldo de clics se lee de la base (tabla `click_packs`) a traves de la
+  // API. Sin esto, el panel del comercio muestra la semilla (un saldo que no
+  // es el suyo). Se recarga al montar, con la sesion ya activa.
+  useEffect(() => {
+    const unsub = facturacionModule.suscribir(() => setVersionFacturacion(v => v + 1));
+    void facturacionModule.recargarCache();
+    return () => unsub();
   }, []);
 
   // Escuchar popstate / hashchange

@@ -48,6 +48,16 @@ type CapaDeDatos = typeof import('../db/repo');
 let capaDeDatos: CapaDeDatos | null = null;
 let capaDeDatosEnCurso: Promise<CapaDeDatos> | null = null;
 
+/**
+ * ¿Estamos en el navegador?
+ *
+ * La capa de base de datos es de servidor. En el navegador este modulo
+ * tiene que hablar con la API, no con Postgres.
+ */
+function estaEnNavegador(): boolean {
+  return typeof window !== 'undefined' || typeof document !== 'undefined';
+}
+
 function obtenerCapaDeDatos(): Promise<CapaDeDatos> {
   if (capaDeDatos) return Promise.resolve(capaDeDatos);
 
@@ -84,8 +94,25 @@ export interface ResultadoDebito {
 class FacturacionModule {
   private packs: Map<string, ClickPack> = new Map();
   private listeners: (() => void)[] = [];
+  /**
+   * `true` cuando el cache reflects la base de verdad.
+   *
+   * La UI lo usa para distinguir "cargando" de "0 clics reales": si nunca se
+   * pudo leer el saldo, mostrar 0 seria tan mentira como mostrar la semilla.
+   */
+  private _cargado = false;
 
   constructor() {
+    // En el navegador NO hay base: la semilla seria MENTIRA. El saldo real
+    // esta en la tabla `click_packs` y se lee por la API
+    // (`GET /api/facturacion/packs`). Antes de esto, el panel del comercio
+    // mostraba la semilla (81/72/34 clics) mientras la base decia 80/70/34:
+    // el comercio veia un saldo que no era el suyo.
+    //
+    // La semilla se sigue sembrando en el SERVIDOR, donde si se puede
+    // consultar la tabla: ahi es el "primer arranque" y no una pantalla.
+    if (estaEnNavegador()) return;
+
     // Arranque pesimista: si la tabla todavia no se leyo (o la base no
     // responde), el cache queda con el seed en vez de quedar vacio. Vacio
     // significaria que `comercioTieneSaldo` devuelve false para todos y las
@@ -94,6 +121,11 @@ class FacturacionModule {
     SEED_CLICK_PACKS.forEach(p =>
       this.packs.set(p.id, { ...p, estado: p.estado === 'agotado' ? 'agotado' : 'activo' }),
     );
+  }
+
+  /** `true` si el cache actual viene de la base (no de la semilla). */
+  public get cargado(): boolean {
+    return this._cargado;
   }
 
   /**
@@ -120,6 +152,12 @@ class FacturacionModule {
   }
 
   public async recargarCache(): Promise<void> {
+    // En el navegador el saldo se lee por la API: la tabla `click_packs` es
+    // la verdad y el modulo no puede tocarla desde aca.
+    if (estaEnNavegador()) {
+      await this.recargarCacheDesdeApi();
+      return;
+    }
     try {
       const capa = await obtenerCapaDeDatos();
       const packs = await capa.listarClickPacks();
@@ -134,6 +172,7 @@ class FacturacionModule {
       }
       this.packs.clear();
       packs.forEach(p => this.packs.set(p.id, p));
+      this._cargado = true;
       this.notificar();
     } catch (e) {
       // Si la tabla no existe o la base no responde, se CONSERVA el cache previo
@@ -144,6 +183,46 @@ class FacturacionModule {
         '[Facturacion] No se pudo leer click_packs; se conserva el cache anterior:',
         e,
       );
+    }
+  }
+
+  /**
+   * Lectura del saldo desde la API (navegador).
+   *
+   * `GET /api/facturacion/packs` devuelve los packs de la tabla `click_packs`.
+   * Si la llamada falla, el cache queda VACIO y `cargado` en false: la UI
+   * puede mostrar "no se pudo cargar" en vez de un saldo inventado.
+   */
+  private async recargarCacheDesdeApi(): Promise<void> {
+    try {
+      const r = await fetch('/api/facturacion/packs', {
+        headers: { Accept: 'application/json' },
+      });
+      const cuerpo: any = await r.json().catch(() => null);
+      if (!r.ok || !cuerpo || !Array.isArray(cuerpo.packs)) {
+        throw new Error(`respuesta no valida (HTTP ${r.status})`);
+      }
+      this.packs.clear();
+      cuerpo.packs.forEach((p: any) => {
+        this.packs.set(String(p.id), {
+          id: String(p.id),
+          comercioId: String(p.comercioId),
+          totalClics: Number(p.totalClics || 0),
+          saldoClics: Number(p.saldoClics || 0),
+          precioUnitario: Number(p.precioUnitario || 0),
+          montoTotal: Number(p.montoTotal || 0),
+          estado: p.estado === 'agotado' ? 'agotado' : 'activo',
+          compradoEn: String(p.compradoEn || ''),
+        });
+      });
+      this._cargado = true;
+      this.notificar();
+    } catch (e) {
+      // NO se conserva una semilla: mostrarla seria mostrar un saldo falso.
+      console.warn('[Facturacion] No se pudo leer el saldo desde la API:', e);
+      this.packs.clear();
+      this._cargado = false;
+      this.notificar();
     }
   }
 

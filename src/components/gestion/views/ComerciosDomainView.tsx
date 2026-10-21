@@ -10,6 +10,7 @@ import { vistaComoModule } from '../../../modules/vistaComo';
 import { ofertasModule } from '../../../modules/ofertas';
 import { clicsAtribucionModule } from '../../../modules/clics';
 import { facturacionModule } from '../../../modules/facturacion';
+import { useSaldoFacturacion } from '../../common/useSaldoFacturacion';
 import { alPulsarBotonWhatsApp } from '../../../utils/whatsappNative';
 import { WhatsAppChooser } from '../../WhatsAppChooser';
 import { Merchant, KanbanStage, Offer } from '../../../types';
@@ -71,6 +72,10 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     const unsub = comerciosModule.suscribir(() => setVersion(v => v + 1));
     return () => unsub();
   }, []);
+
+  // El saldo de clics de la ficha 360 se lee de la base: antes venía de la
+  // semilla del modulo (un saldo que no era el del comercio).
+  const versionFacturacion = useSaldoFacturacion();
 
   const kanbanItems = useMemo(() => comerciosModule.getKanbanItems(), [version]);
   const comerciosPendientes = useMemo(() => comerciosModule.listarPendientes(), [version]);
@@ -296,7 +301,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
   const comercioFicha360 = comercioFicha360Id ? comerciosTodos.find(c => c.id === comercioFicha360Id) : null;
   const ofertasDelComercioFicha: Offer[] = comercioFicha360Id ? ofertasModule.listarOfertasPorComercio(comercioFicha360Id) : [];
   const ventasDelComercioFicha = comercioFicha360Id ? clicsAtribucionModule.listarVentasPorComercio(comercioFicha360Id) : [];
-  const saldoPpcFicha = comercioFicha360Id ? facturacionModule.obtenerSaldoComercio(comercioFicha360Id) : 0;
+  const saldoPpcFicha = useMemo(() => (comercioFicha360Id ? facturacionModule.obtenerSaldoComercio(comercioFicha360Id) : 0), [comercioFicha360Id, versionFacturacion]);
 
   // Enrutamiento de subpáginas
   const esPipeline = subruta === '/gestion/comercios/pipeline';
