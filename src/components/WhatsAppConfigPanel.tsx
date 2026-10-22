@@ -16,12 +16,18 @@ interface WhatsAppConfigData {
     accessToken: string;
     verifyToken: string;
     webhookUrl: string;
+    // El servidor NO devuelve los secretos (hallazgo R1-001): solo dice si hay.
+    // Por eso accessToken/verifyToken llegan vacios y su valor guardado se
+    // conserva al guardar (el servidor ignora el campo vacio).
+    hasAccessToken?: boolean;
+    hasVerifyToken?: boolean;
   };
   wahaConfig: {
     endpointUrl: string;
     apiKey: string;
     sessionName: string;
     webhookUrl: string;
+    hasApiKey?: boolean;
   };
 }
 
@@ -87,7 +93,14 @@ export const WhatsAppConfigPanel: React.FC = () => {
       const res = await fetch('/api/whatsapp/config');
       const data = await res.json();
       if (data.ok && data.config) {
-        setConfig(data.config);
+        // Los secretos ya no viajan (R1-001): sus campos llegan vacios y el
+        // servidor conserva lo guardado. Se normaliza para que los inputs
+        // controlados nunca reciban undefined.
+        setConfig({
+          ...data.config,
+          metaConfig: { accessToken: '', verifyToken: '', ...data.config.metaConfig },
+          wahaConfig: { apiKey: '', ...data.config.wahaConfig }
+        });
         setModoSeleccionado(data.config.modoActivo);
         if (data.wahaSession) {
           setWahaSessionStatus(data.wahaSession);
@@ -135,13 +148,31 @@ export const WhatsAppConfigPanel: React.FC = () => {
         body: JSON.stringify({
           modoActivo: nuevoModo,
           numeroTelefono: config.numeroTelefono,
-          metaConfig: config.metaConfig,
-          wahaConfig: config.wahaConfig
+          // Solo los campos del contrato: las banderas has* son de lectura y un
+          // secreto vacio significa "no lo cambio" (el servidor conserva el
+          // guardado). Mandar hasAccessToken ensuciaria la configuracion.
+          metaConfig: {
+            phoneNumberId: config.metaConfig.phoneNumberId,
+            wabaId: config.metaConfig.wabaId,
+            webhookUrl: config.metaConfig.webhookUrl,
+            accessToken: config.metaConfig.accessToken,
+            verifyToken: config.metaConfig.verifyToken
+          },
+          wahaConfig: {
+            endpointUrl: config.wahaConfig.endpointUrl,
+            sessionName: config.wahaConfig.sessionName,
+            webhookUrl: config.wahaConfig.webhookUrl,
+            apiKey: config.wahaConfig.apiKey
+          }
         })
       });
       const data = await res.json();
       if (data.ok) {
-        setConfig(data.config);
+        setConfig({
+          ...data.config,
+          metaConfig: { accessToken: '', verifyToken: '', ...data.config.metaConfig },
+          wahaConfig: { apiKey: '', ...data.config.wahaConfig }
+        });
         setMensajeExito(`Configuración guardada exitosamente. Modo activo: ${nuevoModo.toUpperCase()}`);
         setTimeout(() => setMensajeExito(null), 4000);
       }
@@ -460,7 +491,8 @@ export const WhatsAppConfigPanel: React.FC = () => {
                         ...config,
                         wahaConfig: { ...config.wahaConfig, apiKey: e.target.value }
                       })}
-                      placeholder="Token secreto de WAHA..."
+                      placeholder={config.wahaConfig.hasApiKey ? 'API Key guardada. Deja el campo vacio para no cambiarla.' : 'Sin API Key de WAHA'}
+                      autoComplete="new-password"
                       className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                     />
                   </div>
@@ -558,7 +590,8 @@ export const WhatsAppConfigPanel: React.FC = () => {
                       ...config,
                       metaConfig: { ...config.metaConfig, accessToken: e.target.value }
                     })}
-                    placeholder="EAAB..."
+                    placeholder={config.metaConfig.hasAccessToken ? 'Token guardado. Deja el campo vacio para no cambiarlo.' : 'Sin token de Meta'}
+                    autoComplete="new-password"
                     className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                   />
                 </div>
@@ -572,7 +605,8 @@ export const WhatsAppConfigPanel: React.FC = () => {
                       ...config,
                       metaConfig: { ...config.metaConfig, verifyToken: e.target.value }
                     })}
-                    placeholder="verify token de Meta (se define en el servidor)"
+                    placeholder={config.metaConfig.hasVerifyToken ? 'Verify token guardado. Deja el campo vacio para no cambiarlo.' : 'Sin verify token'}
+                    autoComplete="new-password"
                     className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20"
                   />
                   <p className="text-[11px] text-stone-400">

@@ -8,6 +8,7 @@ const RUTAS_PROTEGIDAS = [
   ["GET", "/api/audience/users"],
   ["GET", "/api/audience/registration-logs"],
   ["POST", "/api/whatsapp/config"],
+  ["GET", "/api/whatsapp/config"],
   ["POST", "/api/email/config"],
   ["POST", "/api/cache/purge"],
   ["POST", "/api/banners/sync"],
