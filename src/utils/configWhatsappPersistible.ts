@@ -12,10 +12,13 @@
  *   1. Con `VUUV_PII_KEY` los secretos se guardan cifrados con el sobre de
  *      `src/utils/pii.ts` (`enc:v1:<iv>:<tag>:<ct>`), el mismo que ya protege
  *      la PII de audiencia.
- *   2. SIN clave el secreto NO se guarda. El repo dice que la clave es
- *      obligatoria donde haya datos reales, pero un despliegue sin ella no
- *      puede degradar a texto plano: seria escribir justo el bug que esto
- *      corrige. El secreto queda en memoria y el entorno sigue mandando.
+ *   2. SIN clave el secreto NUEVO no se escribe, y el que ya estaba en la fila
+ *      NO se borra. El repo dice que la clave es obligatoria donde haya datos
+ *      reales, pero un despliegue sin ella no puede degradar a texto plano
+ *      (seria escribir justo el bug que esto corrige) NI puede tirar una
+ *      credencial que estaba funcionando: perder el token es peor que el texto
+ *      plano que ya existia. El secreto nuevo queda en memoria, el anterior
+ *      sigue en la fila y la respuesta del endpoint avisa que no se guardo.
  *   3. Las filas viejas estan en claro y se siguen leyendo: actualizar la app no
  *      puede dejar al bot sin token. La proxima escritura las cifra.
  *   4. Un secreto cifrado que no se puede descifrar NO se usa como si fuera el
@@ -34,8 +37,6 @@ const SECRETOS: ReadonlyArray<readonly [string, string]> = [
   ["wahaConfig", "apiKey"],
 ];
 
-let avisoSinClaveEmitido = false;
-
 type ConfigWhatsapp = Record<string, any>;
 
 /** Copia de la configuracion con los subobjetos que se tocan ya separados. */
@@ -52,42 +53,58 @@ function esSecretoUtil(valor: unknown): boolean {
   return typeof valor === "string" && valor.trim() !== "";
 }
 
+/** Lo que se escribe en `app_settings`, y que secretos no se pudieron guardar. */
+export type ConfigWhatsappParaGuardar = {
+  config: ConfigWhatsapp;
+  /** Rutas (`metaConfig.accessToken`, ...) que quedaron sin persistir por falta de clave. */
+  secretosSinPersistir: string[];
+};
+
 /**
  * Version que se puede escribir en `app_settings`: secretos cifrados, o fuera
  * si no hay con que cifrarlos. Nunca muta el objeto recibido (es el estado vivo
  * del motor: si se cifrara ahi, el bot mandaria un sobre a Meta).
+ *
+ * `filaPrevia` es la fila que ya estaba guardada. Sirve para NO BORRAR: cuando
+ * un secreto no se puede escribir (sin clave) o no viene (campo vacio), se deja
+ * el valor anterior tal cual estaba. Sin esto, guardar desde el panel en un
+ * despliegue sin `VUUV_PII_KEY` borraba los tokens que funcionaban, y el
+ * endpoint respondia "guardado exitosamente".
  */
-export function configWhatsappParaGuardar(config: ConfigWhatsapp | null | undefined): ConfigWhatsapp {
+export function configWhatsappParaGuardar(
+  config: ConfigWhatsapp | null | undefined,
+  filaPrevia?: ConfigWhatsapp | null | undefined
+): ConfigWhatsappParaGuardar {
   const copia = copiarConfig(config);
+  const previa = filaPrevia ? copiarConfig(filaPrevia) : null;
   const conClave = piiHabilitado();
+  const secretosSinPersistir: string[] = [];
 
   for (const [grupo, campo] of SECRETOS) {
     const valor = copia[grupo]?.[campo];
+    const anterior = previa?.[grupo]?.[campo];
+
     if (!esSecretoUtil(valor)) {
-      delete copia[grupo][campo];
+      // No hay valor nuevo: se conserva el de la fila (puede ser un sobre que
+      // hoy no se puede leer y mañana si, o uno que el panel no quiso cambiar).
+      if (esSecretoUtil(anterior)) copia[grupo][campo] = anterior;
+      else delete copia[grupo][campo];
       continue;
     }
     if (estaCifrado(valor)) continue;
-    if (!conClave) {
-      delete copia[grupo][campo];
+    if (conClave) {
+      copia[grupo][campo] = cifrarCampo(valor);
       continue;
     }
-    copia[grupo][campo] = cifrarCampo(valor);
+
+    // Sin clave: no se escribe el secreto en claro, pero tampoco se borra el
+    // que ya estaba. Se informa para que la interfaz lo diga.
+    secretosSinPersistir.push(`${grupo}.${campo}`);
+    if (esSecretoUtil(anterior)) copia[grupo][campo] = anterior;
+    else delete copia[grupo][campo];
   }
 
-  if (!conClave && !avisoSinClaveEmitido) {
-    const haySecretos = SECRETOS.some(([grupo, campo]) => esSecretoUtil(config?.[grupo]?.[campo]));
-    if (haySecretos) {
-      console.warn(
-        "[WhatsApp] Sin VUUV_PII_KEY no se guardan los secretos en app_settings: " +
-          "quedan en memoria y el entorno sigue siendo la fuente de verdad. " +
-          "Define VUUV_PII_KEY para que se guarden cifrados."
-      );
-      avisoSinClaveEmitido = true;
-    }
-  }
-
-  return copia;
+  return { config: copia, secretosSinPersistir };
 }
 
 /**

@@ -13,13 +13,14 @@
  * memoria y el entorno sigue siendo la fuente de verdad). Nunca texto plano:
  * guardar el secreto en claro es justo el bug.
  *
- * OJO CON EL ALCANCE: la prueba escribe un marcador en `metaConfig.accessToken`
- * y no lo puede restaurar, porque el valor ya no se puede leer. En CI y en las
- * corridas locales la base se recrea antes de correr, asi que el marcador se va
- * con ella. `tests/security` se corre contra un servidor levantado para la
- * ocasion, nunca contra produccion.
+ * La prueba escribe un marcador en `metaConfig.accessToken` (inerte mientras
+ * `modoActivo` sea "waha") y despues DEVUELVE la fila exactamente como estaba,
+ * en `afterAll`: el sobre cifrado anterior se restaura tal cual, sin necesitar
+ * el valor en claro. Lo que no se puede deshacer es lo que quedo en la memoria
+ * del servidor hasta el proximo reinicio; por eso `tests/security` se corre
+ * contra un servidor levantado para la ocasion, nunca contra produccion.
  */
-import { test, expect, describe, beforeAll } from "bun:test";
+import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import pg from "pg";
 import { servidorOnline, login, post, ADMIN } from "./_helpers.ts";
 
@@ -58,6 +59,24 @@ async function filaCrudaWhatsappConfig(): Promise<string | null> {
   }
 }
 
+/** Deja la fila exactamente como estaba (o la borra si no existia). */
+async function restaurarFila(crudo: string | null): Promise<void> {
+  const client = new pg.Client(SQL);
+  try {
+    await client.connect();
+    if (crudo === null) {
+      await client.query("delete from app_settings where key = $1", ["whatsapp_config"]);
+    } else {
+      await client.query("update app_settings set value = $2, updated_at = now() where key = $1", [
+        "whatsapp_config",
+        crudo,
+      ]);
+    }
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 const online = await servidorOnline();
 const conBase = await hayBase();
 
@@ -70,9 +89,16 @@ if (!conBase) {
 
 describe.skipIf(!online || !ADMIN.email || !conBase)("los secretos de WhatsApp no se guardan en claro", () => {
   let token: string | null = null;
+  let filaOriginal: string | null = null;
 
   beforeAll(async () => {
     token = await login(ADMIN.email, ADMIN.password);
+    filaOriginal = await filaCrudaWhatsappConfig();
+  });
+
+  afterAll(async () => {
+    // La fila vuelve a su estado exacto: el marcador no queda en la base.
+    await restaurarFila(filaOriginal);
   });
 
   test("el POST no deja el accessToken en texto plano en app_settings", async () => {
@@ -105,6 +131,13 @@ describe.skipIf(!online || !ADMIN.email || !conBase)("los secretos de WhatsApp n
     // 4. Con clave de PII configurada, se cifra: no se descarta el secreto.
     if (String(process.env.VUUV_PII_KEY || "").trim()) {
       expect(String(guardado || "").startsWith(PREFIJO_CIFRADO)).toBe(true);
+      expect((await res.clone().json()).aviso).toBeUndefined();
+    } else {
+      // Sin clave no se guarda, y el endpoint NO puede decir que todo bien sin
+      // avisar: eso era perder la credencial en silencio.
+      const cuerpo: any = await res.clone().json();
+      expect(cuerpo.ok).toBe(true);
+      expect(String(cuerpo.aviso || "")).toContain("VUUV_PII_KEY");
     }
   });
 

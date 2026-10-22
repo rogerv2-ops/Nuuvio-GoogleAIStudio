@@ -220,9 +220,9 @@ Los tres secretos de WhatsApp son `metaConfig.accessToken` (`META_WA_TOKEN`), `m
 | Situación | Qué pasa | Por qué |
 |---|---|---|
 | Con `VUUV_PII_KEY` | Se guardan cifrados (`enc:v1:<iv>:<tag>:<ct>`, el sobre de `src/utils/pii.ts`) y se descifran al arrancar. | Es la clave que ya protege la PII. Perderla o cambiarla hace ilegibles los secretos guardados (no se pueden recuperar). |
-| Sin `VUUV_PII_KEY` | El secreto **no se escribe**: vive en memoria y el entorno sigue siendo la fuente de verdad. | Escribirlo en claro sería reproducir el bug. La app avisa en el log al guardar. |
+| Sin `VUUV_PII_KEY` | El secreto **nuevo no se escribe** y **el que ya estaba en la fila no se borra**. Vive en memoria, el entorno sigue siendo la fuente de verdad y la respuesta del `POST` trae un `aviso` que dice cuáles no se guardaron. | Escribirlo en claro sería reproducir el bug; borrar el que ya estaba rompería una credencial que funcionaba (peor que el texto plano que ya existía) y el endpoint diría "guardado exitosamente". |
 | Fila vieja en texto plano | Se lee igual (no se rompe el bot) y, si hay clave, **se cifra al arrancar**. Sin clave **no se borra**: se avisa. | Actualizar la app no puede dejar al bot sin token, y nadie debe perder la configuración por una variable ausente. |
-| Secreto cifrado que no se puede descifrar | Se descarta y se usa el del entorno. | Mandar el sobre a Meta daría un 401 incomprensible. |
+| Secreto cifrado que no se puede descifrar | Se descarta **en memoria** (se usa el del entorno) pero **no se borra de la fila**: al volver la clave correcta se recupera. | Mandar el sobre a Meta daría un 401 incomprensible; borrarlo destruiría la credencial por una clave mal configurada un rato. |
 
 Nunca hay que reescribir estas reglas a mano en otro lado: viven en `src/utils/configWhatsappPersistible.ts`.
 
