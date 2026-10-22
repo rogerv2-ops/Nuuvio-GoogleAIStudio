@@ -89,16 +89,28 @@ export const CampanasCobroDomainView: React.FC<CampanasCobroDomainViewProps> = (
       });
       const j: any = await r.json().catch(() => null);
       if (!r.ok || !j || !j.ok) {
-        setAvisoSaldo({ tipo: 'error', texto: (j && j.error) || 'No se pudo acreditar el saldo.' });
+        // Un 500 aqui significa que el guardado NO se hizo: se puede reintentar.
+        setAvisoSaldo({ tipo: 'error', texto: (j && j.error) || 'No se pudo acreditar el saldo. No se guardo nada: se puede reintentar.' });
         return;
       }
+      // El guardado salio bien. Si el servidor mando un aviso, es que algo
+      // posterior fallo (cache/auditoria) pero el credito YA quedo guardado:
+      // NO se reintenta, porque eso duplica los clics.
+      const aviso = j.aviso ? String(j.aviso) : '';
       // El saldo vive en la base: hay que releerlo para ver el numero nuevo.
-      await facturacionModule.recargarCache();
+      // (best-effort: si falla, el aviso del servidor ya explica por que)
+      try {
+        await facturacionModule.recargarCache();
+      } catch {
+        // ya cubierto por el aviso del servidor
+      }
       setVersion(v => v + 1);
       setAcreditando(null);
       setAvisoSaldo({
-        tipo: 'ok',
-        texto: `Se acreditaron ${j.pack.totalClics} clic(s) a ${nombreComercio}. Saldo actual: ${j.saldoTotal}.`,
+        tipo: aviso ? 'error' : 'ok',
+        texto: aviso
+          ? `Se acredito ${j.pack.totalClics} clic(s) a ${nombreComercio} (saldo actual ${j.saldoTotal}), pero: ${aviso} NO reintentes: verificá en 'Pagos y cobros'.`
+          : `Se acreditaron ${j.pack.totalClics} clic(s) a ${nombreComercio}. Saldo actual: ${j.saldoTotal}.`,
       });
     } catch (e: any) {
       setAvisoSaldo({ tipo: 'error', texto: 'No se pudo acreditar el saldo: ' + (e?.message || 'error de red') });

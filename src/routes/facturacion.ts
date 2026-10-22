@@ -163,28 +163,62 @@ export function registrarRutasFacturacion(app: any, ctx: any): void {
           compradoEn: new Date().toISOString(),
         };
 
-        await insertarClickPack(pack as any);
+        // --- GUARDAR EL CREDITO (lo critico) ---
+        // El guardado del pack es lo que importa: si falla AQUI, el credito no
+        // existe y se responde 500 (no se debito nada). Todo lo que sigue es
+        // "mejor esfuerzo": jamas se responde 500 despues de un guardado
+        // exitoso, porque eso es lo que hace que el admin reintente y duplique
+        // los clics.
+        try {
+          await insertarClickPack(pack as any);
+        } catch (err) {
+          console.error("[Facturacion] Error guardando el pack de clics:", err);
+          res.status(500).json({ ok: false, error: "No se pudo guardar el pack de clics. No se acredito nada." });
+          return;
+        }
 
-        // El cache del servidor es lo que decide si la oferta se ve. Sin
-        // recargarlo, el comercio seguiria "sin saldo" hasta el proximo
-        // arranque: el admin acreditaria y la oferta seguiria invisible.
-        await facturacionModule.recargarCache();
+        // --- MEJOR ESFUERZO: cache, auditoria y lectura del saldo ---
+        // Si algo de esto falla, el credito YA esta guardado. Se responde 200
+        // con el pack y un aviso, para que el admin no reintente a ciegas.
+        const avisos: string[] = [];
 
-        void logEventoSeguridad({
-          operadorId: actor.usuarioId,
-          operadorNombre: actor.nombre,
-          accion: "Saldo de clics acreditado",
-          entidad: "facturacion",
-          entidadId: comercioId,
-          detalles: `${clics} clic(s) por S/. ${pack.montoTotal} (pack ${pack.id})`,
+        try {
+          await facturacionModule.recargarCache();
+        } catch (e) {
+          console.warn("[Facturacion] No se pudo recargar la cache tras acreditar:", e);
+          avisos.push("El saldo quedo guardado, pero la oferta puede tardar en verse hasta el proximo arranque.");
+        }
+
+        try {
+          await logEventoSeguridad({
+            operadorId: actor.usuarioId,
+            operadorNombre: actor.nombre,
+            accion: "Saldo de clics acreditado",
+            entidad: "facturacion",
+            entidadId: comercioId,
+            detalles: `${clics} clic(s) por S/. ${pack.montoTotal} (pack ${pack.id})`,
+          });
+        } catch (e) {
+          console.warn("[Facturacion] No se pudo escribir la auditoria del credito:", e);
+          avisos.push("El credito se guardo pero el registro de auditoria no se pudo escribir.");
+        }
+
+        let saldoTotal = Number(pack.saldoClics);
+        try {
+          const packs = await listarClickPacks();
+          saldoTotal = packs
+            .filter((p: any) => p.comercioId === comercioId && p.estado === "activo")
+            .reduce((acc: number, p: any) => acc + Number(p.saldoClics || 0), 0);
+        } catch (e) {
+          console.warn("[Facturacion] No se pudo leer el saldo tras acreditar:", e);
+        }
+
+        res.json({
+          ok: true,
+          pack,
+          saldoTotal,
+          aviso: avisos.length > 0 ? avisos.join(" ") : undefined,
         });
-
-        const packs = await listarClickPacks();
-        const saldoTotal = packs
-          .filter((p: any) => p.comercioId === comercioId && p.estado === "activo")
-          .reduce((acc: number, p: any) => acc + Number(p.saldoClics || 0), 0);
-
-        res.json({ ok: true, pack, saldoTotal });
       } catch (err) {
         console.error("[Facturacion] Error acreditando saldo de clics:", err);
         res.status(500).json({ ok: false, error: "Error acreditando el saldo de clics." });
