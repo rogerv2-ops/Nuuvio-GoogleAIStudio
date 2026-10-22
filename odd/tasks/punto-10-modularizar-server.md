@@ -21,7 +21,7 @@ Branch: `feat/modular-server-g1-auth` (primer grupo) · Test runner: `$HOME/.bun
 | T1 | Documento de control + inventario | Este documento, listado de grupos | ✅ hecho | — |
 | **T2** | **G1 Autenticación y usuarios admin** | 18 endpoints + helpers de auth/sesión/scrypt/MFA → `src/routes/auth.ts` | ✅ mergeado a main (`2bd2765`) + revisión nativa aprobada + desplegado y verificado en producción | PR #14 |
 | T3 | G2 Embudo de registro (audience) | audience/* + verify-email → `src/routes/audience.ts` | ✅ cerrado (PR #18) | — |
-| T4 | G3 Motor WhatsApp/WAHA | whatsapp/* (webhook, public, logs, contacto, config, test-message, simulate-incoming) + waha/* (webhook, session/*) (~12) → `src/routes/whatsapp.ts`. ⚠️ S7 aplica | 🟡 implementado y verificado (15 endpoints movidos verbatim); PR abierto; **falta la prueba en Android + web del dueño (S7) y el OK de merge** | `0927537` |
+| T4 | G3 Motor WhatsApp/WAHA | whatsapp/* (webhook, public, logs, contacto, config, test-message, simulate-incoming) + waha/* (webhook, session/*) (~12) → `src/routes/whatsapp.ts`. ⚠️ S7 aplica | 🟡 implementado y verificado (15 endpoints movidos verbatim); PR #40 abierto; **falta la prueba en Android + web del dueño (S7) y el OK de merge** | `0927537` |
 | T5 | G4 Correos | email/* (config, logs, send-verification, test) (~5) → `src/routes/email.ts` | ⬜ pendiente | — |
 | T6 | G5 IA y medios | ai/*, gemini/*, media/* (~6) → `src/routes/media.ts` (o ai.ts + media.ts) | ⬜ pendiente | — |
 | T7 | G6 Catálogos y varios | ofertas (get, publicas, sync, activar, like), comercios, banners, version, security/logs, cache/purge, /c/:id (~15) | ⬜ pendiente | — |
