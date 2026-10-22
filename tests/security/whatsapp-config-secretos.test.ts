@@ -15,9 +15,13 @@
  *   3. Secretos "write-only": guardar con el campo vacio NO borra el secreto
  *      guardado (si no, el panel borraria el token al abrir y guardar).
  *
- * El marcador de la ultima prueba se guarda en `metaConfig.accessToken`, que
- * queda inerte mientras `modoActivo` sea "waha" (el motor no lo usa), y vive
- * solo en la base de pruebas.
+ * OJO CON EL ALCANCE: la prueba de "write-only" escribe un marcador en
+ * `metaConfig.accessToken` (inerte mientras `modoActivo` sea "waha") y NO puede
+ * restaurar el valor anterior, porque justamente ya no se puede leer. En el CI
+ * y en las corridas locales la base se recrea antes de correr, asi que el
+ * marcador se va con ella; apuntar esta suite a un servidor con datos REALES
+ * reemplazaria el token de Meta de verdad. Por eso `tests/security` se corre
+ * contra un servidor levantado para la ocasion, nunca contra produccion.
  */
 import { test, expect, describe, beforeAll } from "bun:test";
 import { servidorOnline, login, get, post, ADMIN, COMERCIO } from "./_helpers.ts";
@@ -72,17 +76,30 @@ describe.skipIf(!online || !ADMIN.email)("R1-001 - GET /api/whatsapp/config no e
     );
     expect(guardado.status).toBe(200);
 
+    // La RESPUESTA del POST tampoco puede devolverlo (antes devolvia waConfig entero).
+    const textoGuardado = await guardado.text();
+    expect(textoGuardado).not.toContain(marca);
+    expect(textoGuardado).not.toMatch(/"accessToken"\s*:\s*"[^"]+"/);
+    expect(textoGuardado).not.toMatch(/"verifyToken"\s*:\s*"[^"]+"/);
+    expect(textoGuardado).not.toMatch(/"apiKey"\s*:\s*"[^"]+"/);
+
     const trasGuardar: any = await (await get("/api/whatsapp/config", token)).json();
     expect(trasGuardar.config.metaConfig.hasAccessToken).toBe(true);
-    // Guardarlo no lo devuelve.
     expect(JSON.stringify(trasGuardar)).not.toContain(marca);
 
-    // El panel manda el campo vacio cuando el admin no lo cambia: eso NO borra.
-    const vacio = await post("/api/whatsapp/config", { metaConfig: { accessToken: "" } }, token);
+    // El panel manda los tres campos vacios cuando el admin no los cambia: eso
+    // NO borra ninguno (cada uno se conserva por su lado en el servidor).
+    const vacio = await post(
+      "/api/whatsapp/config",
+      { metaConfig: { accessToken: "", verifyToken: "" }, wahaConfig: { apiKey: "" } },
+      token
+    );
     expect(vacio.status).toBe(200);
 
     const trasVacio: any = await (await get("/api/whatsapp/config", token)).json();
-    expect(trasVacio.config.metaConfig.hasAccessToken).toBe(true);
+    expect(trasVacio.config.metaConfig.hasAccessToken).toBe(trasGuardar.config.metaConfig.hasAccessToken);
+    expect(trasVacio.config.metaConfig.hasVerifyToken).toBe(trasGuardar.config.metaConfig.hasVerifyToken);
+    expect(trasVacio.config.wahaConfig.hasApiKey).toBe(trasGuardar.config.wahaConfig.hasApiKey);
     expect(JSON.stringify(trasVacio)).not.toContain(marca);
   });
 
@@ -107,6 +124,9 @@ describe.skipIf(!online || !COMERCIO.email)("R1-001 - el rol comercio no lee la 
   });
 
   test("comercio recibe 403 (antes recibia los tokens)", async () => {
+    // Si habia credenciales y el login fallo, esto TIENE que fallar: un test
+    // que retorna sin afirmar nada pasaria sin haber probado la autorizacion.
+    expect(token).toBeTruthy();
     if (!token) return;
     const res = await get("/api/whatsapp/config", token);
     expect(res.status).toBe(403);
