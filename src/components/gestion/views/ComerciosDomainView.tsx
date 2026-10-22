@@ -232,6 +232,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
       try {
         await fetch('/api/comercios/sync', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             comercios: comerciosModule.listarComercios(),
@@ -257,6 +258,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     try {
       await fetch('/api/comercios/sync', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           comercios: comerciosModule.listarComercios(),
@@ -307,17 +309,27 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
 
     // Persistir: sin esto el comercio vive solo en memoria y se pierde al
     // recargar (es el bug que hacia que "se registrara como usuario").
+    let persistido = false;
     try {
-      await fetch('/api/comercios/sync', {
+      const r = await fetch('/api/comercios/sync', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           comercios: comerciosModule.listarComercios(),
           kanban: comerciosModule.getKanbanItems().map(k => k.kanban)
         })
       });
+      if (r.ok) {
+        persistido = true;
+      } else {
+        const j = await r.json().catch(() => null);
+        console.warn('[Comercios] sync falló:', r.status, j);
+        alert('El comercio se creó en memoria pero NO se pudo guardar en el servidor (' + (j && j.error ? j.error : r.status) + '). Revisa la consola.');
+      }
     } catch (err) {
       console.warn('[Comercios] No se pudo persistir el nuevo lead:', err);
+      alert('Error de red al guardar el comercio. Revisa la consola.');
     }
 
     setModalNuevoLeadAbierto(false);
