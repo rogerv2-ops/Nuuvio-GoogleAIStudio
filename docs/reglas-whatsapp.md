@@ -208,6 +208,23 @@ Esto también importa para el negocio: cuando existan campañas automáticas, la
 | `server.ts` | `GET /api/whatsapp/contacto` + su registro en `esRutaPublica`. |
 | `tests/security/whatsapp-contacto.test.ts` | Tests que vigilan las 4 reglas (botones de la landing). |
 | `tests/security/enlace-oferta-whatsapp.test.ts` | Tests que vigilan el enlace firmado `/c/:id`: que va directo al chat del comercio (`wa.me`), los datos ofuscados y el fail-closed del cobro. |
+| `src/utils/configWhatsappPersistible.ts` | Qué se guarda en `app_settings.whatsapp_config`: cifra los secretos antes de escribir, los descifra al cargar y nunca los deja en claro. |
+| `tests/security/whatsapp-config-secretos.test.ts` | Tests que vigilan que `GET`/`POST /api/whatsapp/config` no devuelvan los secretos (hallazgo R1-001). |
+| `tests/security/whatsapp-config-en-claro.test.ts` | Test que lee la fila de `app_settings` y falla si un secreto quedó en texto plano. |
+| `tests/security/whatsapp-config-persistible.test.ts` | Tests del serializador: cifrado con clave, no-persistencia sin clave, compatibilidad con filas viejas en claro. |
+
+## Secretos de la configuración (cifrado en reposo)
+
+Los tres secretos de WhatsApp son `metaConfig.accessToken` (`META_WA_TOKEN`), `metaConfig.verifyToken` (`META_WA_VERIFY_TOKEN`) y `wahaConfig.apiKey` (`WAHA_API_KEY`). **No pueden quedar en claro en la base.** Antes el `POST /api/whatsapp/config` hacía `saveSetting("whatsapp_config", waConfig)`, o sea `JSON.stringify` del objeto completo a `app_settings.value`: un backup, un `select` o una copia de staging entregaban tokens usables. Cerrar el `GET` no alcanzaba.
+
+| Situación | Qué pasa | Por qué |
+|---|---|---|
+| Con `VUUV_PII_KEY` | Se guardan cifrados (`enc:v1:<iv>:<tag>:<ct>`, el sobre de `src/utils/pii.ts`) y se descifran al arrancar. | Es la clave que ya protege la PII. Perderla o cambiarla hace ilegibles los secretos guardados (no se pueden recuperar). |
+| Sin `VUUV_PII_KEY` | El secreto **no se escribe**: vive en memoria y el entorno sigue siendo la fuente de verdad. | Escribirlo en claro sería reproducir el bug. La app avisa en el log al guardar. |
+| Fila vieja en texto plano | Se lee igual (no se rompe el bot) y, si hay clave, **se cifra al arrancar**. Sin clave **no se borra**: se avisa. | Actualizar la app no puede dejar al bot sin token, y nadie debe perder la configuración por una variable ausente. |
+| Secreto cifrado que no se puede descifrar | Se descarta y se usa el del entorno. | Mandar el sobre a Meta daría un 401 incomprensible. |
+
+Nunca hay que reescribir estas reglas a mano en otro lado: viven en `src/utils/configWhatsappPersistible.ts`.
 
 ## Verificación en dispositivos reales
 
