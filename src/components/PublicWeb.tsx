@@ -263,27 +263,37 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     setRegistroExitoso(res);
   };
 
-  const handleRegistrarComercioSubmit = (e: React.FormEvent) => {
+  const handleRegistrarComercioSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorComercio(null);
 
-    const res = comerciosModule.registrarComercio({
-      ruc: formMerchant.ruc,
-      nombreComercial: formMerchant.nombreComercial,
-      razonSocial: formMerchant.razonSocial || formMerchant.nombreComercial,
-      contactoNombre: formMerchant.contactoNombre,
-      telefono: formMerchant.telefono,
-      email: formMerchant.email,
-      direccion: formMerchant.direccion,
-      distrito: formMerchant.distrito,
-      categoria: formMerchant.categoria,
-      instagram: formMerchant.instagram
-    });
-
-    if (res.ok && res.comercio) {
-      setRegistroComercioExitoso(res.comercio.nombreComercial);
-    } else {
-      setErrorComercio(res.error || 'Ocurrió un error en el registro.');
+    try {
+      const r = await fetch('/api/comercios/registrar', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ruc: formMerchant.ruc,
+          nombreComercial: formMerchant.nombreComercial,
+          razonSocial: formMerchant.razonSocial || formMerchant.nombreComercial,
+          contactoNombre: formMerchant.contactoNombre,
+          telefono: formMerchant.telefono,
+          email: formMerchant.email,
+          direccion: formMerchant.direccion,
+          distrito: formMerchant.distrito,
+          categoria: formMerchant.categoria,
+          instagram: formMerchant.instagram
+        })
+      });
+      const j = await r.json().catch(() => null);
+      if (r.ok && j && j.ok && j.comercio) {
+        setRegistroComercioExitoso(j.comercio.nombreComercial);
+      } else {
+        setErrorComercio((j && j.error) || 'Ocurrió un error en el registro.');
+      }
+    } catch (err) {
+      console.warn('[PublicWeb] Error registrando comercio:', err);
+      setErrorComercio('Error de red al registrar el comercio. Intenta de nuevo.');
     }
   };
 
