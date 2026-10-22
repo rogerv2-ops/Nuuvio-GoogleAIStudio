@@ -1,7 +1,7 @@
 {
   "nota": "Baseline de errores de tipos preexistentes. Regenerar con: npm run typecheck:baseline",
-  "actualizado": "2026-10-21",
-  "total": 55,
+  "actualizado": "2026-10-22",
+  "total": 54,
   "huellas": {
     "server.ts|TS2322|Type '{ id: string; createdAt: Date; titulo: string; subtitulo: string; imagenUrl: string; enlaceUrl: string; activado: boolean; orden: number; }[]' is not assignable to type '{ id: string; titulo: string; subtitulo: string; imagenUrl: string; enlaceUrl: string; activado: boolean; orden: number; creadoEn: string; }[]'.": 1,
     "server.ts|TS2339|Property 'image' does not exist on type '{ messaging_product: string; to: any; }'.": 1,
@@ -17,7 +17,6 @@
     "server.ts|TS2339|Property 'video' does not exist on type '{ messaging_product: string; to: string; }'.": 1,
     "server.ts|TS2341|Property 'kanban' is private and only accessible within class 'ComerciosModule'.": 1,
     "server.ts|TS2403|Subsequent variable declarations must have the same type. Variable 'dispatchFiveOffers' must be of type 'any', but here has type '(user: any, distrito: any, doSend: any, cleanPhone: any, canal: any, tituloIntro: any, searchQuery: any, distritoTemporal: any) => Promise<void>'.": 1,
-    "server.ts|TS2403|Subsequent variable declarations must have the same type. Variable 'waConfig' must be of type 'any', but here has type '{ modoActivo: string; numeroTelefono: string; metaConfig: { phoneNumberId: string; wabaId: string; accessToken: string; verifyToken: string; webhookUrl: string; }; wahaConfig: { endpointUrl: string; apiKey: string; sessionName: string; webhookUrl: string; }; }'.": 1,
     "server.ts|TS2554|Expected 3 arguments, but got 1.": 1,
     "server.ts|TS2769|No overload matches this call.": 2,
     "src/components/LoginView.tsx|TS2305|Module '\"../core/security\"' has no exported member 'AuthSession'.": 1,
