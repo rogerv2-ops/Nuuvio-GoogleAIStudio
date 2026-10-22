@@ -304,19 +304,19 @@ class ComerciosModule {
     const nuevoId = `merch_${Date.now().toString().slice(-6)}`;
     const nuevoComercio: Merchant = {
       id: nuevoId,
-      ruc: datos.ruc || `10${Math.floor(100000000 + Math.random() * 900000000)}`,
+      ruc: datos.ruc?.trim() || '',
       nombreComercial: datos.nombreComercial.trim(),
-      razonSocial: datos.nombreComercial.toUpperCase() + ' S.A.C.',
-      contactoNombre: datos.contactoNombre?.trim() || 'Por asignar',
-      telefono: datos.telefono?.trim() || '+51 900 000 000',
-      email: datos.email?.trim() || `contacto@${nuevoId}.pe`,
-      direccion: `Lima, ${datos.distrito || 'Miraflores'}`,
-      distrito: datos.distrito || 'Miraflores',
+      razonSocial: '',
+      contactoNombre: datos.contactoNombre?.trim() || '',
+      telefono: datos.telefono?.trim() || '',
+      email: datos.email?.trim() || '',
+      direccion: datos.distrito ? `Lima, ${datos.distrito}` : '',
+      distrito: datos.distrito || '',
       provincia: 'Lima',
       lat: -12.1215,
       lng: -77.0289,
-      instagram: `@${datos.nombreComercial.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-      categoria: datos.categoria || 'Gastronomía y Café',
+      instagram: '',
+      categoria: datos.categoria || '',
       estado: datos.etapa === 'activo' ? 'activo' : datos.etapa === 'en_riesgo' ? 'en_riesgo' : datos.etapa === 'perdido' ? 'rechazado' : 'pendiente',
       registradoEn: new Date().toISOString()
     };

@@ -224,10 +224,23 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     });
   };
 
-  const handleAprobarComercio = (comercioId: string) => {
+  const handleAprobarComercio = async (comercioId: string) => {
     const cl = getChecklistFor(comercioId);
     const aprobado = comerciosModule.validarManualmente(comercioId, cl, 'Super Admin');
     if (aprobado) {
+      // Persistir: sin esto el estado 'activo' se pierde al recargar.
+      try {
+        await fetch('/api/comercios/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            comercios: comerciosModule.listarComercios(),
+            kanban: comerciosModule.getKanbanItems().map(k => k.kanban)
+          })
+        });
+      } catch (e) {
+        console.warn('[Comercios] No se pudo persistir la aprobacion:', e);
+      }
       setNotificacionKanban('¡Comercio aprobado exitosamente! Habilitado para publicar ofertas.');
       setTimeout(() => setNotificacionKanban(null), 3500);
     } else {
@@ -235,12 +248,24 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     }
   };
 
-  const handleRechazarComercioSubmit = (comercioId: string) => {
+  const handleRechazarComercioSubmit = async (comercioId: string) => {
     if (!motivoRechazo.trim()) {
       alert('Ingresa el motivo del rechazo.');
       return;
     }
     comerciosModule.rechazarComercio(comercioId, motivoRechazo, 'Super Admin');
+    try {
+      await fetch('/api/comercios/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comercios: comerciosModule.listarComercios(),
+          kanban: comerciosModule.getKanbanItems().map(k => k.kanban)
+        })
+      });
+    } catch (e) {
+      console.warn('[Comercios] No se pudo persistir el rechazo:', e);
+    }
     setComercioRechazarId(null);
     setMotivoRechazo('');
     setNotificacionKanban('Comercio rechazado y registrado.');
@@ -264,7 +289,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     setTimeout(() => setNotificacionKanban(null), 3500);
   };
 
-  const handleCrearNuevoLeadSubmit = (e: React.FormEvent) => {
+  const handleCrearNuevoLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoLeadForm.nombreComercial.trim()) return;
 
@@ -279,6 +304,21 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
       ruc: nuevoLeadForm.ruc,
       email: nuevoLeadForm.email
     });
+
+    // Persistir: sin esto el comercio vive solo en memoria y se pierde al
+    // recargar (es el bug que hacia que "se registrara como usuario").
+    try {
+      await fetch('/api/comercios/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comercios: comerciosModule.listarComercios(),
+          kanban: comerciosModule.getKanbanItems().map(k => k.kanban)
+        })
+      });
+    } catch (err) {
+      console.warn('[Comercios] No se pudo persistir el nuevo lead:', err);
+    }
 
     setModalNuevoLeadAbierto(false);
     setNuevoLeadForm({
