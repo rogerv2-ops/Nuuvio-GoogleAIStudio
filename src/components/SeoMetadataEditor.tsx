@@ -5,6 +5,7 @@ import {
   Info, ArrowUpRight, Smartphone, Monitor
 } from 'lucide-react';
 import { seoMetadataModule, SeoMetadata, SeoScoreResult } from '../modules/seoMetadata';
+import { confirmar } from './common/ConfirmModal';
 
 interface SeoMetadataEditorProps {
   usuarioNombre?: string;
@@ -100,13 +101,17 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
     }
   };
 
-  const handleRestaurar = () => {
-    if (window.confirm('¿Deseas restaurar todos los metadatos SEO a los valores predeterminados de fábrica?')) {
-      const rest = seoMetadataModule.restaurarPredeterminados(usuarioNombre);
-      setDatos(rest);
-      setMensajeExito('Valores de fábrica restablecidos correctamente.');
-      setTimeout(() => setMensajeExito(null), 3500);
-    }
+  const handleRestaurar = async () => {
+    const confirmado = await confirmar({
+      titulo: 'Restaurar metadatos SEO',
+      mensaje: '¿Deseas restaurar todos los metadatos SEO a los valores predeterminados de fábrica?',
+      textoConfirmar: 'Restaurar'
+    });
+    if (!confirmado) return;
+    const rest = seoMetadataModule.restaurarPredeterminados(usuarioNombre);
+    setDatos(rest);
+    setMensajeExito('Valores de fábrica restablecidos correctamente.');
+    setTimeout(() => setMensajeExito(null), 3500);
   };
 
   const handleCopiarHtml = () => {

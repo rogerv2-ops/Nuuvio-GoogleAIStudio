@@ -6,6 +6,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { WahaQrModal } from './WahaQrModal';
+import { confirmar } from './common/ConfirmModal';
 
 interface WhatsAppConfigData {
   modoActivo: 'meta' | 'waha';
@@ -215,15 +216,20 @@ export const WhatsAppConfigPanel: React.FC = () => {
 
   // Desconectar sesión WAHA
   const handleDesconectarWaha = async () => {
-    if (window.confirm('¿Deseas desconectar la sesión de WhatsApp vinculada en WAHA?')) {
-      try {
-        await fetch('/api/waha/session/logout', { method: 'POST' });
-        setWahaSessionStatus({ status: 'STOPPED', phone: null, name: null });
-        setMensajeExito('Sesión de WAHA desconectada.');
-        setTimeout(() => setMensajeExito(null), 3000);
-      } catch (e) {
-        console.error(e);
-      }
+    const confirmado = await confirmar({
+      titulo: 'Desconectar WhatsApp',
+      mensaje: '¿Deseas desconectar la sesión de WhatsApp vinculada en WAHA?',
+      textoConfirmar: 'Desconectar',
+      tono: 'aviso'
+    });
+    if (!confirmado) return;
+    try {
+      await fetch('/api/waha/session/logout', { method: 'POST' });
+      setWahaSessionStatus({ status: 'STOPPED', phone: null, name: null });
+      setMensajeExito('Sesión de WAHA desconectada.');
+      setTimeout(() => setMensajeExito(null), 3000);
+    } catch (e) {
+      console.error(e);
     }
   };
 

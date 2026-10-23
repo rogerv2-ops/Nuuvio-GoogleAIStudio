@@ -10,6 +10,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { LoginView } from './components/LoginView';
 import { BienvenidaView } from './components/BienvenidaView';
 import { UserRegistrationFunnelModal } from './components/UserRegistrationFunnelModal';
+import { ConfirmModalHost } from './components/common/ConfirmModal';
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
 import { useFondoLanding } from './hooks/useFondoLanding';
@@ -270,6 +271,9 @@ export default function App() {
           cambiarSuperficie('web');
         }}
       />
+
+      {/* Confirmacion unica para acciones destructivas: nunca la del navegador. */}
+      <ConfirmModalHost />
     </div>
   );
 }

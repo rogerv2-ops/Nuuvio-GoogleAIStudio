@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { aiService } from '../../../services/aiService';
 import { AiProvider, AiProviderId, AssistantConfig, AiCallLog } from '../../../types/ai';
+import { confirmar } from '../../common/ConfirmModal';
 
 interface ProveedoresIaViewProps {
   onNavegar?: (ruta: string) => void;
@@ -262,10 +263,14 @@ export const ProveedoresIaView: React.FC<ProveedoresIaViewProps> = () => {
   };
 
   // Eliminar modelo
-  const handleEliminarModelo = (provId: AiProviderId, modeloId: string) => {
-    if (confirm(`¿Deseas eliminar el modelo ${modeloId}?`)) {
-      aiService.eliminarModelo(provId, modeloId);
-    }
+  const handleEliminarModelo = async (provId: AiProviderId, modeloId: string) => {
+    const confirmado = await confirmar({
+      titulo: 'Eliminar modelo',
+      mensaje: `¿Deseas eliminar el modelo ${modeloId}?`,
+      textoConfirmar: 'Eliminar'
+    });
+    if (!confirmado) return;
+    aiService.eliminarModelo(provId, modeloId);
   };
 
   // Métricas de logs

@@ -13,6 +13,7 @@ import { BannersConfigView } from './BannersConfigView';
 import { coreConfig } from '../../../core/config';
 import { coreSecurity } from '../../../core/security';
 import { coreEvents } from '../../../core/events';
+import { confirmar } from '../../common/ConfirmModal';
 
 interface ConfiguracionDomainViewProps {
   subruta?: string;
@@ -740,7 +741,12 @@ export const ConfiguracionDomainView: React.FC<ConfiguracionDomainViewProps> = (
                         <button
                           type="button"
                           onClick={async () => {
-                            if (!window.confirm(`¿Eliminar la credencial de ${cred.nombre} (${cred.email})?`)) return;
+                            const confirmado = await confirmar({
+                              titulo: 'Eliminar credencial',
+                              mensaje: `¿Eliminar la credencial de ${cred.nombre} (${cred.email})?`,
+                              textoConfirmar: 'Eliminar'
+                            });
+                            if (!confirmado) return;
                             const res = await coreSecurity.eliminarCredencial(cred.usuarioId || cred.email);
                             setMensajeSeguridad({ ok: res.ok, texto: res.mensaje });
                             setTimeout(() => setMensajeSeguridad(null), 4000);

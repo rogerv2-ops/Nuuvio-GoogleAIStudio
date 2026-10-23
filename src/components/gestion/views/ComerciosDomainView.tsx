@@ -17,6 +17,7 @@ import { WhatsAppChooser } from '../../WhatsAppChooser';
 import { Merchant, KanbanStage, Offer } from '../../../types';
 import {CATEGORIAS_OFERTAS} from '../../../data/seedData';
 import { CrmVentasView } from '../../CrmVentasView';
+import { confirmar } from '../../common/ConfirmModal';
 
 interface ComerciosDomainViewProps {
   subruta?: string;
@@ -151,7 +152,12 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
   };
 
   const handleEliminarColumna = async (id: string, titulo: string) => {
-    if (!window.confirm(`¿Quitar la columna "${titulo}" del tablero?`)) return;
+    const confirmado = await confirmar({
+      titulo: 'Quitar columna',
+      mensaje: `¿Quitar la columna "${titulo}" del tablero?`,
+      textoConfirmar: 'Quitar columna'
+    });
+    if (!confirmado) return;
     const res = comerciosModule.eliminarColumnaKanban(id);
     if (!res.ok) {
       alert(res.error || 'No se pudo quitar la columna.');
@@ -266,7 +272,12 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
   };
 
   const handleEliminarComercio = async (comercioId: string, nombre: string) => {
-    if (!window.confirm(`¿Eliminar definitivamente "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    const confirmado = await confirmar({
+     titulo: 'Eliminar comercio',
+     mensaje: `¿Eliminar definitivamente "${nombre}"? Esta acción no se puede deshacer.`,
+     textoConfirmar: 'Eliminar comercio'
+   });
+   if (!confirmado) return;
     const ok = comerciosModule.eliminarComercio(comercioId, 'Super Admin');
     if (!ok) {
       alert('No se encontró el comercio.');

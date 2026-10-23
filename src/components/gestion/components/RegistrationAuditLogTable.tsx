@@ -3,6 +3,7 @@ import {
   ShieldCheck, RefreshCw, Search, CheckCircle2, AlertCircle, 
   AlertTriangle, Mail, Phone, Clock, User, FileText, Trash2, Check
 } from 'lucide-react';
+import { confirmar } from '../../common/ConfirmModal';
 
 export interface RegistrationLogItem {
   id: string;
@@ -63,7 +64,12 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
   }, [autoRefresh]);
 
   const borrarLogYRastros = async (log: RegistrationLogItem) => {
-    if (!window.confirm(`¿Eliminar al usuario (${log.email}) y borrar todos sus rastros de prueba?`)) return;
+    const confirmado = await confirmar({
+      titulo: 'Eliminar usuario y sus rastros',
+      mensaje: `¿Eliminar al usuario (${log.email}) y borrar todos sus rastros de prueba?`,
+      textoConfirmar: 'Eliminar rastros'
+    });
+    if (!confirmado) return;
     try {
       setEliminandoId(log.id);
       const res = await fetch('/api/audience/purge-user', {
@@ -87,7 +93,12 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
   };
 
   const limpiarTodosLosLogs = async () => {
-    if (!window.confirm('¿Estás seguro de vaciar todos los logs de auditoría de prueba?')) return;
+    const confirmado = await confirmar({
+      titulo: 'Vaciar auditoría',
+      mensaje: '¿Estás seguro de vaciar todos los logs de auditoría de prueba?',
+      textoConfirmar: 'Vaciar'
+    });
+    if (!confirmado) return;
     try {
       setCargando(true);
       const res = await fetch('/api/audience/clear-all-registration-logs', { method: 'POST' });
