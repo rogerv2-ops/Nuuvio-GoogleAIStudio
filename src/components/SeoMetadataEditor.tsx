@@ -5,7 +5,7 @@ import {
   Info, ArrowUpRight, Smartphone, Monitor
 } from 'lucide-react';
 import { seoMetadataModule, SeoMetadata, SeoScoreResult } from '../modules/seoMetadata';
-import { confirmar } from './common/ConfirmModal';
+import { confirmar, alerta } from './common/ConfirmModal';
 
 interface SeoMetadataEditorProps {
   usuarioNombre?: string;
@@ -86,7 +86,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
     }
   };
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     setGuardando(true);
     try {
       seoMetadataModule.guardarMetadatos(datos, usuarioNombre);
@@ -95,7 +95,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
       setTimeout(() => setMensajeExito(null), 4000);
     } catch (e) {
       console.error(e);
-      alert('Error al guardar los metadatos.');
+      await alerta({ titulo: 'Error al guardar', mensaje: 'Error al guardar los metadatos.', tono: 'error' });
     } finally {
       setGuardando(false);
     }

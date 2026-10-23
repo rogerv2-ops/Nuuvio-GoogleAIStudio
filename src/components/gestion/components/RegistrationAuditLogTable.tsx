@@ -3,7 +3,7 @@ import {
   ShieldCheck, RefreshCw, Search, CheckCircle2, AlertCircle, 
   AlertTriangle, Mail, Phone, Clock, User, FileText, Trash2, Check
 } from 'lucide-react';
-import { confirmar } from '../../common/ConfirmModal';
+import { confirmar, alerta } from '../../common/ConfirmModal';
 
 export interface RegistrationLogItem {
   id: string;
@@ -83,10 +83,10 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
         setTimeout(() => setNotificacion(null), 4000);
         cargarLogs();
       } else {
-        alert(data.error || 'Error al eliminar rastros');
+        await alerta({ titulo: 'Error al eliminar rastros', mensaje: data.error || 'Error al eliminar rastros', tono: 'error' });
       }
     } catch (err: any) {
-      alert('Error de red al intentar eliminar rastros: ' + err.message);
+      await alerta({ titulo: 'Error de red', mensaje: 'Error de red al intentar eliminar rastros: ' + err.message, tono: 'error' });
     } finally {
       setEliminandoId(null);
     }
@@ -109,7 +109,7 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
         cargarLogs();
       }
     } catch (err: any) {
-      alert('Error al limpiar logs: ' + err.message);
+      await alerta({ titulo: 'Error al limpiar logs', mensaje: 'Error al limpiar logs: ' + err.message, tono: 'error' });
     } finally {
       setCargando(false);
     }

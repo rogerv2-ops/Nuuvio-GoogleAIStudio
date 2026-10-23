@@ -6,7 +6,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { WahaQrModal } from './WahaQrModal';
-import { confirmar } from './common/ConfirmModal';
+import { confirmar, alerta } from './common/ConfirmModal';
 
 interface WhatsAppConfigData {
   modoActivo: 'meta' | 'waha';
@@ -179,7 +179,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
       }
     } catch (e) {
       console.error('Error guardando configuración:', e);
-      alert('Error guardando la configuración de WhatsApp.');
+      await alerta({ titulo: 'Error al guardar', mensaje: 'Error guardando la configuración de WhatsApp.', tono: 'error' });
     } finally {
       setGuardando(false);
     }

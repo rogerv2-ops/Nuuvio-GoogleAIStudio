@@ -38,13 +38,24 @@ export interface OpcionesConfirmacion {
   tono?: 'peligro' | 'aviso';
 }
 
-interface ConfirmacionPendiente extends OpcionesConfirmacion {
-  resolver: (valor: boolean) => void;
+export interface OpcionesAlerta {
+  /** Titulo corto. */
+  titulo: string;
+  /** Mensaje completo. */
+  mensaje: string;
+  /** Texto del boton. Por defecto "Entendido". */
+  textoBoton?: string;
+  /** 'error' (rojo) para fallos, 'aviso' (ambar) para advertencias. */
+  tono?: 'error' | 'aviso';
 }
 
-let pendiente: ConfirmacionPendiente | null = null;
+type ConfirmacionPendiente = OpcionesConfirmacion & { resolver: (v: boolean) => void; tipo: 'confirm' };
+type AlertaPendiente = OpcionesAlerta & { resolver: () => void; tipo: 'alerta' };
+type Pendiente = ConfirmacionPendiente | AlertaPendiente;
+
+let pendiente: Pendiente | null = null;
 let hostsMontados = 0;
-const oyentes = new Set<(p: ConfirmacionPendiente | null) => void>();
+const oyentes = new Set<(p: Pendiente | null) => void>();
 
 function avisarOyentes(): void {
   for (const oyente of oyentes) oyente(pendiente);
@@ -70,7 +81,17 @@ export function confirmar(opciones: OpcionesConfirmacion): Promise<boolean> {
   pendiente?.resolver(false);
 
   return new Promise<boolean>((resolver) => {
-    pendiente = { ...opciones, resolver };
+    pendiente = { tipo: 'confirm', ...opciones, resolver };
+    avisarOyentes();
+  });
+}
+
+/**
+ * Abre un aviso con un solo boton de OK. Resuelve cuando se cierra.
+ */
+export function alerta(opciones: OpcionesAlerta): Promise<void> {
+  return new Promise<void>((resolver) => {
+    pendiente = { tipo: 'alerta', ...opciones, resolver };
     avisarOyentes();
   });
 }
@@ -80,7 +101,7 @@ export function confirmar(opciones: OpcionesConfirmacion): Promise<boolean> {
  * Confirmar sin host montado no borra nada (ver `confirmar`).
  */
 export function ConfirmModalHost() {
-  const [estado, setEstado] = useState<ConfirmacionPendiente | null>(pendiente);
+  const [estado, setEstado] = useState<Pendiente | null>(pendiente);
   const refCancelar = useRef<HTMLButtonElement | null>(null);
 
   const cerrar = useCallback((valor: boolean) => {
@@ -92,7 +113,7 @@ export function ConfirmModalHost() {
 
   useEffect(() => {
     hostsMontados += 1;
-    const oyente = (p: ConfirmacionPendiente | null) => setEstado(p);
+    const oyente = (p: Pendiente | null) => setEstado(p);
     oyentes.add(oyente);
     setEstado(pendiente);
 
@@ -122,7 +143,9 @@ export function ConfirmModalHost() {
 
   if (!estado) return null;
 
-  const esPeligro = (estado.tono ?? 'peligro') === 'peligro';
+  const esPeligro = estado.tipo === 'confirm'
+    ? (estado.tono ?? 'peligro') === 'peligro'
+    : (estado.tono ?? 'error') === 'error';
 
   return (
     <div
@@ -160,22 +183,32 @@ export function ConfirmModalHost() {
         </div>
 
         <div className="flex justify-end gap-2">
+          {estado.tipo === 'confirm' && (
+            <button
+              ref={refCancelar}
+              type="button"
+              onClick={() => cerrar(false)}
+              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              {estado.textoCancelar ?? 'Cancelar'}
+            </button>
+          )}
           <button
-            ref={refCancelar}
             type="button"
-            onClick={() => cerrar(false)}
-            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-          >
-            {estado.textoCancelar ?? 'Cancelar'}
-          </button>
-          <button
-            type="button"
-            onClick={() => cerrar(true)}
+            onClick={() => {
+              if (estado.tipo === 'confirm') {
+                (estado as ConfirmacionPendiente).resolver(true);
+              } else {
+                (estado as AlertaPendiente).resolver();
+              }
+              pendiente = null;
+              avisarOyentes();
+            }}
             className={`px-4 py-2 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-              esPeligro ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'
+              (estado.tipo === 'confirm' && estado.tono === 'peligro') || (estado.tipo === 'alerta' && estado.tono === 'error') ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'
             }`}
           >
-            {estado.textoConfirmar ?? 'Confirmar'}
+            {estado.tipo === 'confirm' ? (estado as ConfirmacionPendiente).textoConfirmar ?? 'Confirmar' : (estado as AlertaPendiente).textoBoton ?? 'Entendido'}
           </button>
         </div>
       </div>
