@@ -17,7 +17,7 @@ import { WhatsAppChooser } from '../../WhatsAppChooser';
 import { Merchant, KanbanStage, Offer } from '../../../types';
 import {CATEGORIAS_OFERTAS} from '../../../data/seedData';
 import { CrmVentasView } from '../../CrmVentasView';
-import { confirmar } from '../../common/ConfirmModal';
+import { confirmar, alerta } from '../../common/ConfirmModal';
 
 interface ComerciosDomainViewProps {
   subruta?: string;
@@ -141,7 +141,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     e.preventDefault();
     const res = comerciosModule.agregarColumnaKanban(tituloNuevaColumna);
     if (!res.ok) {
-      alert(res.error || 'No se pudo agregar la columna.');
+      await alerta({ titulo: 'Error al agregar columna', mensaje: res.error || 'No se pudo agregar la columna.', tono: 'error' });
       return;
     }
     await persistirComercios();
@@ -160,7 +160,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     if (!confirmado) return;
     const res = comerciosModule.eliminarColumnaKanban(id);
     if (!res.ok) {
-      alert(res.error || 'No se pudo quitar la columna.');
+      await alerta({ titulo: 'Error al quitar columna', mensaje: res.error || 'No se pudo quitar la columna.', tono: 'error' });
       return;
     }
     await persistirComercios();
@@ -242,13 +242,13 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
       setNotificacionKanban('¡Comercio aprobado exitosamente! Habilitado para publicar ofertas.');
       setTimeout(() => setNotificacionKanban(null), 3500);
     } else {
-      alert('Debes marcar y verificar todos los ítems del checklist de validación manual.');
+      await alerta({ titulo: 'Validación pendiente', mensaje: 'Debes marcar y verificar todos los ítems del checklist de validación manual.', tono: 'aviso' });
     }
   };
 
   const handleRechazarComercioSubmit = async (comercioId: string) => {
     if (!motivoRechazo.trim()) {
-      alert('Ingresa el motivo del rechazo.');
+      await alerta({ titulo: 'Motivo faltante', mensaje: 'Ingresa el motivo del rechazo.', tono: 'aviso' });
       return;
     }
     comerciosModule.rechazarComercio(comercioId, motivoRechazo, 'Super Admin');
@@ -280,7 +280,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
    if (!confirmado) return;
     const ok = comerciosModule.eliminarComercio(comercioId, 'Super Admin');
     if (!ok) {
-      alert('No se encontró el comercio.');
+      await alerta({ titulo: 'Comercio no encontrado', mensaje: 'No se encontró el comercio.', tono: 'error' });
       return;
     }
     try {
@@ -310,7 +310,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     });
 
     if (!res.ok || !res.comercio) {
-      alert(res.error || 'No se pudo crear el lead.');
+      await alerta({ titulo: 'Error al crear lead', mensaje: res.error || 'No se pudo crear el lead.', tono: 'error' });
       return;
     }
     const nuevo = res.comercio;
@@ -333,11 +333,11 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
       } else {
         const j = await r.json().catch(() => null);
         console.warn('[Comercios] sync falló:', r.status, j);
-        alert('El comercio se creó en memoria pero NO se pudo guardar en el servidor (' + (j && j.error ? j.error : r.status) + '). Revisa la consola.');
+        await alerta({ titulo: 'Error al guardar comercio', mensaje: 'El comercio se creó en memoria pero NO se pudo guardar en el servidor (' + (j && j.error ? j.error : r.status) + '). Revisa la consola.', tono: 'error' });
       }
     } catch (err) {
       console.warn('[Comercios] No se pudo persistir el nuevo lead:', err);
-      alert('Error de red al guardar el comercio. Revisa la consola.');
+      await alerta({ titulo: 'Error de red', mensaje: 'Error de red al guardar el comercio. Revisa la consola.', tono: 'error' });
     }
 
     setModalNuevoLeadAbierto(false);
