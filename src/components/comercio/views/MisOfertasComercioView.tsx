@@ -7,6 +7,7 @@ import { Merchant, Offer } from '../../../types';
 import { ofertasModule } from '../../../modules/ofertas';
 import { getCategoryFallbackImage, handleImgError } from '../../../utils/imageFallbacks';
 import { esOfertaNueva } from '../../../utils/ofertaUtils';
+import { alerta } from '../../common/ConfirmModal';
 
 interface MisOfertasComercioViewProps {
   comercio: Merchant;
@@ -88,7 +89,7 @@ export const MisOfertasComercioView: React.FC<MisOfertasComercioViewProps> = ({
         }
       }
     } catch (e: any) {
-      alert(`Error al animar oferta: ${e.message}`);
+      await alerta({ titulo: 'Error al animar oferta', mensaje: `Error al animar oferta: ${e.message}`, tono: 'error' });
       setAnimandoOfertaId(null);
     }
   };

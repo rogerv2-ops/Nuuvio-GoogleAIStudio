@@ -6,6 +6,7 @@ import {
   Upload, Heart, MapPin, MessageCircle, Smartphone, Eye, AlertCircle, Lock,
   Video, Play, Film, Loader2
 } from 'lucide-react';
+import { alerta } from '../common/ConfirmModal';
 import { Merchant, Offer, ClickRecord, ConfirmedSale } from '../../types';
 import { comerciosModule } from '../../modules/comercios';
 import { vistaComoModule } from '../../modules/vistaComo';
@@ -150,7 +151,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
           setFormOferta(prev => ({ ...prev, imagenUrl: url }));
         } catch (err) {
           setFormOferta(prev => ({ ...prev, imagenUrl: anterior }));
-          alert('No se pudo subir la imagen al servidor, no se guardó: ' + (err instanceof Error ? err.message : err));
+          await alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir la imagen al servidor, no se guardó: ' + (err instanceof Error ? err.message : err), tono: 'error' });
         }
       }
     };
@@ -160,7 +161,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
   // Función para animar la foto de la oferta a video con Veo (9:16)
   const handleAnimarConVeo = async () => {
     if (!formOferta.imagenUrl) {
-      alert('Primero selecciona o sube una imagen para la oferta.');
+      await alerta({ titulo: 'Primero genera animación', mensaje: 'Primero selecciona o sube una imagen para la oferta.', tono: 'aviso' });
       return;
     }
 
@@ -229,7 +230,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
         }
       }
     } catch (err: any) {
-      alert(`Error al generar video con Veo: ${err.message || 'Error inesperado'}`);
+      await alerta({ titulo: 'Error al generar video', mensaje: `Error al generar video con Veo: ${err.message || 'Error inesperado'}`, tono: 'error' });
       setGenerandoVideo(false);
     }
   };
@@ -324,11 +325,11 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
     if (!comercio) return;
 
     if (errorImagen) {
-      alert(`Error en la imagen: ${errorImagen}`);
+      await alerta({ titulo: 'Error en imagen', mensaje: `Error en la imagen: ${errorImagen}`, tono: 'error' });
       return;
     }
     if (!formOferta.imagenUrl || formOferta.imagenUrl.startsWith('data:')) {
-      alert('La imagen aún se está subiendo al servidor. Espera a que termine antes de publicar.');
+      await alerta({ titulo: 'Subiendo', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine antes de publicar.', tono: 'aviso' });
       return;
     }
 
@@ -349,7 +350,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
     });
 
     if (res.ok && res.oferta) {
-      alert(`¡Oferta "${res.oferta.titulo}" enviada exitosamente! Se encuentra "En revisión" y será validada en menos de 24 horas.`);
+      await alerta({ titulo: 'Oferta enviada', mensaje: `¡Oferta "${res.oferta.titulo}" enviada exitosamente! Se encuentra "En revisión" y será validada en menos de 24 horas.`, tono: 'aviso' });
       setModalNuevaOfertaAbierto(false);
       setFormOferta({
         titulo: '',
@@ -367,7 +368,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
       setVistaPreviaModo('foto');
       navegarA('/comercio/ofertas/en-revision');
     } else {
-      alert(res.error || 'Error al crear la oferta.');
+      await alerta({ titulo: 'Error al crear oferta', mensaje: res.error || 'Error al crear la oferta.', tono: 'error' });
     }
   };
 
@@ -1158,7 +1159,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
                       type="button"
                       onClick={() => {
                         if (!formOferta.videoUrl) {
-                          alert('Primero genera la animación con el botón "Animar Imagen con Veo".');
+                          await alerta({ titulo: 'Animación faltante', mensaje: 'Primero genera la animación con el botón "Animar Imagen con Veo".', tono: 'aviso' });
                           return;
                         }
                         setVistaPreviaModo('video');
