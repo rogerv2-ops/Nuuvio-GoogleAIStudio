@@ -9,7 +9,7 @@
  * y retirar este puente.
  */
 export{getSetting,saveSetting}from"./repos/ajustes.ts";
-export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban}from"./repos/comercios.ts";
+export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,getPersistedKanbanColumns,savePersistedKanbanColumns}from"./repos/comercios.ts";
 export{getAllOffers,replaceOffers,syncOffers,getAllBanners,syncBanners}from"./repos/catalogo.ts";
 export{upsertAudienceUser,upsertAudienceUserSafe,normalizePhoneForMatching,phonesMatch,findAudienceUserByPhone,getAllAudienceUsers,migrarPiiAudiencia,normalizarEmailsAudiencia,atribuirCodigoDeCanje,seedAudienceUsersIfEmpty,checkAudienceUserUniqueness,deleteAndPurgeUser}from"./repos/audiencia.ts";
 export{insertRegistrationLog,getRecentRegistrationLogs,deleteRegistrationLog,clearAllRegistrationLogs,insertEmailLog,getRecentEmailLogs,insertChatLog,getRecentChatLogs,insertSecurityLog,getRecentSecurityLogs}from"./repos/logs.ts";

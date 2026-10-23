@@ -234,7 +234,31 @@ export interface ChatMessage {
   }[];
 }
 
-export type KanbanStage = 'prospecto' | 'contactado' | 'registrado' | 'en_validacion' | 'activo' | 'en_riesgo' | 'perdido';
+/**
+ * Etapa del pipeline CRM. Es un string libre a proposito: las columnas del
+ * Kanban son configurables (el admin agrega y quita etapas) y se persisten
+ * en app_settings.kanban_columns. Los ids de las etapas por defecto se
+ * mantienen ('activo', 'perdido', etc.) para no romper datos existentes.
+ */
+export type KanbanStage = string;
+
+export type KanbanColumnColor =
+  | 'sky' | 'indigo' | 'amber' | 'purple' | 'emerald'
+  | 'rose' | 'stone' | 'teal' | 'orange' | 'cyan';
+
+/**
+ * Columna (etapa) del Kanban editable. `rol` le dice al sistema que esa
+ * columna tiene semantica operativa: mover un comercio a la columna con
+ * rol 'activo' lo habilita para publicar ofertas, 'riesgo' lo marca en
+ * riesgo y 'perdido' lo rechaza. Las columnas sin rol son solo visuales.
+ */
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  subtitulo: string;
+  color: KanbanColumnColor;
+  rol?: 'activo' | 'riesgo' | 'perdido' | null;
+}
 
 export interface MerchantKanbanItem {
   merchantId: string;

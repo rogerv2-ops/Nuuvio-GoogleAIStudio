@@ -31,4 +31,14 @@ async function savePersistedKanban(kanbanList) {
 }
 __name(savePersistedKanban, "savePersistedKanban");
 
-export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban};
+async function getPersistedKanbanColumns() {
+  return await getSetting("kanban_columns", null);
+}
+__name(getPersistedKanbanColumns, "getPersistedKanbanColumns");
+
+async function savePersistedKanbanColumns(columns) {
+  await saveSetting("kanban_columns", columns);
+}
+__name(savePersistedKanbanColumns, "savePersistedKanbanColumns");
+
+export{getPersistedMerchants,savePersistedMerchants,getPersistedKanban,savePersistedKanban,getPersistedKanbanColumns,savePersistedKanbanColumns};

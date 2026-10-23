@@ -94,95 +94,86 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     }
   }, [subruta]);
 
-  // Etapas del Kanban
-  const KANBAN_STAGES: {
-    stage: KanbanStage;
-    title: string;
-    subtitulo: string;
-    badgeColor: string;
-    borderColor: string;
-    headerBg: string;
-    hoverBg: string;
-    dotColor: string;
-  }[] = [
-    {
-      stage: 'prospecto',
-      title: 'Prospectos',
-      subtitulo: 'Nuevos leads / prospección',
-      badgeColor: 'bg-sky-100 text-sky-800 border-sky-200',
-      borderColor: 'border-sky-300',
-      headerBg: 'bg-sky-50/80',
-      hoverBg: 'bg-sky-100/50',
-      dotColor: 'bg-sky-500'
-    },
-    {
-      stage: 'contactado',
-      title: 'Contactados',
-      subtitulo: 'Primer contacto / demo',
-      badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      borderColor: 'border-indigo-300',
-      headerBg: 'bg-indigo-50/80',
-      hoverBg: 'bg-indigo-100/50',
-      dotColor: 'bg-indigo-500'
-    },
-    {
-      stage: 'registrado',
-      title: 'Registrados',
-      subtitulo: 'Completó registro / RUC',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      borderColor: 'border-amber-300',
-      headerBg: 'bg-amber-50/80',
-      hoverBg: 'bg-amber-100/50',
-      dotColor: 'bg-amber-500'
-    },
-    {
-      stage: 'en_validacion',
-      title: 'En Validación',
-      subtitulo: 'Revisión manual / checklist',
-      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
-      borderColor: 'border-purple-300',
-      headerBg: 'bg-purple-50/80',
-      hoverBg: 'bg-purple-100/50',
-      dotColor: 'bg-purple-500'
-    },
-    {
-      stage: 'activo',
-      title: 'Activos',
-      subtitulo: 'Publicando ofertas en vivo',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      borderColor: 'border-emerald-300',
-      headerBg: 'bg-emerald-50/80',
-      hoverBg: 'bg-emerald-100/50',
-      dotColor: 'bg-emerald-500'
-    },
-    {
-      stage: 'en_riesgo',
-      title: 'En Riesgo',
-      subtitulo: 'Sin ofertas / reactivación',
-      badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
-      borderColor: 'border-rose-300',
-      headerBg: 'bg-rose-50/80',
-      hoverBg: 'bg-rose-100/50',
-      dotColor: 'bg-rose-500'
-    },
-    {
-      stage: 'perdido',
-      title: 'Perdidos',
-      subtitulo: 'Inactivos o rechazados',
-      badgeColor: 'bg-stone-200 text-stone-700 border-stone-300',
-      borderColor: 'border-stone-300',
-      headerBg: 'bg-stone-100/80',
-      hoverBg: 'bg-stone-200/50',
-      dotColor: 'bg-stone-400'
-    }
-  ];
+  // Columnas del Kanban: CONFIGURABLES (el admin agrega y quita etapas).
+  // Vienen del modulo; los colores se resuelven aca porque Tailwind exige
+  // clases estaticas (no se pueden construir en runtime).
+  const kanbanColumns = useMemo(() => comerciosModule.listarColumnasKanban(), [version]);
+  const COLORES_KANBAN: Record<string, { badgeColor: string; borderColor: string; headerBg: string; hoverBg: string; dotColor: string }> = {
+    sky: { badgeColor: 'bg-sky-100 text-sky-800 border-sky-200', borderColor: 'border-sky-300', headerBg: 'bg-sky-50/80', hoverBg: 'bg-sky-100/50', dotColor: 'bg-sky-500' },
+    indigo: { badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200', borderColor: 'border-indigo-300', headerBg: 'bg-indigo-50/80', hoverBg: 'bg-indigo-100/50', dotColor: 'bg-indigo-500' },
+    amber: { badgeColor: 'bg-amber-100 text-amber-800 border-amber-200', borderColor: 'border-amber-300', headerBg: 'bg-amber-50/80', hoverBg: 'bg-amber-100/50', dotColor: 'bg-amber-500' },
+    purple: { badgeColor: 'bg-purple-100 text-purple-800 border-purple-200', borderColor: 'border-purple-300', headerBg: 'bg-purple-50/80', hoverBg: 'bg-purple-100/50', dotColor: 'bg-purple-500' },
+    emerald: { badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200', borderColor: 'border-emerald-300', headerBg: 'bg-emerald-50/80', hoverBg: 'bg-emerald-100/50', dotColor: 'bg-emerald-500' },
+    rose: { badgeColor: 'bg-rose-100 text-rose-800 border-rose-200', borderColor: 'border-rose-300', headerBg: 'bg-rose-50/80', hoverBg: 'bg-rose-100/50', dotColor: 'bg-rose-500' },
+    stone: { badgeColor: 'bg-stone-200 text-stone-700 border-stone-300', borderColor: 'border-stone-300', headerBg: 'bg-stone-100/80', hoverBg: 'bg-stone-200/50', dotColor: 'bg-stone-400' },
+    teal: { badgeColor: 'bg-teal-100 text-teal-800 border-teal-200', borderColor: 'border-teal-300', headerBg: 'bg-teal-50/80', hoverBg: 'bg-teal-100/50', dotColor: 'bg-teal-500' },
+    orange: { badgeColor: 'bg-orange-100 text-orange-800 border-orange-200', borderColor: 'border-orange-300', headerBg: 'bg-orange-50/80', hoverBg: 'bg-orange-100/50', dotColor: 'bg-orange-500' },
+    cyan: { badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-200', borderColor: 'border-cyan-300', headerBg: 'bg-cyan-50/80', hoverBg: 'bg-cyan-100/50', dotColor: 'bg-cyan-500' }
+  };
+  const colorDeColumna = (color: string) => COLORES_KANBAN[color] || COLORES_KANBAN.stone;
 
-  const handleMoverEtapa = (merchantId: string, nuevaEtapa: KanbanStage) => {
+  // Estado del modal para agregar una columna
+  const [modalNuevaColumnaAbierto, setModalNuevaColumnaAbierto] = useState(false);
+  const [tituloNuevaColumna, setTituloNuevaColumna] = useState('');
+
+  /** Persiste comercios, kanban y columnas en el servidor (endpoint admin). */
+  const persistirComercios = async (): Promise<boolean> => {
+    try {
+      const r = await fetch('/api/comercios/sync', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comercios: comerciosModule.listarComercios(),
+          kanban: comerciosModule.getKanbanItems().map(k => k.kanban),
+          columnas: comerciosModule.listarColumnasKanban()
+        })
+      });
+      return r.ok;
+    } catch (e) {
+      console.warn('[Comercios] No se pudo persistir:', e);
+      return false;
+    }
+  };
+
+  const handleAgregarColumna = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = comerciosModule.agregarColumnaKanban(tituloNuevaColumna);
+    if (!res.ok) {
+      alert(res.error || 'No se pudo agregar la columna.');
+      return;
+    }
+    await persistirComercios();
+    setModalNuevaColumnaAbierto(false);
+    setTituloNuevaColumna('');
+    setNotificacionKanban(`Columna "${res.columna?.title}" agregada al tablero.`);
+    setTimeout(() => setNotificacionKanban(null), 3500);
+  };
+
+  const handleEliminarColumna = async (id: string, titulo: string) => {
+    if (!window.confirm(`¿Quitar la columna "${titulo}" del tablero?`)) return;
+    const res = comerciosModule.eliminarColumnaKanban(id);
+    if (!res.ok) {
+      alert(res.error || 'No se pudo quitar la columna.');
+      return;
+    }
+    await persistirComercios();
+    setNotificacionKanban(`Columna "${titulo}" quitada del tablero.`);
+    setTimeout(() => setNotificacionKanban(null), 3500);
+  };
+
+  const handleMoverEtapa = async (merchantId: string, nuevaEtapa: KanbanStage) => {
     const comercio = comerciosModule.obtenerComercio(merchantId);
     if (!comercio) return;
     comerciosModule.actualizarEtapaKanban(merchantId, nuevaEtapa);
-    const etapaConfig = KANBAN_STAGES.find(s => s.stage === nuevaEtapa);
-    setNotificacionKanban(`"${comercio.nombreComercial}" movido a ${etapaConfig?.title || nuevaEtapa}`);
+    // Sin persistir, el movimiento se pierde al recargar la pagina.
+    const guardado = await persistirComercios();
+    const etapaConfig = kanbanColumns.find(c => c.id === nuevaEtapa);
+    setNotificacionKanban(
+      guardado
+        ? `"${comercio.nombreComercial}" movido a ${etapaConfig?.title || nuevaEtapa}`
+        : `No se pudo guardar el movimiento de "${comercio.nombreComercial}".`
+    );
     setTimeout(() => setNotificacionKanban(null), 3500);
   };
 
@@ -295,7 +286,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
     e.preventDefault();
     if (!nuevoLeadForm.nombreComercial.trim()) return;
 
-    const nuevo = comerciosModule.registrarProspecto({
+    const res = comerciosModule.registrarProspecto({
       nombreComercial: nuevoLeadForm.nombreComercial,
       contactoNombre: nuevoLeadForm.contactoNombre,
       telefono: nuevoLeadForm.telefono,
@@ -306,6 +297,12 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
       ruc: nuevoLeadForm.ruc,
       email: nuevoLeadForm.email
     });
+
+    if (!res.ok || !res.comercio) {
+      alert(res.error || 'No se pudo crear el lead.');
+      return;
+    }
+    const nuevo = res.comercio;
 
     // Persistir: sin esto el comercio vive solo en memoria y se pierde al
     // recargar (es el bug que hacia que "se registrara como usuario").
@@ -553,13 +550,23 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                 </button>
               </div>
 
-              <button
-                onClick={() => setModalNuevoLeadAbierto(true)}
-                className="px-3.5 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nuevo Prospecto / Lead</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setModalNuevaColumnaAbierto(true)}
+                  title="Agregar una columna (etapa) al tablero"
+                  className="px-3.5 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nueva Columna</span>
+                </button>
+                <button
+                  onClick={() => setModalNuevoLeadAbierto(true)}
+                  className="px-3.5 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nuevo Prospecto / Lead</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -596,9 +603,9 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
             ref={kanbanScrollRef}
             className="flex gap-3 overflow-x-auto pb-4 pt-1 scrollbar-thin select-none min-h-[480px]"
           >
-            {KANBAN_STAGES.map(col => {
+            {kanbanColumns.map(col => {
               const itemsEnColumna = kanbanItems.filter(k => {
-                if (k.kanban.etapa !== col.stage) return false;
+                if (k.kanban.etapa !== col.id) return false;
                 if (distritoFiltroKanban !== 'todos' && k.comercio.distrito.toLowerCase() !== distritoFiltroKanban.toLowerCase()) return false;
                 if (busquedaKanban) {
                   const q = busquedaKanban.toLowerCase();
@@ -610,23 +617,23 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                 return true;
               });
 
-              const isOver = columnaDestinoHover === col.stage;
+              const isOver = columnaDestinoHover === col.id;
 
               return (
                 <div
-                  key={col.stage}
+                  key={col.id}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    setColumnaDestinoHover(col.stage);
+                    setColumnaDestinoHover(col.id);
                   }}
                   onDragLeave={() => {
-                    if (columnaDestinoHover === col.stage) setColumnaDestinoHover(null);
+                    if (columnaDestinoHover === col.id) setColumnaDestinoHover(null);
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
                     setColumnaDestinoHover(null);
                     if (arrastrandoId) {
-                      handleMoverEtapa(arrastrandoId, col.stage);
+                      handleMoverEtapa(arrastrandoId, col.id);
                       setArrastrandoId(null);
                     }
                   }}
@@ -635,14 +642,28 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                   }`}
                 >
                   {/* Encabezado Columna */}
-                  <div className={`p-3 rounded-t-2xl border-b flex items-center justify-between ${col.headerBg} border-stone-200/70`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${col.dotColor}`} />
-                      <span className="font-bold text-xs text-stone-900">{col.title}</span>
+                  <div className={`p-3 rounded-t-2xl border-b flex items-center justify-between ${colorDeColumna(col.color).headerBg} border-stone-200/70`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${colorDeColumna(col.color).dotColor}`} />
+                      <span className="font-bold text-xs text-stone-900 truncate" title={col.title}>{col.title}</span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700">
-                      {itemsEnColumna.length}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700">
+                        {itemsEnColumna.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleEliminarColumna(col.id, col.title);
+                        }}
+                        title={`Quitar columna "${col.title}"`}
+                        aria-label={`Quitar columna ${col.title}`}
+                        className="p-1 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Lista de Tarjetas */}
@@ -858,6 +879,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                   <th className="pb-2.5">RUC SUNAT</th>
                   <th className="pb-2.5">Distrito</th>
                   <th className="pb-2.5">Contacto</th>
+                  <th className="pb-2.5">Correo</th>
                   <th className="pb-2.5">Ofertas Activas</th>
                   <th className="pb-2.5 text-right">Ficha 360</th>
                 </tr>
@@ -878,6 +900,7 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                       <td className="py-3 font-mono text-stone-700">{c.ruc}</td>
                       <td className="py-3 text-stone-600">{c.distrito}</td>
                       <td className="py-3 text-stone-600 font-mono text-[11px]">{c.telefono}</td>
+                      <td className="py-3 text-stone-600">{c.email || '—'}</td>
                       <td className="py-3 font-bold text-emerald-800">{ofertasCount} ofertas</td>
                       <td className="py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -1031,14 +1054,14 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
                 Etapa en el Pipeline CRM:
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {KANBAN_STAGES.map(s => {
+                {kanbanColumns.map(s => {
                   const kItem = kanbanItems.find(k => k.comercio.id === comercioFicha360.id);
-                  const esActual = kItem?.kanban.etapa === s.stage;
+                  const esActual = kItem?.kanban.etapa === s.id;
                   return (
                     <button
-                      key={s.stage}
+                      key={s.id}
                       type="button"
-                      onClick={() => handleMoverEtapa(comercioFicha360.id, s.stage)}
+                      onClick={() => handleMoverEtapa(comercioFicha360.id, s.id)}
                       className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition-all border text-center ${
                         esActual
                           ? 'bg-[#1B4332] text-white border-[#1B4332]'
@@ -1135,6 +1158,59 @@ export const ComerciosDomainView: React.FC<ComerciosDomainViewProps> = ({ subrut
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* MODAL: NUEVA COLUMNA DEL KANBAN */}
+      {modalNuevaColumnaAbierto && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <form
+            onSubmit={handleAgregarColumna}
+            className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-stone-200 space-y-4"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-black text-stone-900">Nueva Columna</h3>
+                <p className="text-xs text-stone-500 mt-0.5">Agrega una etapa al final del tablero de comercios.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalNuevaColumnaAbierto(false)}
+                className="p-1 hover:bg-stone-100 rounded-lg text-stone-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Nombre de la columna *</label>
+              <input
+                type="text"
+                required
+                autoFocus
+                placeholder="Ej. En negociación"
+                value={tituloNuevaColumna}
+                onChange={(e) => setTituloNuevaColumna(e.target.value)}
+                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setModalNuevaColumnaAbierto(false)}
+                className="px-3.5 py-2 bg-stone-100 text-stone-700 text-xs font-semibold rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-xl"
+              >
+                Agregar Columna
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

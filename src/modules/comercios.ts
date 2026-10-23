@@ -4,9 +4,27 @@
  * Sin aprobación manual, ningún comercio puede publicar ofertas.
  * Incluye CRM Kanban de 7 etapas (F-OPS-02).
  */
-import { Merchant, MerchantKanbanItem, KanbanStage } from '../types';
+import { Merchant, MerchantKanbanItem, KanbanStage, KanbanColumn } from '../types';
 import { coreEvents } from '../core/events';
 import { coreSecurity } from '../core/security';
+
+/**
+ * Columnas por defecto del Kanban. Coinciden con las 7 etapas historicas
+ * (ids 'prospecto'..'perdido') para que los comercios ya guardados sigan
+ * cayendo en su columna. El admin puede agregar y quitar columnas; la
+ * configuracion se persiste en app_settings.kanban_columns.
+ */
+export const KANBAN_COLUMNAS_DEFAULT: KanbanColumn[] = [
+  { id: 'prospecto', title: 'Prospectos', subtitulo: 'Nuevos leads / prospección', color: 'sky', rol: null },
+  { id: 'contactado', title: 'Contactados', subtitulo: 'Primer contacto / demo', color: 'indigo', rol: null },
+  { id: 'registrado', title: 'Registrados', subtitulo: 'Completó registro / RUC', color: 'amber', rol: null },
+  { id: 'en_validacion', title: 'En Validación', subtitulo: 'Revisión manual / checklist', color: 'purple', rol: null },
+  { id: 'activo', title: 'Activos', subtitulo: 'Publicando ofertas en vivo', color: 'emerald', rol: 'activo' },
+  { id: 'en_riesgo', title: 'En Riesgo', subtitulo: 'Sin ofertas / reactivación', color: 'rose', rol: 'riesgo' },
+  { id: 'perdido', title: 'Perdidos', subtitulo: 'Inactivos o rechazados', color: 'stone', rol: 'perdido' }
+];
+
+const KANBAN_COLORES: KanbanColumn['color'][] = ['sky', 'indigo', 'amber', 'purple', 'emerald', 'rose', 'stone', 'teal', 'orange', 'cyan'];
 
 export interface ValidationChecklist {
   rucValido: boolean;
@@ -19,6 +37,7 @@ export interface ValidationChecklist {
 class ComerciosModule {
   private comercios: Map<string, Merchant> = new Map();
   private kanban: Map<string, MerchantKanbanItem> = new Map();
+  private kanbanColumns: KanbanColumn[] = KANBAN_COLUMNAS_DEFAULT.map(c => ({ ...c }));
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -50,6 +69,9 @@ class ComerciosModule {
         this.kanban.clear();
         kanbanArr.forEach((k: MerchantKanbanItem) => this.kanban.set(k.merchantId, k));
       }
+      if (Array.isArray(data.kanbanColumns) && data.kanbanColumns.length > 0) {
+        this.kanbanColumns = data.kanbanColumns;
+      }
       this.notificar();
     } catch (e) {
       // Silencioso: sin sesion o sin red.
@@ -74,10 +96,19 @@ class ComerciosModule {
       return { ok: false, error: 'El RUC debe tener exactamente 11 dígitos numéricos.' };
     }
 
-    // Verificar RUC duplicado
+    // RUC, correo y WhatsApp son unicos entre comercios: ningun comercio
+    // puede duplicar uno de estos tres datos (pedido del dueno, 2026-10-23).
+    const emailLimpio = (datos.email || '').trim().toLowerCase();
+    const telLimpio = this.canonTelefono(datos.telefono);
     for (const m of this.comercios.values()) {
       if (m.ruc === rucLimpio) {
         return { ok: false, error: 'Ya existe un comercio registrado con este número de RUC.' };
+      }
+      if (emailLimpio && (m.email || '').trim().toLowerCase() === emailLimpio) {
+        return { ok: false, error: 'Ya existe un comercio registrado con este correo.' };
+      }
+      if (telLimpio && this.canonTelefono(m.telefono) === telLimpio) {
+        return { ok: false, error: 'Ya existe un comercio registrado con este número de WhatsApp.' };
       }
     }
 
@@ -245,16 +276,20 @@ class ComerciosModule {
     item.actualizadoEn = new Date().toISOString();
     this.kanban.set(merchantId, item);
 
-    // Sincronizar estado operativo del comercio según etapa
+    // Sincronizar estado operativo del comercio según el rol de la columna.
+    // El rol lo define la columna configurable; si no tiene rol, se cae al
+    // comportamiento historico por id para no romper datos existentes.
+    const columnaDestino = this.kanbanColumns.find(c => c.id === etapa);
+    const rol = columnaDestino?.rol ?? (etapa === 'activo' ? 'activo' : etapa === 'en_riesgo' ? 'riesgo' : etapa === 'perdido' ? 'perdido' : null);
     const comercio = this.comercios.get(merchantId);
     if (comercio) {
-      if (etapa === 'activo' && comercio.estado !== 'activo') {
+      if (rol === 'activo' && comercio.estado !== 'activo') {
         comercio.estado = 'activo';
         comercio.validadoEn = new Date().toISOString();
         comercio.validadoPor = 'Super Admin';
-      } else if (etapa === 'en_riesgo') {
+      } else if (rol === 'riesgo') {
         comercio.estado = 'en_riesgo';
-      } else if (etapa === 'perdido') {
+      } else if (rol === 'perdido') {
         comercio.estado = 'rechazado';
       } else if ((etapa === 'en_validacion' || etapa === 'registrado') && comercio.estado === 'rechazado') {
         comercio.estado = 'pendiente';
@@ -300,7 +335,25 @@ class ComerciosModule {
     notas?: string;
     email?: string;
     ruc?: string;
-  }): Merchant {
+  }): { ok: boolean; comercio?: Merchant; error?: string } {
+    const rucLimpio = (datos.ruc || '').trim();
+    const emailLimpio = (datos.email || '').trim().toLowerCase();
+    const telLimpio = this.canonTelefono(datos.telefono);
+
+    // Misma regla que el registro publico: RUC, correo y WhatsApp son unicos
+    // entre comercios (pedido del dueno, 2026-10-23).
+    for (const m of this.comercios.values()) {
+      if (rucLimpio && m.ruc === rucLimpio) {
+        return { ok: false, error: 'Ya existe un comercio registrado con este número de RUC.' };
+      }
+      if (emailLimpio && (m.email || '').trim().toLowerCase() === emailLimpio) {
+        return { ok: false, error: 'Ya existe un comercio registrado con este correo.' };
+      }
+      if (telLimpio && this.canonTelefono(m.telefono) === telLimpio) {
+        return { ok: false, error: 'Ya existe un comercio registrado con este número de WhatsApp.' };
+      }
+    }
+
     const nuevoId = `merch_${Date.now().toString().slice(-6)}`;
     const nuevoComercio: Merchant = {
       id: nuevoId,
@@ -349,10 +402,10 @@ class ComerciosModule {
     });
 
     this.notificar();
-    return nuevoComercio;
+    return { ok: true, comercio: nuevoComercio };
   }
 
-  public cargarDeLista(comerciosLista: Merchant[], kanbanLista: MerchantKanbanItem[] = []): void {
+  public cargarDeLista(comerciosLista: Merchant[], kanbanLista: MerchantKanbanItem[] = [], columnasLista: KanbanColumn[] = []): void {
     if (Array.isArray(comerciosLista) && comerciosLista.length > 0) {
       this.comercios.clear();
       comerciosLista.forEach(m => this.comercios.set(m.id, m));
@@ -361,7 +414,82 @@ class ComerciosModule {
       this.kanban.clear();
       kanbanLista.forEach(k => this.kanban.set(k.merchantId, k));
     }
+    if (Array.isArray(columnasLista) && columnasLista.length > 0) {
+      this.kanbanColumns = columnasLista;
+    }
     this.notificar();
+  }
+
+  /** Columnas (etapas) actuales del Kanban, en orden. */
+  public listarColumnasKanban(): KanbanColumn[] {
+    return this.kanbanColumns.map(c => ({ ...c }));
+  }
+
+  /** Reemplaza la configuracion de columnas (viene del servidor al recargar). */
+  public cargarColumnasKanban(columnas: KanbanColumn[]): void {
+    if (Array.isArray(columnas) && columnas.length > 0) {
+      this.kanbanColumns = columnas;
+      this.notificar();
+    }
+  }
+
+  /** Agrega una columna al final del tablero. */
+  public agregarColumnaKanban(titulo: string): { ok: boolean; columna?: KanbanColumn; error?: string } {
+    const t = String(titulo || '').trim();
+    if (!t) return { ok: false, error: 'El título de la columna es obligatorio.' };
+    if (this.kanbanColumns.some(c => c.title.toLowerCase() === t.toLowerCase())) {
+      return { ok: false, error: `Ya existe una columna llamada "${t}".` };
+    }
+    const id = 'col_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const color = KANBAN_COLORES[this.kanbanColumns.length % KANBAN_COLORES.length];
+    const columna: KanbanColumn = { id, title: t, subtitulo: '', color, rol: null };
+    this.kanbanColumns.push(columna);
+
+    coreSecurity.registrarAuditoria({
+      operadorId: 'admin_master_01',
+      operadorNombre: 'Super Admin',
+      accion: 'Agregar columna Kanban',
+      entidad: 'kanban',
+      entidadId: id,
+      detalles: `Columna '${t}' agregada al pipeline CRM.`
+    });
+
+    this.notificar();
+    return { ok: true, columna };
+  }
+
+  /**
+   * Quita una columna. Se bloquea si todavia tiene comercios: primero hay
+   * que moverlos (decision del dueno, 2026-10-23). Nunca se borra el ultimo.
+   */
+  public eliminarColumnaKanban(id: string): { ok: boolean; error?: string } {
+    const columna = this.kanbanColumns.find(c => c.id === id);
+    if (!columna) return { ok: false, error: 'Columna no encontrada.' };
+    if (this.kanbanColumns.length <= 1) {
+      return { ok: false, error: 'Debe quedar al menos una columna en el tablero.' };
+    }
+    const ocupados = this.listarComercios().filter(m => (this.kanban.get(m.id)?.etapa || '') === id);
+    if (ocupados.length > 0) {
+      const nombres = ocupados.slice(0, 3).map(m => `"${m.nombreComercial}"`).join(', ');
+      const resto = ocupados.length > 3 ? ` y ${ocupados.length - 3} más` : '';
+      return {
+        ok: false,
+        error: `No se puede quitar "${columna.title}": todavía tiene ${ocupados.length} comercio(s) (${nombres}${resto}). Movélos a otra columna primero.`
+      };
+    }
+    this.kanbanColumns = this.kanbanColumns.filter(c => c.id !== id);
+
+    coreSecurity.registrarAuditoria({
+      operadorId: 'admin_master_01',
+      operadorNombre: 'Super Admin',
+      accion: 'Quitar columna Kanban',
+      entidad: 'kanban',
+      entidadId: id,
+      detalles: `Columna '${columna.title}' quitada del pipeline CRM.`
+    });
+
+    this.notificar();
+    return { ok: true };
   }
 
   public obtenerComercio(id: string): Merchant | undefined {
@@ -369,19 +497,21 @@ class ComerciosModule {
   }
 
   public obtenerPorTelefono(telefono: string): Merchant | undefined {
-    const canon = (t: string): string => {
-      let d = String(t || '').replace(/\D/g, '');
-      if (d.length === 11 && d.startsWith('51')) d = d.slice(2);
-      return d;
-    };
-    const telLimpio = canon(telefono);
+    const telLimpio = this.canonTelefono(telefono);
     if (!telLimpio) return undefined;
     for (const m of this.comercios.values()) {
-      if (canon(m.telefono) === telLimpio) {
+      if (this.canonTelefono(m.telefono) === telLimpio) {
         return m;
       }
     }
     return undefined;
+  }
+
+  /** Canoniza un telefono para comparar: solo digitos, sin prefijo 51. */
+  private canonTelefono(t: string | undefined | null): string {
+    let d = String(t || '').replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('51')) d = d.slice(2);
+    return d;
   }
 
   public listarComercios(): Merchant[] {
