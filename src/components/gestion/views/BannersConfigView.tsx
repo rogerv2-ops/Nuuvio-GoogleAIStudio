@@ -9,6 +9,7 @@ import {
   FONDO_LANDING_DEFAULT, normalizarColorFondo
 } from '../../../modules/banners';
 import { withResourceVersion } from '../../../utils/resourceVersion';
+import { alerta } from '../../common/ConfirmModal';
 
 export const BannersConfigView: React.FC = () => {
   const [banners, setBanners] = useState<FeedBanner[]>(() => bannersModule.listarBanners());
@@ -62,7 +63,7 @@ export const BannersConfigView: React.FC = () => {
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('La imagen no debe superar los 10 MB.');
+      await alerta({ titulo: 'Imagen grande', mensaje: 'La imagen no debe superar los 10 MB.', tono: 'aviso' });
       return;
     }
 
@@ -78,7 +79,7 @@ export const BannersConfigView: React.FC = () => {
           setLogoImagenUrl(url);
         } catch (err) {
           setLogoImagenUrl(anterior);
-          alert('No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err));
+          await alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err), tono: 'error' });
         }
       }
     };
@@ -89,7 +90,7 @@ export const BannersConfigView: React.FC = () => {
     e.preventDefault();
 
     if (logoImagenUrl.startsWith('data:')) {
-      alert('La imagen aún se está subiendo al servidor. Espera a que termine.');
+      await alerta({ titulo: 'Espera', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine.', tono: 'aviso' });
       return;
     }
 
@@ -133,7 +134,7 @@ export const BannersConfigView: React.FC = () => {
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('La imagen no debe superar los 10 MB.');
+      await alerta({ titulo: 'Imagen grande', mensaje: 'La imagen no debe superar los 10 MB.', tono: 'aviso' });
       return;
     }
 
@@ -149,7 +150,7 @@ export const BannersConfigView: React.FC = () => {
           setFormImagenUrl(url);
         } catch (err) {
           setFormImagenUrl(anterior);
-          alert('No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err));
+          await alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir la imagen al servidor: ' + (err instanceof Error ? err.message : err), tono: 'error' });
         }
       }
     };
@@ -160,11 +161,11 @@ export const BannersConfigView: React.FC = () => {
     e.preventDefault();
 
     if (!formImagenUrl.trim()) {
-      alert('Por favor ingresa la URL de la imagen o sube un archivo.');
+      await alerta({ titulo: 'Falta imagen', mensaje: 'Por favor ingresa la URL de la imagen o sube un archivo.', tono: 'aviso' });
       return;
     }
     if (formImagenUrl.startsWith('data:')) {
-      alert('La imagen aún se está subiendo al servidor. Espera a que termine.');
+      await alerta({ titulo: 'Espera', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine.', tono: 'aviso' });
       return;
     }
 
