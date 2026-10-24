@@ -51,6 +51,7 @@ import { esCategoriaCaptacion } from "../utils/categoriasCaptacion.ts";
 import { filaCsv } from "../utils/csv.ts";
 import { normalizarTextoBusqueda } from "../utils/textoBusqueda.ts";
 import { htmlLandingEmbudo } from "../utils/embudoLanding.ts";
+import { indiceCiego } from "../utils/pii.ts";
 
 // PENDIENTE copy de campaña: el texto visible del consentimiento y su
 // finalidad exacta se fijan cuando Roger apruebe el copy. La versión se
@@ -96,7 +97,15 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
       const correo = normalizarCorreo(b.correo);
       const distritoZona = corto(b.distritoZona, 120);
       const categoria = corto(b.categoria, 80);
-      const whatsapp = corto(b.whatsapp, 40) || null;
+      // WhatsApp opcional, pero si viene se valida formato (E.164 laxo:
+      // 8-15 dígitos con + opcional) y se guarda normalizado.
+      let whatsapp = corto(b.whatsapp, 40) || null;
+      if (whatsapp) {
+        whatsapp = whatsapp.replace(/[\s()-]/g, "");
+        if (!/^\+?\d{8,15}$/.test(whatsapp)) {
+          return res.status(400).json({ ok: false, error: "WhatsApp inválido: usa formato internacional, ej. +51999111222" });
+        }
+      }
       const instagram = corto(b.instagram, 80) || null;
       const tiktok = corto(b.tiktok, 80) || null;
 
@@ -124,7 +133,13 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
       // no se toca: ni consentimiento, ni estado, ni token. Una baja solo se
       // revierte con un proceso que pruebe el control del correo (pendiente,
       // no implementado mientras no haya envíos autorizados).
-      const existente = await obtenerPreregistroPorCorreoIdx(correo);
+      // Índice ciego HMAC del correo (dedupe sin guardar el correo en claro).
+      const correoIdx = indiceCiego(correo);
+      if (!correoIdx) {
+        console.error("[preregistros] VUUV_PII_KEY ausente: no se puede indexar el correo");
+        return res.status(500).json({ ok: false, error: "Error interno" });
+      }
+      const existente = await obtenerPreregistroPorCorreoIdx(correoIdx);
       if (existente) {
         const tokenInerte = crypto.randomBytes(24).toString("hex");
         return res.json({ ok: true, bajaUrl: "/api/preregistros/baja?token=" + tokenInerte });
@@ -143,7 +158,7 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
         nombreComercial,
         responsable,
         correo,
-        correoIdx: correo,
+        correoIdx,
         whatsapp,
         distritoZona,
         zonaObjetivo,
@@ -215,7 +230,7 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
       const lista = await listarPreregistros();
       // El hash del token de baja no sale de la base: no lo necesita el panel.
       const limpia = lista.map((p: any) => {
-        const { bajaTokenHash, ...resto } = p;
+        const { bajaTokenHash, correoIdx, ...resto } = p;
         return resto;
       });
       res.json({ ok: true, preregistros: limpia });
