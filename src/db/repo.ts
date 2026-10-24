@@ -19,4 +19,5 @@ export{insertSession,getSession,revokeSession,revokeSessionsByUser,listSessionsB
 export{listarClickPacks,sembrarClickPacksSiVacio,insertarClickPack,debitarClicAtomico}from"./repos/facturacion.ts";
 export{sincronizarTerritorios,listarTerritorios,activarProvincias,establecerProvinciaActiva,contarTerritorios}from"./repos/geo.ts";
 export{indiceDeActor,sanearActorIdEventos,listarOfertasVistas,insertarEvento,insertarEventos,contarEventos,listarEventos}from"./repos/eventos.ts";
+export{insertarPreregistro,buscarPreregistroPorCorreoIdx,marcarBajaPreregistroPorTokenHash,listarPreregistros}from"./repos/preregistros.ts";
 export{obtenerMetricasGlobales,obtenerSerieMensual,obtenerSerieDiaria,obtenerMetricasComercio}from"./repos/analitica.ts";
