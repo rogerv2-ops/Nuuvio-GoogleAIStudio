@@ -100,7 +100,8 @@ export function htmlLandingEmbudo(opts: OpcionesLandingEmbudo): string {
         <option value="" disabled selected>Selecciona una categoría</option>
         ${opciones}
       </select>
-      <label for="whatsapp">WhatsApp <span class="opt">(opcional)</span></label>
+      <!-- [PENDIENTE] Obligatoriedad de WhatsApp sin resolver: Roger dijo 13:07 "todos obligatorios salvo ubigeo" sin aclarar si hablaba del boletin o del alta; Instagram/TikTok SI quedaron opcionales (13:09). No convertir en decision aceptada. -->
+      <label for="whatsapp">WhatsApp <span class="opt">[PENDIENTE: ¿obligatorio u opcional?]</span></label>
       <input type="tel" id="whatsapp" name="whatsapp" maxlength="20" placeholder="+51 999 999 999" autocomplete="tel">
       <label for="instagram">Instagram <span class="opt">(opcional)</span></label>
       <input type="text" id="instagram" name="instagram" maxlength="80" placeholder="@tucomercio">
