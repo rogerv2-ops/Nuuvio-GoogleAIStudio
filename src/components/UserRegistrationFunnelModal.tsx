@@ -183,7 +183,7 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
       const waLink = emailRes.whatsappLink || '';
 
       setWhatsappLink(waLink);
-      setEstadoEnvio(!emailRes.ok ? 'fallo' : emailRes.simulated ? 'pendiente' : 'enviado');
+      setEstadoEnvio(!emailRes.ok ? 'fallo' : emailRes.despachado === false ? 'pendiente' : 'enviado');
 
       // Registrar evento de conversión completada
       coreEvents.emitir({
