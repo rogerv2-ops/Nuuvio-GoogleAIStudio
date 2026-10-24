@@ -125,7 +125,9 @@ describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
     });
     expect(r2.status).toBe(200);
     const j2: any = await r2.json();
-    expect(j2.existente).toBe(true);
+    expect(j2.ok).toBe(true);
+    expect(j2.userId).toBe(id);
+    expect(j2.existente).toBeUndefined(); // respuesta uniforme: ni pendiente/existente
     // La fila conserva los datos originales (lectura admin):
     const sesion = await login(ADMIN.email, ADMIN.password);
     const r3 = await get("/api/audience/users", sesion);
@@ -150,6 +152,8 @@ describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
     expect(j.verificationLink).toBeUndefined();
     expect(j.verificationToken).toBeUndefined();
     expect(j.log).toBeUndefined();
+    expect(j.errorDetails).toBeUndefined();
+    expect(j.mensaje).toBeUndefined(); // sin eco del correo ni estado del registro
   });
 
   test.skipIf(!online)("send-verification sin registro pendiente: respuesta genérica idéntica, sin enlace", async () => {
@@ -158,8 +162,43 @@ describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
     expect(r.status).toBe(200);
     const j: any = await r.json();
     expect(j.ok).toBe(true);
-    expect(j.simulated).toBe(true);
     expect(j.verificationLink).toBeUndefined();
+    expect(j.simulated).toBeUndefined();
+  });
+
+  test.skipIf(!online)("send-verification: respuesta UNIFORME entre pendiente real y correo inexistente (sin oraculo)", async () => {
+    const correo = `ci-r2-u-${Date.now()}@ci.yuddit.test`;
+    await altaPublica(correo);
+    const r1 = await post("/api/email/send-verification", { email: correo });
+    const r2 = await post("/api/email/send-verification", { email: `ci-r2-noexiste-${Date.now()}@ci.yuddit.test` });
+    expect(r1.status).toBe(r2.status);
+    const j1: any = await r1.json();
+    const j2: any = await r2.json();
+    expect(Object.keys(j1).sort()).toEqual(Object.keys(j2).sort());
+    expect(j1.despachado).toBe(j2.despachado);
+  });
+
+  test.skipIf(!online)("el consumo del token es ATOMICO: verificaciones concurrentes no verifican dos veces", async () => {
+    const correo = `ci-r2-race-${Date.now()}@ci.yuddit.test`;
+    await altaPublica(correo);
+    await post("/api/email/send-verification", { email: correo });
+    const sesion = await login(ADMIN.email, ADMIN.password);
+    const logsJ: any = await (await get("/api/email/logs", sesion)).json();
+    const entrada = (logsJ.logs || []).find((l: any) => l.to === correo);
+    if (!entrada) return; // sin canal en este entorno: no hay token que consumir
+    const t = entrada.verificationToken;
+    const rs = await Promise.all([1, 2, 3].map(() => get(`/api/audience/verify-token?token=${t}`)));
+    const oks = rs.filter((r) => r.status === 200).length;
+    expect(oks).toBe(1);
+  });
+
+  test.skipIf(!online)("altas concurrentes del mismo correo: exactamente una entra", async () => {
+    const correo = `ci-r2-dup-${Date.now()}@ci.yuddit.test`;
+    const rs = await Promise.all([1, 2, 3].map((i) => altaPublica(correo, `ci_yud52_dup_${Date.now()}_${i}`)));
+    const oks = rs.filter((r) => r.status === 200).length;
+    const conflictos = rs.filter((r) => r.status === 409).length;
+    expect(oks).toBe(1);
+    expect(conflictos).toBe(2);
   });
 
   test.skipIf(!online || !hayAdmin)("cadena completa: la verificación exige el token del buzón y es de UN SOLO USO", async () => {
@@ -181,8 +220,8 @@ describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
     expect(v1.status).toBe(200);
     const v1j: any = await v1.json();
     expect(v1j.ok).toBe(true);
-    expect(v1j.user.email).toBe(correo);
-    expect(v1j.user.verificationToken).toBeUndefined();
+    // Respuesta realmente minima: sin correo, telefono, distrito ni token.
+    expect(Object.keys(v1j).sort()).toEqual(["ok"]);
     // 2) un solo uso: el mismo token ya no sirve
     const v2 = await get(`/api/audience/verify-token?token=${tokenBuzon}`);
     expect(v2.status).toBe(404);
@@ -192,4 +231,42 @@ describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
     expect(j3.ok).toBe(true);
     expect(j3.verificationLink).toBeUndefined();
   }, 20000);
+});
+
+describe("YUD-52 R2 (cierre consolidado): guardas de fuente", () => {
+  const FS = require("node:fs");
+  const PATH = require("node:path");
+  const RUTAS = FS.readFileSync(PATH.resolve(import.meta.dir, "../../src/routes/audience.ts"), "utf8");
+  const REPO = FS.readFileSync(PATH.resolve(import.meta.dir, "../../src/db/repos/audiencia.ts"), "utf8");
+  const SRV = leerTextoServidor();
+
+  test("las rutas de audiencia no devuelven err.message ni PII descifrada al anonimo", () => {
+    expect(RUTAS.includes("err.message")).toBe(false);
+    expect(RUTAS.includes("descifrarCampo")).toBe(false);
+  });
+
+  test("tokens legacy sin sello de servidor no verifican (sin fallback a registradoEn)", () => {
+    const i = REPO.indexOf("function tokenVerificacionVigente");
+    const bloque = REPO.slice(i, i + 500);
+    expect(bloque.includes("registradoEn")).toBe(false);
+    expect(bloque.includes("verificationTokenCreadoEn")).toBe(true);
+    // Consumo atomico condicionado a sello de servidor:
+    const j = REPO.indexOf("consumirTokenVerificacionAudience");
+    const bloque2 = REPO.slice(j, j + 1200);
+    expect(bloque2.includes("isNotNull(audienceUsers.verificationTokenCreadoEn)")).toBe(true);
+  });
+
+  test("la defensa de duplicados no borra ni fusiona: advisory lock + re-chequeo", () => {
+    expect(REPO.includes("pg_advisory_xact_lock")).toBe(true);
+    expect(REPO.includes("{ duplicado: true }")).toBe(true);
+  });
+
+  test("send-verification: respuesta uniforme sin errorDetails ni estado del registro", () => {
+    const i = SRV.indexOf('app.post("/api/email/send-verification"');
+    const j = SRV.indexOf('app.post("/api/email/test"');
+    const bloque = SRV.slice(i, j);
+    expect(bloque.includes("errorDetails")).toBe(false);
+    expect(bloque.includes("simulated:")).toBe(false);
+    expect(bloque.includes("_ultimoFalloProveedorCorreo")).toBe(true);
+  });
 });
