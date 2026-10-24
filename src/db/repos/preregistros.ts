@@ -7,14 +7,17 @@
  * mappings con yuddit OS y recabar faltantes (RUC, sede) y consentimientos
  * propios del alta.
  *
- * El correo se guarda en claro porque ES el canal del boletín (hay que poder
- * escribirle). `correoIdx` (minúsculas, sin espacios) sostiene el dedupe.
+ * El correo se guarda CIFRADO (cifrarCampo, misma PII que audiencia) y
+ * `correoIdx` es un índice ciego HMAC (indiceCiego): la tabla no contiene
+ * correos en claro y el dedupe sigue siendo por igualdad. Solo se descifra
+ * al listar para el admin (que ya tiene sesión y ve PII por su rol).
  * El token de baja se guarda HASHEADO (sha256): una lectura de la tabla no
  * entrega enlaces de baja activos.
  */
 import { db } from "../index.ts";
 import { preregistros } from "../schema.ts";
 import { eq, desc } from "drizzle-orm";
+import { cifrarCampo, descifrarCampo } from "../../utils/pii.ts";
 
 export interface NuevoPreregistro {
   id: string;
@@ -43,7 +46,7 @@ export async function insertarPreregistro(p: NuevoPreregistro) {
     id: p.id,
     nombreComercial: p.nombreComercial,
     responsable: p.responsable,
-    correo: p.correo,
+    correo: cifrarCampo(p.correo),
     correoIdx: p.correoIdx,
     whatsapp: p.whatsapp,
     distritoZona: p.distritoZona,
@@ -80,7 +83,9 @@ export async function marcarBajaPreregistroPorTokenHash(tokenHash: string) {
 }
 
 export async function listarPreregistros() {
-  return db.select().from(preregistros).orderBy(desc(preregistros.createdAt));
+  const rows = await db.select().from(preregistros).orderBy(desc(preregistros.createdAt));
+  // El correo viaja descifrado solo hacia el admin autenticado (panel/CSV).
+  return rows.map((r) => ({ ...r, correo: descifrarCampo(r.correo) }));
 }
 
 /** Devuelve el registro completo por correoIdx (para decidir dedupe vs reactivación). */
