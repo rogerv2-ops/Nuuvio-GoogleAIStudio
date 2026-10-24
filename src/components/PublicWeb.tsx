@@ -392,24 +392,44 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
         {/* ================= HEADER IMAGE: banner.webp ================= */}
         <BannerHeader />
 
-        {/* ================= BUSCADOR ANCHO COMPLETO ================= */}
-        <div className="w-full relative">
-          <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={busquedaTexto}
-            onChange={e => setBusquedaTexto(e.target.value)}
-            placeholder="Buscar ofertas, comercios, distritos en Lima..."
-            className="w-full bg-white border border-[#EAE5D9] rounded-2xl pl-11 pr-10 py-3.5 text-xs text-[#1C1917] placeholder:text-[#A8A29E] shadow-xs focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332] outline-none transition-all"
-          />
-          {busquedaTexto && (
-            <button
-              onClick={() => setBusquedaTexto('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs p-1"
-            >
-              ✕
-            </button>
-          )}
+        {/* ================= HERO BUSCADOR (PRUEBA VISUAL REFERENCIA KLARNA) ================= */}
+        <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 overflow-hidden shadow-xs">
+          {ofertasVisibles.slice(0, 4).map((oferta, idx) => (
+            <img
+              key={oferta.id}
+              src={oferta.imagenes[0]}
+              alt={oferta.titulo}
+              loading="lazy"
+              className={`hidden sm:block absolute w-14 h-14 object-cover rounded-2xl shadow-md border border-[#EAE5D9] ${[
+                'left-3 top-6 -rotate-6',
+                'right-3 top-10 rotate-6',
+                'left-6 bottom-8 rotate-3',
+                'right-6 bottom-6 -rotate-3',
+              ][idx]}`}
+            />
+          ))}
+          <h1 className="text-center text-[26px] leading-tight font-extrabold text-black tracking-tight">
+            Ofertas cerca de ti, <span className="bg-[#C8FF3D] px-1.5 rounded-md box-decoration-clone">al instante</span>
+          </h1>
+          <p className="text-center text-xs text-[#57534E] mt-2">Solo cuando las quieres. Sin spam ni perder tiempo. En tu zona.</p>
+          <div className="w-full relative mt-6 max-w-[420px] mx-auto">
+            <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={busquedaTexto}
+              onChange={e => setBusquedaTexto(e.target.value)}
+              placeholder="Buscar ofertas, comercios, distritos en Lima..."
+              className="w-full bg-[#F5F5F4] border border-transparent rounded-full pl-11 pr-10 py-4 text-sm text-black placeholder:text-[#A8A29E] shadow-xs focus:ring-2 focus:ring-[#C8FF3D] focus:border-[#65A30D] focus:bg-white outline-none transition-all"
+            />
+            {busquedaTexto && (
+              <button
+                onClick={() => setBusquedaTexto('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs p-1"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Offers Feed List (ESTÁNDAR FORMATO 4:5 OBLIGATORIO) */}
