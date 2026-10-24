@@ -13,7 +13,6 @@ import { UserRegistrationFunnelModal } from './components/UserRegistrationFunnel
 import { ConfirmModalHost } from './components/common/ConfirmModal';
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
-import { useFondoLanding } from './hooks/useFondoLanding';
 import { useIconoSitio } from './hooks/useIconoSitio';
 import { comerciosModule } from './modules/comercios';
 import { vistaComoModule } from './modules/vistaComo';
@@ -86,7 +85,7 @@ function urlPublicaDeSuperficie(s: ActiveSurface): string {
 
 export default function App() {
   const [superficieActiva, setSuperficieActiva] = useState<ActiveSurface>(obtenerSuperficieDesdeUrl);
-  const fondoLanding = useFondoLanding();
+  // PRUEBA VISUAL: fondoLanding de app_settings no se aplica en la superficie web (config conservada, revertible).
   useIconoSitio();
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
@@ -187,7 +186,7 @@ export default function App() {
       className={`min-h-screen text-[#1C1917] font-sans antialiased selection:bg-[#D8F3DC] selection:text-[#1B4332] ${
         superficieActiva === 'web' ? '' : 'bg-[#FBF9F4]'
       }`}
-      style={superficieActiva === 'web' ? { backgroundColor: fondoLanding } : undefined}
+      style={superficieActiva === 'web' ? { backgroundColor: '#FFFFFF' } : undefined}
     >
       {/* Universal Top Navigation Header */}
       <NavigationHeader
