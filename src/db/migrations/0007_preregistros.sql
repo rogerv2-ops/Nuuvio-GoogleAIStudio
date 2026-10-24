@@ -1,0 +1,23 @@
+CREATE TABLE "preregistros" (
+	"id" text PRIMARY KEY NOT NULL,
+	"nombre_comercial" text NOT NULL,
+	"responsable" text NOT NULL,
+	"correo" text NOT NULL,
+	"correo_idx" text NOT NULL,
+	"whatsapp" text,
+	"distrito_zona" text NOT NULL,
+	"zona_objetivo" text DEFAULT 'expansion' NOT NULL,
+	"categoria" text NOT NULL,
+	"instagram" text,
+	"tiktok" text,
+	"consentimiento_email" boolean NOT NULL,
+	"consentimiento_texto_version" text NOT NULL,
+	"consentimiento_finalidad" text NOT NULL,
+	"consentimiento_ts" timestamp DEFAULT now(),
+	"estado_aviso" text DEFAULT 'pendiente' NOT NULL,
+	"baja_token_hash" text,
+	"origen" text DEFAULT 'landing-yuddit.com' NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "preregistros_correo_idx_unique" UNIQUE("correo_idx")
+);
