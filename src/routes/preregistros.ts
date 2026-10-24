@@ -50,6 +50,7 @@ import {
 import { esCategoriaCaptacion } from "../utils/categoriasCaptacion.ts";
 import { filaCsv } from "../utils/csv.ts";
 import { normalizarTextoBusqueda } from "../utils/textoBusqueda.ts";
+import { htmlLandingEmbudo } from "../utils/embudoLanding.ts";
 
 // PENDIENTE copy de campaña: el texto visible del consentimiento y su
 // finalidad exacta se fijan cuando Roger apruebe el copy. La versión se
@@ -69,6 +70,20 @@ const hashToken = (t: string): string => crypto.createHash("sha256").update(t).d
 
 export function registrarRutasPreregistros(app: any, ctx: any): void {
   const { rateLimit, requireAdmin } = ctx;
+
+  // Landing del embudo. Ruta propia (NO sustituye la raíz: ese paso requiere
+  // aprobación explícita). Marca real desde app_settings via ctx.getLandingLogo.
+  app.get("/registro-comercio", rateLimit("embudo_landing", 60, 60000), (_req: any, res: any) => {
+    const logo = typeof ctx.getLandingLogo === "function" ? ctx.getLandingLogo() : null;
+    res
+      .type("text/html")
+      .send(htmlLandingEmbudo({
+        logoUrl: logo && typeof logo.imagenUrl === "string" ? logo.imagenUrl : "",
+        logoAltoPx: logo && typeof logo.altoPx === "number" ? logo.altoPx : 40,
+      }));
+  });
+
+
 
   app.post("/api/preregistros", rateLimit("preregistros", 5, 60000), async (req: any, res: any) => {
     try {
