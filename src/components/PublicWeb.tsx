@@ -523,6 +523,512 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+import {
+  Search, MapPin, MessageCircle, ThumbsUp, ChevronRight,
+  Sparkles, CheckCircle2, Copy, Check, Filter, Info, Shield,
+  Store, UserCheck, X, ExternalLink, Lock, LogOut, AlertTriangle
+} from 'lucide-react';
+import { Offer, AudienceUser } from '../types';
+import { SelectorProvinciaDistrito } from './common/SelectorProvinciaDistrito';
+import { ofertasModule } from '../modules/ofertas';
+import { usuariosModule } from '../modules/usuarios';
+import { comerciosModule } from '../modules/comercios';
+// PRUEBA VISUAL: BannerHeader no se renderiza en la primera pantalla (banner_01 conservado en app_settings, revertible).
+import { UserRegistrationFunnelModal, limpiarYNormalizarTelefono } from './UserRegistrationFunnelModal';
+import { capturarAtribucionDeUrl } from '../utils/attribution';
+import { coreEvents } from '../core/events';
+import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
+import { esOfertaNueva } from '../utils/ofertaUtils';
+import { alPulsarBotonWhatsApp } from '../utils/whatsappNative';
+import { WhatsAppChooser } from './WhatsAppChooser';
+
+interface PublicWebProps {
+  ofertaSeleccionadaId?: string | null;
+  onLimpiarOfertaSeleccionada?: () => void;
+}
+
+export const PublicWeb: React.FC<PublicWebProps> = ({
+  ofertaSeleccionadaId,
+  onLimpiarOfertaSeleccionada
+}) => {
+  // PRUEBA VISUAL: fondo de app_settings no se aplica en la primera pantalla (config conservada).
+  const [fichaOferta, setFichaOferta] = useState<Offer | null>(null);
+  const [fotoActivaIndex, setFotoActivaIndex] = useState(0);
+
+  // Estado del usuario activo y verificación
+  const [usuarioActivo, setUsuarioActivo] = useState<AudienceUser | null>(usuariosModule.getUsuarioActivo());
+  const [modalFunnelAbierto, setModalFunnelAbierto] = useState(false);
+  const [ofertaObjetivoFunnel, setOfertaObjetivoFunnel] = useState<Offer | null>(null);
+  const [motivoFunnel, setMotivoFunnel] = useState<'whatsapp' | 'general'>('whatsapp');
+  const [toastVerificacion, setToastVerificacion] = useState<string | null>(null);
+  // Selector de app de WhatsApp (iOS y web) + error de apertura
+  const [chooserAbierto, setChooserAbierto] = useState(false);
+  const [ofertaParaWhatsApp, setOfertaParaWhatsApp] = useState<Offer | null>(null);
+  const [errorWhatsApp, setErrorWhatsApp] = useState<string | null>(null);
+
+  // Modales adicionales
+  const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
+  const [modalRegistroComercioAbierto, setModalRegistroComercioAbierto] = useState(false);
+  const [modalQuienesSomosAbierto, setModalQuienesSomosAbierto] = useState(false);
+  const [modalTerminosAbierto, setModalTerminosAbierto] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  // Conteo local optimista de "Me Gusta" (informativo, no facturable)
+  const [likesLocal, setLikesLocal] = useState<Record<string, number>>({});
+  // Catálogo público servido por el backend: solo ofertas activas con saldo (las más recientes)
+  const [ofertasPublicas, setOfertasPublicas] = useState<Offer[] | null>(null);
+
+  useEffect(() => {
+    fetch('/api/ofertas/publicas')
+      .then(r => r.json())
+      .then(d => { if (d?.ok && Array.isArray(d.ofertas)) setOfertasPublicas(d.ofertas); })
+      .catch(() => {});
+  }, []);
+
+  // Formulario de registro de usuario legacy (para fallback de modal general)
+  const [formUser, setFormUser] = useState({
+    nombre: '',
+    apellido: '',
+    telefono: '+51 9',
+    email: '',
+    edad: 28,
+    genero: 'Prefiero no decir',
+    provincia: '',
+    distrito: '',
+    categorias: ['Gastronomía y Café']
+  });
+  const [registroExitoso, setRegistroExitoso] = useState<{
+    usuario: AudienceUser;
+    codigoVinculacion: string;
+  } | null>(null);
+
+  // Formulario de registro de comercio
+  const [formMerchant, setFormMerchant] = useState({
+    ruc: '',
+    nombreComercial: '',
+    razonSocial: '',
+    contactoNombre: '',
+    telefono: '+51 9',
+    email: '',
+    direccion: '',
+    provincia: '',
+    distrito: '',
+    categoria: 'Gastronomía y Café',
+    instagram: '@'
+  });
+  const [registroComercioExitoso, setRegistroComercioExitoso] = useState<string | null>(null);
+  const [errorComercio, setErrorComercio] = useState<string | null>(null);
+
+  const [busquedaTexto, setBusquedaTexto] = useState('');
+  const [versionOfertas, setVersionOfertas] = useState(0);
+
+  // Atribución de campaña y detección automática de verificación por 1 clic
+  useEffect(() => {
+    // 1. Extraer y preservar UTMs y ref de la URL
+    capturarAtribucionDeUrl();
+
+    // 2. Suscribirse a cambios reactivos en usuariosModule y ofertasModule
+    const desuscribirUsuarios = usuariosModule.suscribir(() => {
+      setUsuarioActivo(usuariosModule.getUsuarioActivo());
+    });
+
+    const desuscribirOfertas = ofertasModule.suscribir(() => {
+      setVersionOfertas(v => v + 1);
+    });
+
+    // 3. Detección automática del token de verificación por enlace de 1 clic (?verify_token=...) o apertura de registro (?registro=true)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('registro') === 'true' || params.get('action') === 'register') {
+        setMotivoFunnel('general');
+        setModalFunnelAbierto(true);
+      }
+      const token = params.get('verify_token') || params.get('token');
+      if (token) {
+        const usuarioVerificado = usuariosModule.verificarPorToken(token);
+        if (usuarioVerificado) {
+          setUsuarioActivo(usuarioVerificado);
+          setToastVerificacion(`¡Cuenta verificada exitosamente! Bienvenido, ${usuarioVerificado.nombre}. Ya puedes pedir ofertas por WhatsApp.`);
+          
+          // Limpiar el parámetro de la URL sin recargar la página
+          params.delete('verify_token');
+          params.delete('token');
+          const nuevaSearch = params.toString() ? `?${params.toString()}` : '';
+          const nuevaUrl = window.location.pathname + nuevaSearch + window.location.hash;
+          window.history.replaceState({}, '', nuevaUrl);
+        }
+      }
+    }
+
+    return () => {
+      desuscribirUsuarios();
+      desuscribirOfertas();
+    };
+  }, []);
+
+  // Si viene una oferta seleccionada por prop, abrirla en ficha
+  useEffect(() => {
+    if (ofertaSeleccionadaId) {
+      const ofr = ofertasModule.obtenerOferta(ofertaSeleccionadaId);
+      if (ofr) {
+        setFichaOferta(ofr);
+        setFotoActivaIndex(0);
+      }
+    }
+  }, [ofertaSeleccionadaId]);
+
+  const cerrarModalOferta = () => {
+    setFichaOferta(null);
+    setFotoActivaIndex(0);
+    if (onLimpiarOfertaSeleccionada) onLimpiarOfertaSeleccionada();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (fichaOferta) cerrarModalOferta();
+        if (modalFunnelAbierto) setModalFunnelAbierto(false);
+        if (modalRegistroAbierto) setModalRegistroAbierto(false);
+        if (modalRegistroComercioAbierto) setModalRegistroComercioAbierto(false);
+        if (modalQuienesSomosAbierto) setModalQuienesSomosAbierto(false);
+        if (modalTerminosAbierto) setModalTerminosAbierto(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fichaOferta, modalFunnelAbierto, modalRegistroAbierto, modalRegistroComercioAbierto, modalQuienesSomosAbierto, modalTerminosAbierto]);
+
+  // Listar ofertas activas aprobadas ordenadas por fecha de aprobación / creación más reciente
+  const ofertas = ofertasPublicas ?? ofertasModule.listarOfertasActivas();
+
+  // Filtrado exclusivamente a través del buscador ancho completo
+  const ofertasFiltradas = ofertas.filter(o => {
+    if (!busquedaTexto.trim()) return true;
+    const q = busquedaTexto.toLowerCase();
+    return (
+      o.titulo.toLowerCase().includes(q) ||
+      o.descripcion.toLowerCase().includes(q) ||
+      o.comercioNombre.toLowerCase().includes(q) ||
+      o.distrito.toLowerCase().includes(q) ||
+      o.categoria.toLowerCase().includes(q)
+    );
+  });
+
+  // LÍMITE CANÓNICO ESTRICTO: Máximo 7 ofertas activas en el feed público (las más recientes)
+  const MAX_OFERTAS_PUBLICAS = 7;
+  const ofertasVisibles = ofertasFiltradas.slice(0, MAX_OFERTAS_PUBLICAS);
+
+  // Verificar si el usuario actual está registrado y verificado
+  const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
+
+  const handleContactarOferta = (oferta?: Offer | null) => {
+    coreEvents.emitir({
+      tipoEvento: 'click_lo_quiero_directo',
+      actorTipo: 'usuario',
+      actorId: usuarioActivo?.id || 'anonimo',
+      distrito: oferta?.distrito || 'Lima',
+      origen: 'web',
+      datos: {
+        accion: 'lo_quiero_whatsapp_directo',
+        ofertaId: oferta?.id,
+        comercioNombre: oferta?.comercioNombre
+      }
+    });
+
+    // El destino (telefono y mensaje) lo resuelve el servidor en el momento
+    // del clic: el numero no esta en el HTML ni en el bundle, y el servidor
+    // deja registrado el clic atribuido a la oferta.
+    // En Android un toque y el sistema muestra el selector de app; en iOS y web
+    // se abre la hoja de opciones (WhatsApp / WhatsApp Business / WhatsApp Web).
+    setErrorWhatsApp(null);
+    setOfertaParaWhatsApp(oferta || null);
+    alPulsarBotonWhatsApp({
+      ofertaId: oferta?.id || null,
+      onAbrirSelector: () => setChooserAbierto(true),
+      onError: (mensaje) => setErrorWhatsApp(mensaje)
+    });
+  };
+
+  // "Me Gusta": cada toque suma 1 (anónimo). Solo informativo: no factura ni toca saldos.
+  const handleMeGusta = async (oferta: Offer) => {
+    const actual = likesLocal[oferta.id] ?? oferta.likes ?? 0;
+    setLikesLocal(prev => ({ ...prev, [oferta.id]: actual + 1 }));
+    try {
+      const res = await fetch(`/api/ofertas/${oferta.id}/like`, { method: 'POST' });
+      const data = await res.json();
+      if (data?.ok && typeof data.likes === 'number') {
+        setLikesLocal(prev => ({ ...prev, [oferta.id]: data.likes }));
+      }
+    } catch {
+      setLikesLocal(prev => ({ ...prev, [oferta.id]: actual }));
+    }
+  };
+
+  const handleRegistrarUsuarioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formUser.nombre || !formUser.email || !formUser.telefono) {
+      alert('Por favor completa todos los campos requeridos.');
+      return;
+    }
+
+    const telFinal = limpiarYNormalizarTelefono(formUser.telefono, '+51');
+
+    const res = await usuariosModule.registrarUsuarioAsync({
+      nombre: formUser.nombre,
+      apellido: formUser.apellido,
+      telefono: telFinal,
+      email: formUser.email,
+      edad: Number(formUser.edad),
+      genero: formUser.genero,
+      distrito: formUser.distrito,
+      categoriasInteres: formUser.categorias
+    });
+
+    setRegistroExitoso(res);
+  };
+
+  const handleRegistrarComercioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorComercio(null);
+
+    try {
+      const r = await fetch('/api/comercios/registrar', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ruc: formMerchant.ruc,
+          nombreComercial: formMerchant.nombreComercial,
+          razonSocial: formMerchant.razonSocial || formMerchant.nombreComercial,
+          contactoNombre: formMerchant.contactoNombre,
+          telefono: formMerchant.telefono,
+          email: formMerchant.email,
+          direccion: formMerchant.direccion,
+          distrito: formMerchant.distrito,
+          categoria: formMerchant.categoria,
+          instagram: formMerchant.instagram
+        })
+      });
+      const j = await r.json().catch(() => null);
+      if (r.ok && j && j.ok && j.comercio) {
+        setRegistroComercioExitoso(j.comercio.nombreComercial);
+      } else {
+        setErrorComercio((j && j.error) || 'Ocurrió un error en el registro.');
+      }
+    } catch (err) {
+      console.warn('[PublicWeb] Error registrando comercio:', err);
+      setErrorComercio('Error de red al registrar el comercio. Intenta de nuevo.');
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen text-[#1C1917] py-4 px-3 sm:px-4"
+      // PRUEBA VISUAL: identidad blanco/negro/neon en la primera pantalla; el color configurado (fondo) se conserva en app_settings.
+      style={{ backgroundColor: '#FFFFFF' }}
+    >
+      {/* Responsive layout - Vista Mobile Estricta max-w-[640px] */}
+      <div className="w-full max-w-[640px] mx-auto space-y-4">
+        {/* Toast de Verificación de Cuenta por 1 Clic */}
+        {toastVerificacion && (
+          <div className="bg-[#1B4332] text-white p-4 rounded-2xl shadow-lg border border-emerald-500/40 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-xs">{toastVerificacion}</p>
+                <p className="text-[11px] text-emerald-200 mt-0.5">
+                  Los botones de WhatsApp ya están habilitados.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setToastVerificacion(null)}
+              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              title="Cerrar notificación"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Error al abrir WhatsApp (por ejemplo, si la peticion al servidor fallo) */}
+        {errorWhatsApp && (
+          <div className="bg-red-50 text-red-800 p-3.5 rounded-2xl border border-red-200 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-semibold leading-snug">{errorWhatsApp}</p>
+            </div>
+            <button
+              onClick={() => setErrorWhatsApp(null)}
+              className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-100"
+              title="Cerrar aviso"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Quick User Actions Bar */}
+        <div className="flex items-center justify-between px-1">
+          <div className="text-xs text-stone-500 font-medium truncate pr-2">
+            {estaVerificado ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Hola, {usuarioActivo?.nombre} (Verificado)</span>
+              </span>
+            ) : (
+              <span>Ofertas locales verificadas en Lima</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {estaVerificado ? (
+              <button
+                onClick={() => {
+                  usuariosModule.setUsuarioActivo(null);
+                  setUsuarioActivo(null);
+                }}
+                className="px-3 py-1.5 text-xs text-stone-600 hover:text-red-600 font-semibold bg-white border border-[#EAE5D9] rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-1"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Salir</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleContactarOferta(null)}
+                className="px-3.5 py-1.5 bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title="Pedir ofertas directamente por WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                <span>Pedir por WhatsApp</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setModalRegistroComercioAbierto(true)}
+              className="px-3 py-1.5 text-xs text-[#57534E] hover:text-[#0F172A] font-semibold bg-white border border-[#EAE5D9] rounded-xl shadow-2xs hover:bg-stone-50 transition-colors"
+            >
+              Unir mi Comercio
+            </button>
+          </div>
+        </div>
+
+        {/* ================= HERO BUSCADOR (PRUEBA VISUAL: REFERENCIAS KLARNA + DAYDREAM) ================= */}
+        <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 shadow-xs">
+          <h1 className="text-center text-[26px] leading-tight font-extrabold text-black tracking-tight">
+            Ofertas cerca de ti, <span className="bg-[#C8FF3D] px-1.5 rounded-md box-decoration-clone">al instante</span>
+          </h1>
+          <p className="text-center text-xs text-[#57534E] mt-2">Solo cuando las quieres. Sin spam ni perder tiempo. En tu zona.</p>
+          <div className="w-full relative mt-6 max-w-[420px] mx-auto">
+            <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={busquedaTexto}
+              onChange={e => setBusquedaTexto(e.target.value)}
+              placeholder="Buscar ofertas, comercios, distritos en Lima..."
+              className="w-full bg-[#F5F5F4] border border-transparent rounded-full pl-11 pr-10 py-4 text-sm text-black placeholder:text-[#A8A29E] shadow-xs focus:ring-2 focus:ring-[#C8FF3D] focus:border-[#65A30D] focus:bg-white outline-none transition-all"
+            />
+            {busquedaTexto && (
+              <button
+                onClick={() => setBusquedaTexto('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs p-1"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Offers Feed List (ESTÁNDAR FORMATO 4:5 OBLIGATORIO) */}
+        <div className="space-y-6">
+          {ofertasVisibles.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 border border-[#EAE5D9] text-center space-y-2">
+              <p className="font-semibold text-sm text-[#1C1917]">No encontramos ofertas para "{busquedaTexto}"</p>
+              <p className="text-xs text-[#78716C]">
+                Prueba buscando otro término, plato o distrito (ej. ceviche, café, Miraflores, Barranco).
+              </p>
+              <button
+                onClick={() => setBusquedaTexto('')}
+                className="mt-2 text-xs font-semibold text-[#1B4332] hover:underline"
+              >
+                Limpiar búsqueda y ver todas
+              </button>
+            </div>
+          ) : (
+            <>
+              {ofertasVisibles.map(oferta => {
+                const descuentoPct = Math.round(((oferta.precioNormal - oferta.precioOferta) / oferta.precioNormal) * 100);
+                return (
+                  <article
+                    key={oferta.id}
+                    className="bg-white rounded-[20px] overflow-hidden border border-[#EAE5D9] shadow-sm hover:shadow-md transition-all group"
+                  >
+                    {/* FOTO EN FORMATO 1:1 CUADRADO (igual que la tarjeta generada 800x800) */}
+                    <div 
+                      onClick={() => {
+                        setFichaOferta(oferta);
+                        setFotoActivaIndex(0);
+                      }}
+                      className="relative aspect-square w-full bg-stone-200 cursor-pointer overflow-hidden rounded-t-[20px]"
+                    >
+                      {oferta.videoUrl ? (
+                        <div className="relative w-full h-full">
+                          <video
+                            src={oferta.videoUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover rounded-t-[20px]"
+                          />
+                          <div className="absolute top-12 left-3.5 z-10">
+                            <span className="bg-black/80 backdrop-blur-xs text-white text-[9px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase flex items-center gap-1 border border-white/20 shadow-md">
+                              <span>🎬</span> Video Veo
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={oferta.imagenes[0]}
+                          alt={oferta.titulo}
+                          className="w-full h-full object-cover rounded-t-[20px] group-hover:scale-102 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            handleImgError(e, getCategoryFallbackImage(oferta.categoria, oferta.titulo));
+                          }}
+                        />
+                      )}
+
+                      {/* Top Left Badges: NUEVO, EXPIRA EN & BOOSTED */}
+                      <div className="absolute top-3.5 left-3.5 flex flex-wrap items-center gap-1.5 z-10">
+                        {esOfertaNueva(oferta.creadaEn) && (
+                          <span className="bg-emerald-600 text-white text-[10px] font-black tracking-wide px-2.5 py-1 rounded-full uppercase flex items-center gap-1 shadow-md border border-emerald-400/80 animate-in fade-in duration-200">
+                            <Sparkles className="w-2.5 h-2.5 text-emerald-200" />
+                            Nuevo
+                          </span>
+                        )}
+                        <span className="bg-[#B91C1C] text-white text-[10px] font-black tracking-wide px-2.5 py-1 rounded-full uppercase shadow-xs">
+                          Expira en 2h 55m
+                        </span>
+                        <span className="bg-[#E0F2FE] text-[#0369A1] text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase flex items-center gap-1 shadow-xs border border-[#BAE6FD]">
+                          <span>⚡</span> Boosted
+                        </span>
+                      </div>
+
+                      {/* Top Right Orange Price Tag */}
+                      <div className="absolute top-3.5 right-3.5 bg-[#FF5722] text-white px-3.5 py-1.5 rounded-2xl shadow-md text-right z-10 leading-none">
+                        <span className="text-[10px] text-white/80 line-through font-semibold block mb-0.5">
+                          S/ {oferta.precioNormal}
+                        </span>
+                        <span className="text-base font-black tracking-tight block">
+                          S/ {oferta.precioOferta}
+                        </span>
+                      </div>
+
+                      {/* Me Gusta (informativo): cada toque suma 1, no factura */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleMeGusta(oferta);
                         }}
                         className="absolute top-16 right-3.5 flex items-center gap-1.5 rounded-full bg-[#1B4332] text-white px-3 h-9 shadow-md hover:bg-[#2D6A4F] transition-colors z-10"
