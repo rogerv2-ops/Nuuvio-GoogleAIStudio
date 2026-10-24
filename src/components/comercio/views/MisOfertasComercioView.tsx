@@ -89,7 +89,7 @@ export const MisOfertasComercioView: React.FC<MisOfertasComercioViewProps> = ({
         }
       }
     } catch (e: any) {
-      await alerta({ titulo: 'Error al animar oferta', mensaje: `Error al animar oferta: ${e.message}`, tono: 'error' });
+      alerta({ titulo: 'Error al animar oferta', mensaje: `Error al animar oferta: ${e.message}`, tono: 'error' });
       setAnimandoOfertaId(null);
     }
   };

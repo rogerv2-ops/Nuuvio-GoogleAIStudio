@@ -179,7 +179,7 @@ export const WhatsAppConfigPanel: React.FC = () => {
       }
     } catch (e) {
       console.error('Error guardando configuración:', e);
-      await alerta({ titulo: 'Error al guardar', mensaje: 'Error guardando la configuración de WhatsApp.', tono: 'error' });
+      alerta({ titulo: 'Error al guardar', mensaje: 'Error guardando la configuración de WhatsApp.', tono: 'error' });
     } finally {
       setGuardando(false);
     }

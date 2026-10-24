@@ -95,7 +95,7 @@ export const SeoMetadataEditor: React.FC<SeoMetadataEditorProps> = ({
       setTimeout(() => setMensajeExito(null), 4000);
     } catch (e) {
       console.error(e);
-      await alerta({ titulo: 'Error al guardar', mensaje: 'Error al guardar los metadatos.', tono: 'error' });
+      alerta({ titulo: 'Error al guardar', mensaje: 'Error al guardar los metadatos.', tono: 'error' });
     } finally {
       setGuardando(false);
     }

@@ -83,10 +83,10 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
         setTimeout(() => setNotificacion(null), 4000);
         cargarLogs();
       } else {
-        await alerta({ titulo: 'Error al eliminar rastros', mensaje: data.error || 'Error al eliminar rastros', tono: 'error' });
+        alerta({ titulo: 'Error al eliminar rastros', mensaje: data.error || 'Error al eliminar rastros', tono: 'error' });
       }
     } catch (err: any) {
-      await alerta({ titulo: 'Error de red', mensaje: 'Error de red al intentar eliminar rastros: ' + err.message, tono: 'error' });
+      alerta({ titulo: 'Error de red', mensaje: 'Error de red al intentar eliminar rastros: ' + err.message, tono: 'error' });
     } finally {
       setEliminandoId(null);
     }
@@ -109,7 +109,7 @@ export const RegistrationAuditLogTable: React.FC<RegistrationAuditLogTableProps>
         cargarLogs();
       }
     } catch (err: any) {
-      await alerta({ titulo: 'Error al limpiar logs', mensaje: 'Error al limpiar logs: ' + err.message, tono: 'error' });
+      alerta({ titulo: 'Error al limpiar logs', mensaje: 'Error al limpiar logs: ' + err.message, tono: 'error' });
     } finally {
       setCargando(false);
     }

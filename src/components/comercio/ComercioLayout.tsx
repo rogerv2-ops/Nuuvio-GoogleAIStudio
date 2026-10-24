@@ -151,7 +151,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
           setFormOferta(prev => ({ ...prev, imagenUrl: url }));
         } catch (err) {
           setFormOferta(prev => ({ ...prev, imagenUrl: anterior }));
-          await alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir la imagen al servidor, no se guardó: ' + (err instanceof Error ? err.message : err), tono: 'error' });
+          alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir la imagen al servidor, no se guardó: ' + (err instanceof Error ? err.message : err), tono: 'error' });
         }
       }
     };
@@ -161,7 +161,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
   // Función para animar la foto de la oferta a video con Veo (9:16)
   const handleAnimarConVeo = async () => {
     if (!formOferta.imagenUrl) {
-      await alerta({ titulo: 'Primero genera animación', mensaje: 'Primero selecciona o sube una imagen para la oferta.', tono: 'aviso' });
+      alerta({ titulo: 'Primero genera animación', mensaje: 'Primero selecciona o sube una imagen para la oferta.', tono: 'aviso' });
       return;
     }
 
@@ -230,7 +230,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
         }
       }
     } catch (err: any) {
-      await alerta({ titulo: 'Error al generar video', mensaje: `Error al generar video con Veo: ${err.message || 'Error inesperado'}`, tono: 'error' });
+      alerta({ titulo: 'Error al generar video', mensaje: `Error al generar video con Veo: ${err.message || 'Error inesperado'}`, tono: 'error' });
       setGenerandoVideo(false);
     }
   };
@@ -325,11 +325,11 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
     if (!comercio) return;
 
     if (errorImagen) {
-      await alerta({ titulo: 'Error en imagen', mensaje: `Error en la imagen: ${errorImagen}`, tono: 'error' });
+      alerta({ titulo: 'Error en imagen', mensaje: `Error en la imagen: ${errorImagen}`, tono: 'error' });
       return;
     }
     if (!formOferta.imagenUrl || formOferta.imagenUrl.startsWith('data:')) {
-      await alerta({ titulo: 'Subiendo', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine antes de publicar.', tono: 'aviso' });
+      alerta({ titulo: 'Subiendo', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine antes de publicar.', tono: 'aviso' });
       return;
     }
 
@@ -350,7 +350,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
     });
 
     if (res.ok && res.oferta) {
-      await alerta({ titulo: 'Oferta enviada', mensaje: `¡Oferta "${res.oferta.titulo}" enviada exitosamente! Se encuentra "En revisión" y será validada en menos de 24 horas.`, tono: 'aviso' });
+      alerta({ titulo: 'Oferta enviada', mensaje: `¡Oferta "${res.oferta.titulo}" enviada exitosamente! Se encuentra "En revisión" y será validada en menos de 24 horas.`, tono: 'aviso' });
       setModalNuevaOfertaAbierto(false);
       setFormOferta({
         titulo: '',
@@ -368,7 +368,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
       setVistaPreviaModo('foto');
       navegarA('/comercio/ofertas/en-revision');
     } else {
-      await alerta({ titulo: 'Error al crear oferta', mensaje: res.error || 'Error al crear la oferta.', tono: 'error' });
+      alerta({ titulo: 'Error al crear oferta', mensaje: res.error || 'Error al crear la oferta.', tono: 'error' });
     }
   };
 
@@ -1159,7 +1159,7 @@ export const ComercioLayout: React.FC<ComercioLayoutProps> = ({ onVolverAWeb, en
                       type="button"
                       onClick={() => {
                         if (!formOferta.videoUrl) {
-                          await alerta({ titulo: 'Animación faltante', mensaje: 'Primero genera la animación con el botón "Animar Imagen con Veo".', tono: 'aviso' });
+                          alerta({ titulo: 'Animación faltante', mensaje: 'Primero genera la animación con el botón "Animar Imagen con Veo".', tono: 'aviso' });
                           return;
                         }
                         setVistaPreviaModo('video');

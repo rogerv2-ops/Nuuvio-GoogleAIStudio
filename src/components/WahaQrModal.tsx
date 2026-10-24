@@ -3,7 +3,7 @@ import {
   X, QrCode, RefreshCw, CheckCircle2, AlertCircle, Smartphone, 
   ShieldCheck, LogOut, Sparkles, KeyRound, Copy, Check, Info, ArrowRight
 } from 'lucide-react';
-import { alerta } from '../common/ConfirmModal';
+import { alerta } from './common/ConfirmModal';
 
 interface WahaQrModalProps {
   isOpen: boolean;
@@ -109,10 +109,10 @@ export const WahaQrModal: React.FC<WahaQrModalProps> = ({
       if (data.ok && data.pairingCode) {
         setCodigoGenerado(data.pairingCode);
       } else {
-        await alerta({ titulo: 'Error al generar código', mensaje: data.error || 'No se pudo generar el código de vinculación.', tono: 'error' });
+        alerta({ titulo: 'Error al generar código', mensaje: data.error || 'No se pudo generar el código de vinculación.', tono: 'error' });
       }
     } catch (e) {
-      await alerta({ titulo: 'Error al conectar', mensaje: 'Error al conectar con el servidor.', tono: 'error' });
+      alerta({ titulo: 'Error al conectar', mensaje: 'Error al conectar con el servidor.', tono: 'error' });
     } finally {
       setGenerandoCodigo(false);
     }
