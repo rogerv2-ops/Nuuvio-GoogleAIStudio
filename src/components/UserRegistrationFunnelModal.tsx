@@ -90,11 +90,11 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
 
   // Resultado
   const [usuarioRegistrado, setUsuarioRegistrado] = useState<AudienceUser | null>(null);
-  const [verificationLink, setVerificationLink] = useState<string>('');
   const [whatsappLink, setWhatsappLink] = useState<string>('');
-  const [verificationToken, setVerificationToken] = useState<string>('');
-  const [esSimulado, setEsSimulado] = useState(false);
-  const [copiadoLink, setCopiadoLink] = useState(false);
+  // YUD-52 R2 (cierre): la verificación viaja solo por correo. Sin enlaces
+  // ni tokens en el cliente y sin "simulación" que verifique de verdad:
+  // si el envío no está configurado, el estado mostrado es PENDIENTE.
+  const [estadoEnvio, setEstadoEnvio] = useState<'enviado' | 'pendiente' | 'fallo'>('pendiente');
 
   useEffect(() => {
     if (isOpen) {
@@ -172,23 +172,18 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
       });
 
       setUsuarioRegistrado(regRes.usuario);
-      setVerificationToken(regRes.verificationToken);
 
-      // Enviar correo real (o en simulación dev si no hay SMTP configurado)
+      // Despacho del correo de verificación (el enlace viaja SOLO por correo).
       const emailRes = await emailService.enviarCorreoVerificacion({
         email: regRes.usuario.email,
-        nombre: regRes.usuario.nombre,
-        verificationToken: regRes.verificationToken
+        nombre: regRes.usuario.nombre
       });
 
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-      const vLink = emailRes.verificationLink || `${currentOrigin}/bienvenida?verify_token=${regRes.verificationToken}`;
       // Enlace nativo directo (whatsapp://send) que devuelve el servidor; sin pagina intermedia.
       const waLink = emailRes.whatsappLink || '';
 
-      setVerificationLink(vLink);
       setWhatsappLink(waLink);
-      setEsSimulado(!!emailRes.simulated);
+      setEstadoEnvio(!emailRes.ok ? 'fallo' : emailRes.simulated ? 'pendiente' : 'enviado');
 
       // Registrar evento de conversión completada
       coreEvents.emitir({
@@ -213,22 +208,6 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
     } finally {
       setCargando(false);
     }
-  };
-
-  const handleSimularClickVerificacion = () => {
-    if (!verificationToken) return;
-    const verifiedUser = usuariosModule.verificarPorToken(verificationToken);
-    if (verifiedUser) {
-      onSuccess(verifiedUser);
-      onClose();
-    }
-  };
-
-  const handleCopiarEnlace = () => {
-    if (!verificationLink) return;
-    navigator.clipboard?.writeText(verificationLink);
-    setCopiadoLink(true);
-    setTimeout(() => setCopiadoLink(false), 2000);
   };
 
   return (
@@ -429,14 +408,21 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
 
               <div>
                 <h4 className="text-base font-black text-stone-900">
-                  Enlace de confirmación enviado
+                  {estadoEnvio === 'enviado' ? 'Enlace de confirmación enviado' : 'Verificación pendiente'}
                 </h4>
                 <p className="text-xs text-stone-600 mt-1 max-w-sm mx-auto">
-                  Enviamos un correo a <strong>{email}</strong> con tu enlace de verificación instantánea y la invitación oficial a WhatsApp.
+                  {estadoEnvio === 'enviado' ? (
+                    <>Enviamos un correo a <strong>{email}</strong> con tu enlace de verificación instantánea y la invitación oficial a WhatsApp.</>
+                  ) : estadoEnvio === 'pendiente' ? (
+                    <>Tu registro quedó <strong>pendiente de verificación</strong>. El envío de correo aún no está configurado; te avisaremos cuando se habilite para activar tu cuenta.</>
+                  ) : (
+                    <>Tu registro quedó <strong>pendiente de verificación</strong>: no pudimos despachar el correo. Intenta reenviarlo más tarde.</>
+                  )}
                 </p>
               </div>
 
-              {/* Tarjeta de Pasos Siguientes */}
+              {/* Tarjeta de Pasos Siguientes (solo con envío real) */}
+              {estadoEnvio === 'enviado' && (
               <div className="bg-[#FBF9F4] border border-[#EAE5D9] rounded-2xl p-4 text-left space-y-3">
                 <div className="flex items-start gap-2.5">
                   <div className="w-5 h-5 rounded-full bg-[#1B4332] text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
@@ -462,8 +448,10 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Botón principal: Abrir o revisar su correo */}
+              {/* Botón principal: Abrir o revisar su correo (solo con envío real) */}
+              {estadoEnvio === 'enviado' && (
               <a
                 href={obtenerUrlProveedorCorreo(email)}
                 target="_blank"
@@ -474,41 +462,12 @@ export const UserRegistrationFunnelModal: React.FC<Props> = ({
                 <span>Abrir mi correo para confirmar</span>
                 <ExternalLink className="w-3.5 h-3.5 opacity-80" />
               </a>
+              )}
 
-              {/* Simulador de Verificación para pruebas rápidas / modo de desarrollo */}
-              <div className="pt-2 border-t border-stone-200/80 space-y-2">
-                <p className="text-[10px] text-stone-500 uppercase font-bold tracking-wider text-center">
-                  Acceso directo de prueba (1 Clic)
-                </p>
-                <button
-                  onClick={() => {
-                    if (!verificationToken) return;
-                    const verifiedUser = usuariosModule.verificarPorToken(verificationToken);
-                    if (verifiedUser) {
-                      onSuccess(verifiedUser);
-                      onClose();
-                      if (typeof window !== 'undefined') {
-                        window.location.href = `/bienvenida?verify_token=${verificationToken}`;
-                      }
-                    }
-                  }}
-                  className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-[#1B4332] border border-emerald-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Simular clic en el enlace del correo (abrir página de bienvenida)</span>
-                </button>
-
-                {verificationLink && (
-                  <button
-                    onClick={handleCopiarEnlace}
-                    className="text-[11px] text-stone-500 hover:text-stone-800 flex items-center justify-center gap-1 mx-auto"
-                  >
-                    {copiadoLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                    <span>{copiadoLink ? '¡Enlace copiado al portapapeles!' : 'Copiar enlace directo de verificación'}</span>
-                  </button>
-                )}
-              </div>
-            </div>
+              {/* YUD-52 R2: sin "simular clic" ni "copiar enlace": la
+                  verificación requiere el correo real. Sin canal de envío el
+                  estado es pendiente explícito, nunca éxito simulado. */}
+                        </div>
           )}
         </div>
       </div>
