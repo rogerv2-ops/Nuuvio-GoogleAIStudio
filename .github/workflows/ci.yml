@@ -65,6 +65,9 @@ jobs:
       TEST_SQL_USER: postgres
       TEST_SQL_PASSWORD: test
       TEST_SQL_DB_NAME: yuddit_ci_billing
+      # Activa las rutas del embudo de prerregistro en el servidor de CI
+      # (en produccion siguen apagadas hasta decision explicita de despliegue).
+      EMBUDO_PREREGISTRO: "1"
     services:
       postgres:
         image: postgres:16-alpine
