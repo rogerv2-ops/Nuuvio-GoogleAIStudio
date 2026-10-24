@@ -101,13 +101,16 @@ describe.skipIf(!EMBUDO_ACTIVO)("contrato /api/preregistros: validación y anti-
     expect(j.bajaUrl).toMatch(/^\/api\/preregistros\/baja\?token=[a-f0-9]{48}$/);
   });
 
-  it("el reenvío del mismo correo es idempotente y NO devuelve enlace nuevo", async () => {
+  it("el reenvío del mismo correo es idempotente y la respuesta es homogénea (anti-oráculo)", async () => {
     const body = valido();
-    await postPrereg(body);
+    const r1 = await postPrereg(body);
+    const j1: any = await r1.json();
     const r2 = await postPrereg(body);
     const j2: any = await r2.json();
+    // Misma forma de respuesta para nuevo y duplicado: no revela existencia.
+    expect(j1.ok).toBe(true);
     expect(j2.ok).toBe(true);
-    expect(j2.bajaUrl).toBeUndefined();
+    expect(j2.bajaUrl).toMatch(/^\/api\/preregistros\/baja\?token=[a-f0-9]{48}$/);
   });
 
   it("el honeypot devuelve ok sin error (no revela que es trampa)", async () => {
@@ -174,14 +177,16 @@ describe.skipIf(!CON_ADMIN)("contrato /api/preregistros: ciclo baja y consentimi
     expect(enBaja.registro?.estadoAviso).toBe("baja");
     const tsBaja = enBaja.registro?.consentimientoTs;
 
-    // Reenvío del formulario con checkbox = voluntad nueva: reactiva.
+    // Un POST anónimo con el checkbox NO revierte la baja: cualquiera puede
+    // escribir un correo ajeno. La reactivación exige probar el control del
+    // correo (proceso pendiente; sin envíos autorizados, inactiva).
     const re = await postPrereg(body);
     const jre: any = await re.json();
     expect(jre.ok).toBe(true);
-    expect(jre.bajaUrl).toMatch(/^\/api\/preregistros\/baja\?token=/);
-    const reactivado = await buscarEnAdmin(tok!, body.correo as string);
-    expect(reactivado.registro?.estadoAviso).toBe("pendiente");
-    expect(reactivado.registro?.consentimientoTs).not.toBe(tsBaja);
+    expect(jre.bajaUrl).toMatch(/^\/api\/preregistros\/baja\?token=/); // inerte, homogénea
+    const sigue = await buscarEnAdmin(tok!, body.correo as string);
+    expect(sigue.registro?.estadoAviso).toBe("baja");
+    expect(sigue.registro?.consentimientoTs).toBe(tsBaja);
   });
 
   it("el dedupe de un correo activo NO renueva consentimiento ni estado", async () => {
