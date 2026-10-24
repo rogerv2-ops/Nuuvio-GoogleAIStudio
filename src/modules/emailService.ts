@@ -46,44 +46,35 @@ class EmailService {
   public async enviarCorreoVerificacion(params: {
     email: string;
     nombre: string;
-    verificationToken: string;
     botPhone?: string;
-  }): Promise<{ ok: boolean; message: string; simulated?: boolean; verificationLink?: string; whatsappLink?: string }> {
-    try {
-      const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
-      const response = await fetch('/api/email/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: params.email,
-          nombre: params.nombre,
-          verificationToken: params.verificationToken,
-          botPhone: params.botPhone,
-          originUrl
-        })
-      });
+  }): Promise<{ ok: boolean; message: string; despachado?: boolean; whatsappLink?: string }> {
+    // YUD-52 R2 (cierre): el enlace de verificación viaja SOLO por correo.
+    // Ni la respuesta de la API ni este módulo devuelven enlaces ni tokens,
+    // y ya no existe fallback local que fabrique enlaces en el navegador
+    // (ese fallback permitía "verificar" cualquier correo sin buzón).
+    const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yuddit.com';
+    const response = await fetch('/api/email/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: params.email,
+        nombre: params.nombre,
+        botPhone: params.botPhone,
+        originUrl
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error ${response.status} al enviar correo`);
-      }
-
-      return await response.json();
-    } catch (err: any) {
-      console.warn('Fallo llamada a /api/email/send-verification, usando fallback local:', err);
-      // Fallback local en caso de que el backend esté reiniciándose
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const vLink = `${origin}/bienvenida?verify_token=${params.verificationToken}`;
-      const waNum = (params.botPhone || '').replace(/\D/g, '');
-      const waLink = waNum ? `whatsapp://send?phone=${waNum}&text=${encodeURIComponent('Ofertas')}` : `whatsapp://send?text=${encodeURIComponent('Ofertas')}`;
-      return {
-        ok: true,
-        message: 'Correo procesado (modo de contingencia)',
-        simulated: true,
-        verificationLink: vLink,
-        whatsappLink: waLink
-      };
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { ok: false, message: errorData.error || `Error ${response.status} al procesar la verificación` };
     }
+    const data = await response.json();
+    return {
+      ok: !!data.ok,
+      message: data.mensaje || data.message || '',
+      despachado: data.despachado,
+      whatsappLink: data.whatsappLink || ''
+    };
   }
 
   /**

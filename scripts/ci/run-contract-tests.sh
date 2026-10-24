@@ -40,6 +40,10 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[ci] levantando el servidor (log: $SERVER_LOG)"
+# La suite de contrato corre 300+ peticiones legitimas desde una sola IP en
+# segundos; el bucket global (300/min) la rechazaria a mitad de camino. En CI se
+# relaja solo ese bucket; los demas limites siguen activos y produccion no cambia.
+export RATE_LIMIT_GLOBAL_MAX="${RATE_LIMIT_GLOBAL_MAX:-100000}"
 NODE_ENV="${NODE_ENV:-production}" bun run start > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 

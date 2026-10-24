@@ -9,7 +9,7 @@
 var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});
 import{db}from"../index.ts";
 import{audienceUsers,emailLogs,registrationLogs,clickLogs}from"../schema.ts";
-import{eq,or,sql}from"drizzle-orm";
+import{eq,or,and,gte,isNotNull,sql}from"drizzle-orm";
 import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../../utils/pii.ts";
 import{inMemoryRegLogs}from"./logs.ts";
 
@@ -235,4 +235,163 @@ async function checkAudienceUserUniqueness(email,phone){try{const cleanEmail=(em
  */
 async function deleteAndPurgeUser(params){let userDeleted=false;let emailLogsDeleted=false;let regLogsDeleted=false;const targetId=params.id?params.id.trim():"";const targetEmail=params.email?params.email.trim().toLowerCase():"";const targetPhone=params.telefono?String(params.telefono).trim():"";try{if(targetId){await db.delete(audienceUsers).where(eq(audienceUsers.id,targetId));userDeleted=true}else if(targetEmail){const _idx=indiceCiego(targetEmail);await db.delete(audienceUsers).where(_idx?or(eq(audienceUsers.emailIdx,_idx),eq(audienceUsers.email,targetEmail)):eq(audienceUsers.email,targetEmail));userDeleted=true}else if(targetPhone){const _norm=normalizePhoneForMatching(targetPhone);const _tIdx=indiceCiego(_norm.core9||_norm.digits||targetPhone);if(_tIdx){await db.delete(audienceUsers).where(eq(audienceUsers.telefonoIdx,_tIdx));userDeleted=true}else{const _digits=_norm.digits;await db.delete(audienceUsers).where(sql`regexp_replace(coalesce(${audienceUsers.telefono},''), '\\D', '', 'g') = ${_digits}`);userDeleted=true}}}catch(error){console.error("[DB Repo] Error borrando usuario de DB:",error)}if(targetEmail){try{await db.delete(emailLogs).where(eq(emailLogs.toEmail,targetEmail));emailLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando emailLogs:",error)}}if(targetEmail||targetPhone){try{if(targetEmail){await db.delete(registrationLogs).where(eq(registrationLogs.email,targetEmail))}else{const _norm=normalizePhoneForMatching(targetPhone);await db.delete(registrationLogs).where(sql`regexp_replace(coalesce(${registrationLogs.telefono},''), '\\D', '', 'g') = ${_norm.digits}`)}regLogsDeleted=true}catch(error){console.error("[DB Repo] Error borrando registrationLogs:",error)}for(let i=inMemoryRegLogs.length-1;i>=0;i--){if((targetEmail&&inMemoryRegLogs[i]?.email===targetEmail)||(targetPhone&&String(inMemoryRegLogs[i]?.telefono||"").replace(/\D/g,"")===normalizePhoneForMatching(targetPhone).digits)){inMemoryRegLogs.splice(i,1)}}}return{userDeleted,emailLogsDeleted,regLogsDeleted}}__name(deleteAndPurgeUser,"deleteAndPurgeUser");
 
-export{upsertAudienceUser,upsertAudienceUserSafe,normalizePhoneForMatching,phonesMatch,findAudienceUserByPhone,getAllAudienceUsers,migrarPiiAudiencia,normalizarEmailsAudiencia,atribuirCodigoDeCanje,seedAudienceUsersIfEmpty,checkAudienceUserUniqueness,deleteAndPurgeUser};
+
+/**
+ * YUD-52 R2 (cierre): verificacion de correo con prueba de buzon.
+ *
+ * Antes: el token lo ELEGIA el cliente y viajaba en el alta publica
+ * (sync-user), sync-user devolvia el registro completo (con token) y
+ * cualquier re-sync podia sobrescribir correo/token/estado de otra fila.
+ * Poseer el token no probaba control del buzon.
+ *
+ * Ahora:
+ * - el token SOLO lo genera el servidor en el alta nueva; nunca se acepta
+ *   del cliente ni se devuelve por API,
+ * - el alta publica es INSERT-ONLY: un id existente no se muta por esa via
+ *   (perfil, correo, token, estado y verificacion quedan intactos),
+ * - el token viaja unicamente por correo; los lookups son selectivos por
+ *   email_idx / verification_token (indexados), no full-scan,
+ * - el token es de UN SOLO USO y VENCE (VENTANA_TOKEN_VERIFICACION_MS): al
+ *   verificar se consume; si vencio, el reenvio genera uno nuevo en servidor.
+ */
+const VENTANA_TOKEN_VERIFICACION_MS = 48 * 3600 * 1000;
+
+function generarTokenVerificacion(): string {
+  // crypto global (Node 19+/Bun): 256 bits de entropia.
+  return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+}__name(generarTokenVerificacion,"generarTokenVerificacion");
+
+function tokenVerificacionVigente(u): boolean {
+  // SOLO cuentan tokens con sello de servidor (verificationTokenCreadoEn).
+  // Filas legacy (token elegido por el cliente, sin sello) NO verifican: el
+  // titular pide reenvio y el servidor emite token nuevo con sello propio.
+  if (!u || !u.verificationToken || !u.verificationTokenCreadoEn) return false;
+  const base = Date.parse(String(u.verificationTokenCreadoEn));
+  if (!Number.isFinite(base)) return false;
+  return Date.now() - base <= VENTANA_TOKEN_VERIFICACION_MS;
+}__name(tokenVerificacionVigente,"tokenVerificacionVigente");
+
+/** Lookup selectivo por indice ciego del correo (sin full-scan ni descifrado masivo). */
+async function buscarAudienceUsersPorEmailIdx(emailIdx) {
+  if (!emailIdx) return [];
+  try {
+    return await db.select().from(audienceUsers).where(eq(audienceUsers.emailIdx, emailIdx));
+  } catch (error) {
+    console.error("[DB Repo] Error buscando audiencia por email_idx:", error);
+    throw new Error("Failed to query audience by email_idx", { cause: error });
+  }
+}__name(buscarAudienceUsersPorEmailIdx,"buscarAudienceUsersPorEmailIdx");
+
+/** Lookup selectivo por token de verificacion (alta entropia, indexado). */
+async function buscarAudienceUserPorTokenVerificacion(token) {
+  const t = String(token || "").trim();
+  if (!t) return null;
+  try {
+    const rows = await db.select().from(audienceUsers).where(eq(audienceUsers.verificationToken, t));
+    return rows[0] || null;
+  } catch (error) {
+    console.error("[DB Repo] Error buscando audiencia por token:", error);
+    throw new Error("Failed to query audience by verification token", { cause: error });
+  }
+}__name(buscarAudienceUserPorTokenVerificacion,"buscarAudienceUserPorTokenVerificacion");
+
+/** Alta nueva de audiencia pendiente: INSERT puro (nunca upsert) con token de
+ * servidor. Defensa de concurrencia SIN constraint UNIQUE (pendiente de
+ * auditoria de datos): advisory lock por email_idx dentro de la transaccion
+ * serializa altas del mismo correo; si ya existe, no inserta ni toca la fila
+ * (devuelve {duplicado:true}; jamas borra ni fusiona registros). */
+async function insertarAudiencePendiente(user) {
+  try {
+    const safeEmail = emailDeAudiencia(user);
+    const insertVals: any = {
+      id: user.id,
+      email: safeEmail ? cifrarCampo(safeEmail) : null,
+      emailIdx: safeEmail ? indiceCiego(safeEmail) : null,
+      nombre: user.nombre || "Usuario",
+      apellido: user.apellido || null,
+      telefono: user.telefono || null,
+      distrito: user.distrito || null,
+      distritoCodigo: user.distritoCodigo || null,
+      provinciaCodigo: user.provinciaCodigo || null,
+      provincia: user.provincia || null,
+      ciudad: user.ciudad || null,
+      emailVerificado: false,
+      verificationToken: user.verificationToken,
+      verificationTokenCreadoEn: new Date().toISOString(),
+      codigoRef: user.codigoRef || null,
+      puntosSaldo: 0,
+      estado: "pendiente",
+      categoriasInteres: Array.isArray(user.categoriasInteres) ? user.categoriasInteres : [],
+      consentimientos: {},
+      utm: user.utm || {},
+      registradoEn: new Date().toISOString()
+    };
+    return await db.transaction(async (tx) => {
+      const emailIdx = insertVals.emailIdx;
+      if (emailIdx) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${emailIdx}))`);
+        const dup = await tx.select({ id: audienceUsers.id }).from(audienceUsers).where(eq(audienceUsers.emailIdx, emailIdx));
+        if (dup.length > 0) return { duplicado: true };
+      }
+      await tx.insert(audienceUsers).values(insertVals);
+      return { duplicado: false };
+    });
+  } catch (error) {
+    console.error("[DB Repo] Error insertando audience pendiente:", error);
+    throw new Error("Failed to insert pending audience user", { cause: error });
+  }
+}__name(insertarAudiencePendiente,"insertarAudiencePendiente");
+
+/** Reenvio: regenera token en servidor cuando el actual falta o vencio. Devuelve el token nuevo. */
+async function renovarTokenVerificacionAudience(id) {
+  const token = generarTokenVerificacion();
+  try {
+    const updateSet: any = { verificationToken: token, verificationTokenCreadoEn: new Date().toISOString() };
+    await db.update(audienceUsers).set(updateSet).where(eq(audienceUsers.id, id));
+    return token;
+  } catch (error) {
+    console.error("[DB Repo] Error renovando token de verificacion:", error);
+    throw new Error("Failed to renew verification token", { cause: error });
+  }
+}__name(renovarTokenVerificacionAudience,"renovarTokenVerificacionAudience");
+
+/** Consumo ATOMICO del token: un solo UPDATE con TODAS las condiciones
+ * (token + sello servidor + vigencia + no verificado). Dos verificaciones
+ * concurrentes del mismo token: solo una actualiza; la otra recibe 0 filas.
+ * Devuelve {consumido} y, si no consumio, {expirado} segun exista aun la
+ * fila con ese token (para 410 vs 404; los tokens son inadivinables). */
+async function consumirTokenVerificacionAudience(token) {
+  const t = String(token || "").trim();
+  if (!t) return { consumido: false, expirado: false };
+  const corte = new Date(Date.now() - VENTANA_TOKEN_VERIFICACION_MS).toISOString();
+  try {
+    const updateSet: any = { emailVerificado: true, estado: "activo", verificationToken: null, verificationTokenCreadoEn: null };
+    const rows = await db.update(audienceUsers).set(updateSet)
+      .where(and(
+        eq(audienceUsers.verificationToken, t),
+        isNotNull(audienceUsers.verificationTokenCreadoEn),
+        gte(audienceUsers.verificationTokenCreadoEn, corte),
+        eq(audienceUsers.emailVerificado, false)
+      ))
+      .returning({ id: audienceUsers.id });
+    if (rows.length > 0) return { consumido: true, expirado: false };
+    const fila = await buscarAudienceUserPorTokenVerificacion(t);
+    return { consumido: false, expirado: Boolean(fila) };
+  } catch (error) {
+    console.error("[DB Repo] Error consumiendo token de verificacion:", error);
+    throw new Error("Failed to consume verification token", { cause: error });
+  }
+}__name(consumirTokenVerificacionAudience,"consumirTokenVerificacionAudience");
+
+/** Verificacion efectiva: marca y CONSUME el token (un solo uso). */
+async function marcarEmailVerificadoAudience(id) {
+  try {
+    const updateSet: any = { emailVerificado: true, estado: "activo", verificationToken: null, verificationTokenCreadoEn: null };
+    await db.update(audienceUsers).set(updateSet).where(eq(audienceUsers.id, id));
+  } catch (error) {
+    console.error("[DB Repo] Error marcando email verificado:", error);
+    throw new Error("Failed to mark audience email verified", { cause: error });
+  }
+}__name(marcarEmailVerificadoAudience,"marcarEmailVerificadoAudience");
+
+export{upsertAudienceUser,upsertAudienceUserSafe,normalizePhoneForMatching,phonesMatch,findAudienceUserByPhone,getAllAudienceUsers,migrarPiiAudiencia,normalizarEmailsAudiencia,atribuirCodigoDeCanje,seedAudienceUsersIfEmpty,checkAudienceUserUniqueness,deleteAndPurgeUser,buscarAudienceUsersPorEmailIdx,buscarAudienceUserPorTokenVerificacion,insertarAudiencePendiente,renovarTokenVerificacionAudience,marcarEmailVerificadoAudience,consumirTokenVerificacionAudience,tokenVerificacionVigente,VENTANA_TOKEN_VERIFICACION_MS};

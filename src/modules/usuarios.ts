@@ -213,7 +213,7 @@ class UsuariosModule {
       term?: string;
       content?: string;
     };
-  }): { usuario: AudienceUser; codigoVinculacion: string; verificationToken: string } {
+  }): { usuario: AudienceUser; codigoVinculacion: string } {
     const duplicado = this.verificarDuplicadoLocal(datos.email, datos.telefono);
     if (duplicado.existe && duplicado.mensaje) {
       throw new Error(duplicado.mensaje);
@@ -223,8 +223,8 @@ class UsuariosModule {
     const telLimpio = datos.telefono.replace(/\s+/g, '');
     const id = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const codigoRef = `REF${Math.floor(10000 + Math.random() * 90000)}`;
-    const verificationToken = `vtok_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
+    // YUD-52 R2 (cierre): el token de verificación lo genera SOLO el
+    // servidor en el alta; el cliente ya no lo crea, lo conoce ni lo envía.
     const nuevoUsuario: AudienceUser = {
       id,
       telefono: telLimpio,
@@ -244,8 +244,7 @@ class UsuariosModule {
       estado: 'pendiente',
       consentimientos: { correo: true, push: true, whatsapp: true },
       registradoEn: new Date().toISOString(),
-      utm: datos.utm,
-      verificationToken
+      utm: datos.utm
     };
 
     this.usuarios.set(id, nuevoUsuario);
@@ -271,15 +270,14 @@ class UsuariosModule {
         email: datos.email,
         telefono: telLimpio,
         invitadoPor: datos.invitadoPor,
-        utm: datos.utm,
-        verificationToken
+        utm: datos.utm
       }
     });
 
     this.guardarEnStorage();
     this.syncConServidor(nuevoUsuario);
     this.notificar();
-    return { usuario: nuevoUsuario, codigoVinculacion, verificationToken };
+    return { usuario: nuevoUsuario, codigoVinculacion };
   }
 
   public async registrarUsuarioAsync(datos: {
@@ -301,7 +299,7 @@ class UsuariosModule {
       term?: string;
       content?: string;
     };
-  }): Promise<{ usuario: AudienceUser; codigoVinculacion: string; verificationToken: string }> {
+  }): Promise<{ usuario: AudienceUser; codigoVinculacion: string }> {
     const res = this.registrarUsuario({
       ...datos,
       edad: datos.edad || 28,
