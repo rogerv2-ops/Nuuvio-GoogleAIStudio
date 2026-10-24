@@ -193,6 +193,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   // LÍMITE CANÓNICO ESTRICTO: Máximo 7 ofertas activas en el feed público (las más recientes)
   const MAX_OFERTAS_PUBLICAS = 7;
   const ofertasVisibles = ofertasFiltradas.slice(0, MAX_OFERTAS_PUBLICAS);
+  // Botones preconfigurados del buscador: se derivan de las ofertas reales publicadas (categoria/distrito), sin textos fabricados.
+  const chipsBusqueda = [...new Set(ofertas.flatMap(o => [o.categoria, o.distrito]).filter(Boolean))].slice(0, 4);
 
   // Verificar si el usuario actual está registrado y verificado
   const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
@@ -392,23 +394,42 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
         {/* ================= HEADER IMAGE: banner.webp ================= */}
         <BannerHeader />
 
-        {/* ================= BUSCADOR ANCHO COMPLETO ================= */}
-        <div className="w-full relative">
-          <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={busquedaTexto}
-            onChange={e => setBusquedaTexto(e.target.value)}
-            placeholder="Buscar ofertas, comercios, distritos en Lima..."
-            className="w-full bg-white border border-[#EAE5D9] rounded-2xl pl-11 pr-10 py-3.5 text-xs text-[#1C1917] placeholder:text-[#A8A29E] shadow-xs focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332] outline-none transition-all"
-          />
-          {busquedaTexto && (
-            <button
-              onClick={() => setBusquedaTexto('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs p-1"
-            >
-              ✕
-            </button>
+        {/* ================= HERO BUSCADOR (PRUEBA VISUAL: REFERENCIAS KLARNA + DAYDREAM) ================= */}
+        <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 shadow-xs">
+          <h1 className="text-center text-[26px] leading-tight font-extrabold text-black tracking-tight">
+            Ofertas cerca de ti, <span className="bg-[#C8FF3D] px-1.5 rounded-md box-decoration-clone">al instante</span>
+          </h1>
+          <p className="text-center text-xs text-[#57534E] mt-2">Solo cuando las quieres. Sin spam ni perder tiempo. En tu zona.</p>
+          <div className="w-full relative mt-6 max-w-[420px] mx-auto">
+            <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={busquedaTexto}
+              onChange={e => setBusquedaTexto(e.target.value)}
+              placeholder="Buscar ofertas, comercios, distritos en Lima..."
+              className="w-full bg-[#F5F5F4] border border-transparent rounded-full pl-11 pr-10 py-4 text-sm text-black placeholder:text-[#A8A29E] shadow-xs focus:ring-2 focus:ring-[#C8FF3D] focus:border-[#65A30D] focus:bg-white outline-none transition-all"
+            />
+            {busquedaTexto && (
+              <button
+                onClick={() => setBusquedaTexto('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs p-1"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {chipsBusqueda.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              {chipsBusqueda.map(termino => (
+                <button
+                  key={termino}
+                  onClick={() => setBusquedaTexto(termino)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-[#1C1917] bg-[#F5F5F4] hover:bg-[#C8FF3D] border border-[#EAE5D9] rounded-full transition-colors"
+                >
+                  {termino}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
