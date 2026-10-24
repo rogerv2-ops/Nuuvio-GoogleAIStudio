@@ -47,7 +47,7 @@ class EmailService {
     email: string;
     nombre: string;
     botPhone?: string;
-  }): Promise<{ ok: boolean; message: string; simulated?: boolean; whatsappLink?: string }> {
+  }): Promise<{ ok: boolean; message: string; despachado?: boolean; whatsappLink?: string }> {
     // YUD-52 R2 (cierre): el enlace de verificación viaja SOLO por correo.
     // Ni la respuesta de la API ni este módulo devuelven enlaces ni tokens,
     // y ya no existe fallback local que fabrique enlaces en el navegador
@@ -72,7 +72,7 @@ class EmailService {
     return {
       ok: !!data.ok,
       message: data.mensaje || data.message || '',
-      simulated: !!data.simulated,
+      despachado: data.despachado,
       whatsappLink: data.whatsappLink || ''
     };
   }
