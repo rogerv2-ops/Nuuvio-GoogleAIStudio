@@ -63,7 +63,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Obligatoriedad PENDIENTE de cierre (ver cabecera). Ajustar aquí no
 // requiere migración: la tabla admite nulos en los campos no esenciales.
-const CAMPOS_REQUERIDOS = ["nombreComercial", "responsable", "correo", "distritoZona", "categoria"] as const;
+const CAMPOS_REQUERIDOS = ["nombreComercial", "responsable", "correo", "distritoZona", "categoria", "whatsapp"] as const;
 
 const corto = (v: unknown, max = 200): string => String(v ?? "").trim().slice(0, max);
 const normalizarCorreo = (v: unknown): string => corto(v, 254).toLowerCase();
@@ -97,8 +97,11 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
       const correo = normalizarCorreo(b.correo);
       const distritoZona = corto(b.distritoZona, 120);
       const categoria = corto(b.categoria, 80);
-      // WhatsApp opcional, pero si viene se valida formato (E.164 laxo:
-      // 8-15 dígitos con + opcional) y se guarda normalizado.
+      // WhatsApp OBLIGATORIO (decisión del dueño 2026-10-24 13:56, "para
+      // ambos": aplica la regla de todos-obligatorios también al embudo;
+      // Instagram/TikTok quedaron explícitamente opcionales a las 13:09).
+      // Se valida formato E.164 laxo (8-15 dígitos con + opcional) y se
+      // guarda normalizado.
       let whatsapp = corto(b.whatsapp, 40) || null;
       if (whatsapp) {
         whatsapp = whatsapp.replace(/[\s()-]/g, "");
