@@ -25,6 +25,7 @@ const valido = (extra: Record<string, unknown> = {}) => ({
   correo: `prueba-${Math.random().toString(36).slice(2)}@example.com`,
   distritoZona: "Miraflores",
   categoria: "Comida y Restaurantes",
+  whatsapp: "+51 999 111 222",
   consentimientoEmail: true,
   ...extra,
 });
@@ -85,6 +86,18 @@ describe.skipIf(!EMBUDO_ACTIVO)("contrato /api/preregistros: validación y anti-
 
   it("rechaza categoría fuera de la lista aprobada", async () => {
     const r = await postPrereg(valido({ categoria: "Otra cosa" }));
+    expect(r.status).toBe(400);
+  });
+
+  it("rechaza sin WhatsApp (obligatorio por decisión del dueño 2026-10-24)", async () => {
+    const r = await postPrereg(valido({ whatsapp: "" }));
+    expect(r.status).toBe(400);
+    const j: any = await r.json();
+    expect(String(j.error)).toContain("whatsapp");
+  });
+
+  it("rechaza WhatsApp con formato inválido", async () => {
+    const r = await postPrereg(valido({ whatsapp: "abc123" }));
     expect(r.status).toBe(400);
   });
 
