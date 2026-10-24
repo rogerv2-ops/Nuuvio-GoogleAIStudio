@@ -193,6 +193,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   // LÍMITE CANÓNICO ESTRICTO: Máximo 7 ofertas activas en el feed público (las más recientes)
   const MAX_OFERTAS_PUBLICAS = 7;
   const ofertasVisibles = ofertasFiltradas.slice(0, MAX_OFERTAS_PUBLICAS);
+  // Botones preconfigurados del buscador: se derivan de las ofertas reales publicadas (categoria/distrito), sin textos fabricados.
+  const chipsBusqueda = [...new Set(ofertas.flatMap(o => [o.categoria, o.distrito]).filter(Boolean))].slice(0, 4);
 
   // Verificar si el usuario actual está registrado y verificado
   const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
@@ -392,22 +394,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
         {/* ================= HEADER IMAGE: banner.webp ================= */}
         <BannerHeader />
 
-        {/* ================= HERO BUSCADOR (PRUEBA VISUAL REFERENCIA KLARNA) ================= */}
-        <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 overflow-hidden shadow-xs">
-          {ofertasVisibles.slice(0, 4).map((oferta, idx) => (
-            <img
-              key={oferta.id}
-              src={oferta.imagenes[0]}
-              alt={oferta.titulo}
-              loading="lazy"
-              className={`hidden sm:block absolute w-14 h-14 object-cover rounded-2xl shadow-md border border-[#EAE5D9] ${[
-                'left-3 top-6 -rotate-6',
-                'right-3 top-10 rotate-6',
-                'left-6 bottom-8 rotate-3',
-                'right-6 bottom-6 -rotate-3',
-              ][idx]}`}
-            />
-          ))}
+        {/* ================= HERO BUSCADOR (PRUEBA VISUAL: REFERENCIAS KLARNA + DAYDREAM) ================= */}
+        <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 shadow-xs">
           <h1 className="text-center text-[26px] leading-tight font-extrabold text-black tracking-tight">
             Ofertas cerca de ti, <span className="bg-[#C8FF3D] px-1.5 rounded-md box-decoration-clone">al instante</span>
           </h1>
@@ -430,6 +418,19 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               </button>
             )}
           </div>
+          {chipsBusqueda.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              {chipsBusqueda.map(termino => (
+                <button
+                  key={termino}
+                  onClick={() => setBusquedaTexto(termino)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-[#1C1917] bg-[#F5F5F4] hover:bg-[#C8FF3D] border border-[#EAE5D9] rounded-full transition-colors"
+                >
+                  {termino}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Offers Feed List (ESTÁNDAR FORMATO 4:5 OBLIGATORIO) */}
