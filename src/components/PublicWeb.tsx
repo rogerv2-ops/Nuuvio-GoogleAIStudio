@@ -9,7 +9,7 @@ import { SelectorProvinciaDistrito } from './common/SelectorProvinciaDistrito';
 import { ofertasModule } from '../modules/ofertas';
 import { usuariosModule } from '../modules/usuarios';
 import { comerciosModule } from '../modules/comercios';
-import { BannerHeader } from './BannerHeader';
+// PRUEBA VISUAL: BannerHeader no se renderiza en la primera pantalla (banner_01 conservado en app_settings, revertible).
 import { UserRegistrationFunnelModal, limpiarYNormalizarTelefono } from './UserRegistrationFunnelModal';
 import { capturarAtribucionDeUrl } from '../utils/attribution';
 import { coreEvents } from '../core/events';
@@ -17,7 +17,6 @@ import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallback
 import { esOfertaNueva } from '../utils/ofertaUtils';
 import { alPulsarBotonWhatsApp } from '../utils/whatsappNative';
 import { WhatsAppChooser } from './WhatsAppChooser';
-import { useFondoLanding } from '../hooks/useFondoLanding';
 
 interface PublicWebProps {
   ofertaSeleccionadaId?: string | null;
@@ -28,7 +27,7 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   ofertaSeleccionadaId,
   onLimpiarOfertaSeleccionada
 }) => {
-  const fondo = useFondoLanding();
+  // PRUEBA VISUAL: fondo de app_settings no se aplica en la primera pantalla (config conservada).
   const [fichaOferta, setFichaOferta] = useState<Offer | null>(null);
   const [fotoActivaIndex, setFotoActivaIndex] = useState(0);
 
@@ -193,8 +192,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   // LÍMITE CANÓNICO ESTRICTO: Máximo 7 ofertas activas en el feed público (las más recientes)
   const MAX_OFERTAS_PUBLICAS = 7;
   const ofertasVisibles = ofertasFiltradas.slice(0, MAX_OFERTAS_PUBLICAS);
-  // Botones preconfigurados del buscador: se derivan de las ofertas reales publicadas (categoria/distrito), sin textos fabricados.
-  const chipsBusqueda = [...new Set(ofertas.flatMap(o => [o.categoria, o.distrito]).filter(Boolean))].slice(0, 4);
 
   // Verificar si el usuario actual está registrado y verificado
   const estaVerificado = !!usuarioActivo && usuarioActivo.emailVerificado;
@@ -302,7 +299,8 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   return (
     <div
       className="min-h-screen text-[#1C1917] py-4 px-3 sm:px-4"
-      style={{ backgroundColor: fondo }}
+      // PRUEBA VISUAL: identidad blanco/negro/neon en la primera pantalla; el color configurado (fondo) se conserva en app_settings.
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       {/* Responsive layout - Vista Mobile Estricta max-w-[640px] */}
       <div className="w-full max-w-[640px] mx-auto space-y-4">
@@ -391,9 +389,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
           </div>
         </div>
 
-        {/* ================= HEADER IMAGE: banner.webp ================= */}
-        <BannerHeader />
-
         {/* ================= HERO BUSCADOR (PRUEBA VISUAL: REFERENCIAS KLARNA + DAYDREAM) ================= */}
         <div className="relative bg-white rounded-3xl border border-[#EAE5D9] px-5 pt-10 pb-8 shadow-xs">
           <h1 className="text-center text-[26px] leading-tight font-extrabold text-black tracking-tight">
@@ -418,19 +413,6 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
               </button>
             )}
           </div>
-          {chipsBusqueda.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-              {chipsBusqueda.map(termino => (
-                <button
-                  key={termino}
-                  onClick={() => setBusquedaTexto(termino)}
-                  className="px-3.5 py-1.5 text-xs font-semibold text-[#1C1917] bg-[#F5F5F4] hover:bg-[#C8FF3D] border border-[#EAE5D9] rounded-full transition-colors"
-                >
-                  {termino}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Offers Feed List (ESTÁNDAR FORMATO 4:5 OBLIGATORIO) */}
@@ -1123,3 +1105,4 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     </div>
   );
 };
+
