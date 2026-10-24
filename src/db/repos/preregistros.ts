@@ -79,36 +79,6 @@ export async function listarPreregistros() {
   return db.select().from(preregistros).orderBy(desc(preregistros.createdAt));
 }
 
-/**
- * Reactivación tras baja: solo se usa cuando la persona vuelve a enviar el
- * formulario MARCANDO el consentimiento (voluntad nueva y explícita). El
- * dedupe normal NUNCA renueva consentimiento ni estado por sí solo.
- * Genera un token de baja nuevo (el anterior queda inservible).
- */
-export async function reactivarPreregistro(
-  id: string,
-  datos: {
-    consentimientoTextoVersion: string;
-    consentimientoFinalidad: string;
-    bajaTokenHash: string;
-  }
-) {
-  const r = await db
-    .update(preregistros)
-    .set({
-      estadoAviso: "pendiente",
-      consentimientoEmail: true,
-      consentimientoTextoVersion: datos.consentimientoTextoVersion,
-      consentimientoFinalidad: datos.consentimientoFinalidad,
-      consentimientoTs: new Date(),
-      bajaTokenHash: datos.bajaTokenHash,
-      updatedAt: new Date(),
-    })
-    .where(eq(preregistros.id, id))
-    .returning({ id: preregistros.id });
-  return r[0] ?? null;
-}
-
 /** Devuelve el registro completo por correoIdx (para decidir dedupe vs reactivación). */
 export async function obtenerPreregistroPorCorreoIdx(correoIdx: string) {
   const r = await db
