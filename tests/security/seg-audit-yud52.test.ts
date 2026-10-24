@@ -77,61 +77,119 @@ describe("YUD-52 R5: GET /api/comercios solo admin", () => {
   });
 });
 
-describe("YUD-52 R2: send-verification no filtra enlaces de verificación", () => {
-  test.skipIf(!online)("correo/token desconocidos: respuesta genérica sin enlace", async () => {
-    const correo = `ci-r2-desconocido-${Date.now()}@ci.yuddit.test`;
-    const r = await post("/api/email/send-verification", {
-      email: correo,
-      verificationToken: `tok-inexistente-${Date.now()}`,
-    });
-    expect(r.status).toBe(200);
-    const j: any = await r.json();
-    expect(j.ok).toBe(true);
-    expect(j.simulated).toBe(true);
-    expect(j.verificationLink).toBeUndefined();
-    expect(j.whatsappLink).toBeUndefined();
-  });
-
-  test.skipIf(!online)("registro pendiente real: sí entrega el enlace (camino legítimo)", async () => {
-    const correo = `ci-r2-legit-${Date.now()}@ci.yuddit.test`;
-    const token = `ci-tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const sync = await post("/api/audience/sync-user", {
-      id: `ci_yud52_${Date.now()}`,
-      email: correo,
+describe("YUD-52 R2 (cierre): verificación solo con prueba de buzón", () => {
+  const altaPublica = (email: string, id?: string) =>
+    post("/api/audience/sync-user", {
+      id: id || `ci_yud52_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      email,
       nombre: "CI",
       apellido: "R2",
-      verificationToken: token,
+      distrito: "Miraflores",
+      verificationToken: `tok-elegido-por-cliente-${Date.now()}`, // DEBE ser ignorado
     });
-    expect(sync.status).toBe(200);
-    const r = await post("/api/email/send-verification", {
-      email: correo,
-      verificationToken: token,
-    });
+
+  test.skipIf(!online)("sync-user ignora el token del cliente y no devuelve capacidad verificadora", async () => {
+    const correo = `ci-r2-a-${Date.now()}@ci.yuddit.test`;
+    const r = await altaPublica(correo);
     expect(r.status).toBe(200);
     const j: any = await r.json();
     expect(j.ok).toBe(true);
-    expect(String(j.verificationLink || "")).toContain(token);
-  }, 15000);
+    expect(j.verificationToken).toBeUndefined();
+    expect(j.user).toBeUndefined();
+    // El token elegido por el cliente NO verifica nada:
+    const v = await get(`/api/audience/verify-token?token=tok-elegido-por-cliente-${Date.now()}`);
+    expect(v.status).toBe(404);
+  });
 
-  test.skipIf(!online)("token pendiente pero OTRO token en la petición: sin enlace", async () => {
-    const correo = `ci-r2-mixto-${Date.now()}@ci.yuddit.test`;
-    const token = `ci-tok-mixto-${Date.now()}`;
-    const sync = await post("/api/audience/sync-user", {
-      id: `ci_yud52_m_${Date.now()}`,
+  test.skipIf(!online)("el mismo correo con otro id es rechazado (409): no hay fila pendiente duplicada", async () => {
+    const correo = `ci-r2-b-${Date.now()}@ci.yuddit.test`;
+    const r1 = await altaPublica(correo);
+    expect(r1.status).toBe(200);
+    const r2 = await altaPublica(correo); // id distinto
+    expect(r2.status).toBe(409);
+  });
+
+  test.skipIf(!online || !hayAdmin)("un id público conocido NO permite editar perfil ni identidad ajenos", async () => {
+    const correo = `ci-r2-c-${Date.now()}@ci.yuddit.test`;
+    const id = `ci_yud52_fijo_${Date.now()}`;
+    const r1 = await altaPublica(correo, id);
+    expect(r1.status).toBe(200);
+    // Re-sync con el MISMO id pero datos alterados: debe ser no-op.
+    const r2 = await post("/api/audience/sync-user", {
+      id,
       email: correo,
-      nombre: "CI",
-      apellido: "R2M",
-      verificationToken: token,
+      nombre: "ALTERADO",
+      apellido: "AJENO",
+      distrito: "Comas",
+      verificationToken: `tok-secuestro-${Date.now()}`,
     });
-    expect(sync.status).toBe(200);
-    const r = await post("/api/email/send-verification", {
-      email: correo,
-      verificationToken: `${token}-alterado`,
-    });
+    expect(r2.status).toBe(200);
+    const j2: any = await r2.json();
+    expect(j2.existente).toBe(true);
+    // La fila conserva los datos originales (lectura admin):
+    const sesion = await login(ADMIN.email, ADMIN.password);
+    const r3 = await get("/api/audience/users", sesion);
+    expect(r3.status).toBe(200);
+    const j3: any = await r3.json();
+    const fila = (j3.users || []).find((u: any) => u.id === id);
+    expect(fila).toBeTruthy();
+    expect(fila.nombre).toBe("CI");
+    expect(fila.distrito).toBe("Miraflores");
+    // y el token de secuestro no verifica:
+    const v = await get(`/api/audience/verify-token?token=tok-secuestro-${Date.now()}`);
+    expect(v.status).toBe(404);
+  });
+
+  test.skipIf(!online)("send-verification NO devuelve enlace ni token ni log (registro pendiente real)", async () => {
+    const correo = `ci-r2-d-${Date.now()}@ci.yuddit.test`;
+    await altaPublica(correo);
+    const r = await post("/api/email/send-verification", { email: correo });
+    expect(r.status).toBe(200);
+    const j: any = await r.json();
+    expect(j.ok).toBe(true);
+    expect(j.verificationLink).toBeUndefined();
+    expect(j.verificationToken).toBeUndefined();
+    expect(j.log).toBeUndefined();
+  });
+
+  test.skipIf(!online)("send-verification sin registro pendiente: respuesta genérica idéntica, sin enlace", async () => {
+    const correo = `ci-r2-inexistente-${Date.now()}@ci.yuddit.test`;
+    const r = await post("/api/email/send-verification", { email: correo });
     expect(r.status).toBe(200);
     const j: any = await r.json();
     expect(j.ok).toBe(true);
     expect(j.simulated).toBe(true);
     expect(j.verificationLink).toBeUndefined();
   });
+
+  test.skipIf(!online || !hayAdmin)("cadena completa: la verificación exige el token del buzón y es de UN SOLO USO", async () => {
+    const correo = `ci-r2-e-${Date.now()}@ci.yuddit.test`;
+    await altaPublica(correo);
+    const r = await post("/api/email/send-verification", { email: correo });
+    expect(r.status).toBe(200);
+    // En CI no hay SMTP: el "buzón" equivalente es el log de correo SOLO ADMIN.
+    const sesion = await login(ADMIN.email, ADMIN.password);
+    const logsR = await get("/api/email/logs", sesion);
+    expect(logsR.status).toBe(200);
+    const logsJ: any = await logsR.json();
+    const entrada = (logsJ.logs || []).find((l: any) => l.to === correo);
+    expect(entrada).toBeTruthy();
+    const tokenBuzon = entrada.verificationToken;
+    expect(tokenBuzon).toBeTruthy();
+    // 1) con el token del buzón: verifica y devuelve usuario mínimo (sin token)
+    const v1 = await get(`/api/audience/verify-token?token=${tokenBuzon}`);
+    expect(v1.status).toBe(200);
+    const v1j: any = await v1.json();
+    expect(v1j.ok).toBe(true);
+    expect(v1j.user.email).toBe(correo);
+    expect(v1j.user.verificationToken).toBeUndefined();
+    // 2) un solo uso: el mismo token ya no sirve
+    const v2 = await get(`/api/audience/verify-token?token=${tokenBuzon}`);
+    expect(v2.status).toBe(404);
+    // 3) ya verificado: el reenvío responde genérico sin enlace
+    const r3 = await post("/api/email/send-verification", { email: correo });
+    const j3: any = await r3.json();
+    expect(j3.ok).toBe(true);
+    expect(j3.verificationLink).toBeUndefined();
+  }, 20000);
 });
