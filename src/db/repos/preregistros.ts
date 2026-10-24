@@ -36,7 +36,10 @@ export interface NuevoPreregistro {
 }
 
 export async function insertarPreregistro(p: NuevoPreregistro) {
-  await db.insert(preregistros).values({
+  // `any` como en el resto del repo (audiencia/auth): drizzle 0.38 restringe
+  // el tipo del insert a columnas notNull sin default y rechaza literales con
+  // columnas opcionales; el repo pasa los valores como variable `any`.
+  const valores: any = {
     id: p.id,
     nombreComercial: p.nombreComercial,
     responsable: p.responsable,
@@ -53,7 +56,8 @@ export async function insertarPreregistro(p: NuevoPreregistro) {
     consentimientoFinalidad: p.consentimientoFinalidad,
     bajaTokenHash: p.bajaTokenHash,
     origen: p.origen,
-  });
+  };
+  await db.insert(preregistros).values(valores);
 }
 
 export async function buscarPreregistroPorCorreoIdx(correoIdx: string) {
@@ -69,7 +73,7 @@ export async function buscarPreregistroPorCorreoIdx(correoIdx: string) {
 export async function marcarBajaPreregistroPorTokenHash(tokenHash: string) {
   const r = await db
     .update(preregistros)
-    .set({ estadoAviso: "baja", updatedAt: new Date() })
+    .set({ estadoAviso: "baja", updatedAt: new Date() } as any)
     .where(eq(preregistros.bajaTokenHash, tokenHash))
     .returning({ id: preregistros.id });
   return r[0] ?? null;
