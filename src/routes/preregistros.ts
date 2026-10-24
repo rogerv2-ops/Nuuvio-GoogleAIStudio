@@ -18,10 +18,19 @@
  * dedupe por correo con respuesta idempotente (no revela existencia ni pisa
  * datos) y honeypot.
  *
- * BAJA: endpoint público sin login, por enlace con token individual. El
- * token viaja solo en el futuro correo; en la tabla queda su hash sha256.
- * Sin vencimiento mientras no exista el primer boletín; si se decide
- * rotación se añade expiración sin cambiar el esquema.
+ * BAJA: sin login, por enlace con token individual. GET muestra una
+ * confirmación y NO muta nada (los prefetch/escáneres de enlaces no pueden
+ * dar de baja); la baja real exige el POST explícito del formulario. El
+ * token viaja en la respuesta del registro (y luego en el correo del
+ * boletín); en la tabla queda solo su hash sha256 y NUNCA sale en la
+ * exportación CSV ni en el JSON admin. Sin vencimiento mientras no exista
+ * el primer boletín; si se decide rotación se añade sin cambiar el esquema.
+ *
+ * DEDUPE Y CONSENTIMIENTO: si el correo ya existe activo, se responde ok
+ * SIN tocar nada (el dedupe no renueva consentimiento sin voluntad). Si el
+ * correo existía en baja y la persona vuelve a enviar el formulario con el
+ * checkbox marcado, ESA presentación es la voluntad nueva: se reactiva con
+ * consentimiento/version/ts nuevos y token nuevo.
  *
  * REGISTRO: el módulo se activa solo si process.env.EMBUDO_PREREGISTRO==="1"
  * (ver server.ts): en producción el endpoint no existe hasta decisión
@@ -30,8 +39,9 @@
 import crypto from "crypto";
 import {
   insertarPreregistro,
-  buscarPreregistroPorCorreoIdx,
+  obtenerPreregistroPorCorreoIdx,
   marcarBajaPreregistroPorTokenHash,
+  reactivarPreregistro,
   listarPreregistros,
 } from "../db/repos/preregistros.ts";
 import { esCategoriaCaptacion } from "../utils/categoriasCaptacion.ts";
@@ -90,11 +100,22 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
         return res.status(400).json({ ok: false, error: "Se requiere el consentimiento para recibir el boletín" });
       }
 
-      // Dedupe: si el correo ya existe, misma respuesta sin pisar datos.
-      const existente = await buscarPreregistroPorCorreoIdx(correo);
-      if (existente) return res.json({ ok: true });
-
+      // Dedupe: correo ya activo -> ok sin tocar (no renueva consentimiento).
+      // Correo en baja + formulario reenviado con checkbox = voluntad nueva:
+      // reactiva con consentimiento/ts/version y token nuevos.
+      const existente = await obtenerPreregistroPorCorreoIdx(correo);
       const token = crypto.randomBytes(24).toString("hex");
+      const bajaUrl = "/api/preregistros/baja?token=" + token;
+      if (existente) {
+        if (existente.estadoAviso !== "baja") return res.json({ ok: true });
+        await reactivarPreregistro(existente.id, {
+          consentimientoTextoVersion: CONSENT_VERSION,
+          consentimientoFinalidad: CONSENT_FINALIDAD,
+          bajaTokenHash: hashToken(token),
+        });
+        return res.json({ ok: true, bajaUrl });
+      }
+
       const zonaObjetivo = normalizarTextoBusqueda(distritoZona).includes("miraflores") ? "piloto" : "expansion";
 
       await insertarPreregistro({
@@ -115,17 +136,42 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
         bajaTokenHash: hashToken(token),
         origen: corto(b.origen, 60) || "landing-yuddit.com",
       });
-      return res.json({ ok: true });
+      // El enlace de baja se entrega UNA vez, en la respuesta del propio
+      // registro (hasta que exista el correo del boletín que lo lleve).
+      return res.json({ ok: true, bajaUrl });
     } catch (err) {
       console.error("[preregistros] Error en POST /api/preregistros:", err);
       return res.status(500).json({ ok: false, error: "Error interno" });
     }
   });
 
-  // Baja pública sin login. Respuesta genérica: no confirma si el token existe.
-  app.get("/api/preregistros/baja", rateLimit("preregistros_baja", 10, 60000), async (req: any, res: any) => {
+  // GET de baja: SOLO muestra la confirmación. Nunca muta: los prefetch y
+  // escáneres de enlaces de los clientes de correo hacen GET.
+  app.get("/api/preregistros/baja", rateLimit("preregistros_baja", 20, 60000), async (req: any, res: any) => {
+    const token = String(req.query.token || "");
+    if (!/^[a-f0-9]{48}$/.test(token)) {
+      return res.status(400).type("text/html").send("<!doctype html><title>yuddit</title><p>Enlace inválido.</p>");
+    }
+    return res
+      .type("text/html")
+      .send(
+        "<!doctype html><html lang=es><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>" +
+          "<title>yuddit - baja del boletín</title>" +
+          "<body style='font-family:sans-serif;max-width:430px;margin:60px auto;padding:0 22px'>" +
+          "<h1 style='font-size:22px'>¿Darte de baja del boletín?</h1>" +
+          "<p style='color:#555'>Dejarás de recibir el aviso de lanzamiento de yuddit. Tus datos de prerregistro se conservan marcados como baja.</p>" +
+          "<form method=post action='/api/preregistros/baja'>" +
+          "<input type=hidden name=token value='" + token + "'>" +
+          "<button style='padding:13px 18px;background:#111;color:#C8FF3D;border:0;border-radius:10px;font-weight:700'>Sí, darme de baja</button>" +
+          "</form></body>"
+      );
+  });
+
+  // POST de baja: la ÚNICA vía que muta. Respuesta genérica: no confirma si
+  // el token existe. El token viaja en el cuerpo del formulario same-origin.
+  app.post("/api/preregistros/baja", rateLimit("preregistros_baja", 10, 60000), async (req: any, res: any) => {
     try {
-      const token = String(req.query.token || "");
+      const token = String((req.body && req.body.token) || "");
       if (!/^[a-f0-9]{48}$/.test(token)) {
         return res.status(400).json({ ok: false, error: "Enlace inválido" });
       }
@@ -140,7 +186,12 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
   app.get("/api/admin/preregistros", requireAdmin, async (_req: any, res: any) => {
     try {
       const lista = await listarPreregistros();
-      res.json({ ok: true, preregistros: lista });
+      // El hash del token de baja no sale de la base: no lo necesita el panel.
+      const limpia = lista.map((p: any) => {
+        const { bajaTokenHash, ...resto } = p;
+        return resto;
+      });
+      res.json({ ok: true, preregistros: limpia });
     } catch (err) {
       console.error("[preregistros] Error listando:", err);
       res.status(500).json({ ok: false, error: "Error interno" });
