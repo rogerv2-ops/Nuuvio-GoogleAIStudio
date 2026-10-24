@@ -9,7 +9,7 @@
 var __defProp=Object.defineProperty;var __name=(target,value)=>__defProp(target,"name",{value,configurable:true});
 import{db}from"../index.ts";
 import{audienceUsers,emailLogs,registrationLogs,clickLogs}from"../schema.ts";
-import{eq,or,sql}from"drizzle-orm";
+import{eq,or,and,gte,isNotNull,sql}from"drizzle-orm";
 import{cifrarCampo,descifrarCampo,indiceCiego,estaCifrado,piiHabilitado}from"../../utils/pii.ts";
 import{inMemoryRegLogs}from"./logs.ts";
 
@@ -262,9 +262,11 @@ function generarTokenVerificacion(): string {
 }__name(generarTokenVerificacion,"generarTokenVerificacion");
 
 function tokenVerificacionVigente(u): boolean {
-  if (!u || !u.verificationToken) return false;
-  // Filas anteriores a esta columna: se les da la ventana desde registradoEn.
-  const base = Date.parse(String(u.verificationTokenCreadoEn || u.registradoEn || ""));
+  // SOLO cuentan tokens con sello de servidor (verificationTokenCreadoEn).
+  // Filas legacy (token elegido por el cliente, sin sello) NO verifican: el
+  // titular pide reenvio y el servidor emite token nuevo con sello propio.
+  if (!u || !u.verificationToken || !u.verificationTokenCreadoEn) return false;
+  const base = Date.parse(String(u.verificationTokenCreadoEn));
   if (!Number.isFinite(base)) return false;
   return Date.now() - base <= VENTANA_TOKEN_VERIFICACION_MS;
 }__name(tokenVerificacionVigente,"tokenVerificacionVigente");
@@ -293,7 +295,11 @@ async function buscarAudienceUserPorTokenVerificacion(token) {
   }
 }__name(buscarAudienceUserPorTokenVerificacion,"buscarAudienceUserPorTokenVerificacion");
 
-/** Alta nueva de audiencia pendiente: INSERT puro (nunca upsert) con token de servidor. */
+/** Alta nueva de audiencia pendiente: INSERT puro (nunca upsert) con token de
+ * servidor. Defensa de concurrencia SIN constraint UNIQUE (pendiente de
+ * auditoria de datos): advisory lock por email_idx dentro de la transaccion
+ * serializa altas del mismo correo; si ya existe, no inserta ni toca la fila
+ * (devuelve {duplicado:true}; jamas borra ni fusiona registros). */
 async function insertarAudiencePendiente(user) {
   try {
     const safeEmail = emailDeAudiencia(user);
@@ -320,7 +326,16 @@ async function insertarAudiencePendiente(user) {
       utm: user.utm || {},
       registradoEn: new Date().toISOString()
     };
-    await db.insert(audienceUsers).values(insertVals);
+    return await db.transaction(async (tx) => {
+      const emailIdx = insertVals.emailIdx;
+      if (emailIdx) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${emailIdx}))`);
+        const dup = await tx.select({ id: audienceUsers.id }).from(audienceUsers).where(eq(audienceUsers.emailIdx, emailIdx));
+        if (dup.length > 0) return { duplicado: true };
+      }
+      await tx.insert(audienceUsers).values(insertVals);
+      return { duplicado: false };
+    });
   } catch (error) {
     console.error("[DB Repo] Error insertando audience pendiente:", error);
     throw new Error("Failed to insert pending audience user", { cause: error });
@@ -340,6 +355,34 @@ async function renovarTokenVerificacionAudience(id) {
   }
 }__name(renovarTokenVerificacionAudience,"renovarTokenVerificacionAudience");
 
+/** Consumo ATOMICO del token: un solo UPDATE con TODAS las condiciones
+ * (token + sello servidor + vigencia + no verificado). Dos verificaciones
+ * concurrentes del mismo token: solo una actualiza; la otra recibe 0 filas.
+ * Devuelve {consumido} y, si no consumio, {expirado} segun exista aun la
+ * fila con ese token (para 410 vs 404; los tokens son inadivinables). */
+async function consumirTokenVerificacionAudience(token) {
+  const t = String(token || "").trim();
+  if (!t) return { consumido: false, expirado: false };
+  const corte = new Date(Date.now() - VENTANA_TOKEN_VERIFICACION_MS).toISOString();
+  try {
+    const updateSet: any = { emailVerificado: true, estado: "activo", verificationToken: null, verificationTokenCreadoEn: null };
+    const rows = await db.update(audienceUsers).set(updateSet)
+      .where(and(
+        eq(audienceUsers.verificationToken, t),
+        isNotNull(audienceUsers.verificationTokenCreadoEn),
+        gte(audienceUsers.verificationTokenCreadoEn, corte),
+        eq(audienceUsers.emailVerificado, false)
+      ))
+      .returning({ id: audienceUsers.id });
+    if (rows.length > 0) return { consumido: true, expirado: false };
+    const fila = await buscarAudienceUserPorTokenVerificacion(t);
+    return { consumido: false, expirado: Boolean(fila) };
+  } catch (error) {
+    console.error("[DB Repo] Error consumiendo token de verificacion:", error);
+    throw new Error("Failed to consume verification token", { cause: error });
+  }
+}__name(consumirTokenVerificacionAudience,"consumirTokenVerificacionAudience");
+
 /** Verificacion efectiva: marca y CONSUME el token (un solo uso). */
 async function marcarEmailVerificadoAudience(id) {
   try {
@@ -351,4 +394,4 @@ async function marcarEmailVerificadoAudience(id) {
   }
 }__name(marcarEmailVerificadoAudience,"marcarEmailVerificadoAudience");
 
-export{upsertAudienceUser,upsertAudienceUserSafe,normalizePhoneForMatching,phonesMatch,findAudienceUserByPhone,getAllAudienceUsers,migrarPiiAudiencia,normalizarEmailsAudiencia,atribuirCodigoDeCanje,seedAudienceUsersIfEmpty,checkAudienceUserUniqueness,deleteAndPurgeUser,buscarAudienceUsersPorEmailIdx,buscarAudienceUserPorTokenVerificacion,insertarAudiencePendiente,renovarTokenVerificacionAudience,marcarEmailVerificadoAudience,tokenVerificacionVigente,VENTANA_TOKEN_VERIFICACION_MS};
+export{upsertAudienceUser,upsertAudienceUserSafe,normalizePhoneForMatching,phonesMatch,findAudienceUserByPhone,getAllAudienceUsers,migrarPiiAudiencia,normalizarEmailsAudiencia,atribuirCodigoDeCanje,seedAudienceUsersIfEmpty,checkAudienceUserUniqueness,deleteAndPurgeUser,buscarAudienceUsersPorEmailIdx,buscarAudienceUserPorTokenVerificacion,insertarAudiencePendiente,renovarTokenVerificacionAudience,marcarEmailVerificadoAudience,consumirTokenVerificacionAudience,tokenVerificacionVigente,VENTANA_TOKEN_VERIFICACION_MS};
