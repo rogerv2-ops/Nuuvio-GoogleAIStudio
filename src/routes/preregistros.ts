@@ -26,11 +26,15 @@
  * exportación CSV ni en el JSON admin. Sin vencimiento mientras no exista
  * el primer boletín; si se decide rotación se añade sin cambiar el esquema.
  *
- * DEDUPE Y CONSENTIMIENTO: si el correo ya existe activo, se responde ok
- * SIN tocar nada (el dedupe no renueva consentimiento sin voluntad). Si el
- * correo existía en baja y la persona vuelve a enviar el formulario con el
- * checkbox marcado, ESA presentación es la voluntad nueva: se reactiva con
- * consentimiento/version/ts nuevos y token nuevo.
+ * DEDUPE, CONSENTIMIENTO Y ORÁCULO: la respuesta pública es SIEMPRE la
+ * misma ({ok:true, bajaUrl}) para no revelar si el correo ya existía: a un
+ * duplicado se le devuelve un enlace con token aleatorio NO guardado
+ * (inerte). El enlace real solo lo recibe quien registra un correo nuevo.
+ * El dedupe NUNCA renueva consentimiento, estado ni token del registro
+ * existente. Y una baja NO se revierte por un POST anónimo con checkbox:
+ * cualquiera puede escribir un correo ajeno. La reactivación exige probar
+ * el control del correo (confirmación por email) o un proceso autorizado;
+ * como no hay envíos autorizados, queda PENDIENTE e inactiva por ahora.
  *
  * REGISTRO: el módulo se activa solo si process.env.EMBUDO_PREREGISTRO==="1"
  * (ver server.ts): en producción el endpoint no existe hasta decisión
@@ -41,7 +45,6 @@ import {
   insertarPreregistro,
   obtenerPreregistroPorCorreoIdx,
   marcarBajaPreregistroPorTokenHash,
-  reactivarPreregistro,
   listarPreregistros,
 } from "../db/repos/preregistros.ts";
 import { esCategoriaCaptacion } from "../utils/categoriasCaptacion.ts";
@@ -100,22 +103,20 @@ export function registrarRutasPreregistros(app: any, ctx: any): void {
         return res.status(400).json({ ok: false, error: "Se requiere el consentimiento para recibir el boletín" });
       }
 
-      // Dedupe: correo ya activo -> ok sin tocar (no renueva consentimiento).
-      // Correo en baja + formulario reenviado con checkbox = voluntad nueva:
-      // reactiva con consentimiento/ts/version y token nuevos.
+      // Anti-oráculo: exista o no, la respuesta tiene la misma forma. A un
+      // correo ya registrado (activo o en baja) se le da un enlace INERTE:
+      // token aleatorio que no se guarda y no da de baja nada. Su registro
+      // no se toca: ni consentimiento, ni estado, ni token. Una baja solo se
+      // revierte con un proceso que pruebe el control del correo (pendiente,
+      // no implementado mientras no haya envíos autorizados).
       const existente = await obtenerPreregistroPorCorreoIdx(correo);
-      const token = crypto.randomBytes(24).toString("hex");
-      const bajaUrl = "/api/preregistros/baja?token=" + token;
       if (existente) {
-        if (existente.estadoAviso !== "baja") return res.json({ ok: true });
-        await reactivarPreregistro(existente.id, {
-          consentimientoTextoVersion: CONSENT_VERSION,
-          consentimientoFinalidad: CONSENT_FINALIDAD,
-          bajaTokenHash: hashToken(token),
-        });
-        return res.json({ ok: true, bajaUrl });
+        const tokenInerte = crypto.randomBytes(24).toString("hex");
+        return res.json({ ok: true, bajaUrl: "/api/preregistros/baja?token=" + tokenInerte });
       }
 
+      const token = crypto.randomBytes(24).toString("hex");
+      const bajaUrl = "/api/preregistros/baja?token=" + token;
       const zonaObjetivo = normalizarTextoBusqueda(distritoZona).includes("miraflores") ? "piloto" : "expansion";
 
       await insertarPreregistro({
