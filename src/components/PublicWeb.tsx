@@ -12,6 +12,7 @@ import { comerciosModule } from '../modules/comercios';
 // PRUEBA VISUAL: BannerHeader no se renderiza en la primera pantalla (banner_01 conservado en app_settings, revertible).
 import { UserRegistrationFunnelModal, limpiarYNormalizarTelefono } from './UserRegistrationFunnelModal';
 import { capturarAtribucionDeUrl } from '../utils/attribution';
+import { normalizarTextoBusqueda } from '../utils/textoBusqueda';
 import { coreEvents } from '../core/events';
 import { getCategoryFallbackImage, handleImgError } from '../utils/imageFallbacks';
 import { esOfertaNueva } from '../utils/ofertaUtils';
@@ -179,13 +180,13 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
   // Filtrado exclusivamente a través del buscador ancho completo
   const ofertasFiltradas = ofertas.filter(o => {
     if (!busquedaTexto.trim()) return true;
-    const q = busquedaTexto.toLowerCase();
+    const q = normalizarTextoBusqueda(busquedaTexto);
     return (
-      o.titulo.toLowerCase().includes(q) ||
-      o.descripcion.toLowerCase().includes(q) ||
-      o.comercioNombre.toLowerCase().includes(q) ||
-      o.distrito.toLowerCase().includes(q) ||
-      o.categoria.toLowerCase().includes(q)
+      normalizarTextoBusqueda(o.titulo).includes(q) ||
+      normalizarTextoBusqueda(o.descripcion).includes(q) ||
+      normalizarTextoBusqueda(o.comercioNombre).includes(q) ||
+      normalizarTextoBusqueda(o.distrito).includes(q) ||
+      normalizarTextoBusqueda(o.categoria).includes(q)
     );
   });
 
@@ -1105,4 +1106,5 @@ export const PublicWeb: React.FC<PublicWebProps> = ({
     </div>
   );
 };
+
 
