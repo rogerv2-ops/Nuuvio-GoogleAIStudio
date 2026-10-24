@@ -27,6 +27,10 @@ describe.skipIf(!online)("Landing del embudo", () => {
     expect(html).toContain('name="empresa"');
     expect(html).toContain('name="categoria"');
     expect(html).toContain('name="consentimiento"');
+    // WhatsApp obligatorio (decisión del dueño 2026-10-24); Instagram/TikTok opcionales.
+    expect(html).toContain('name="whatsapp" required');
+    expect(html).not.toMatch(/name="instagram"[^>]*required/);
+    expect(html).not.toMatch(/name="tiktok"[^>]*required/);
   });
 
   test("P3: categoría sin preselección", async () => {
