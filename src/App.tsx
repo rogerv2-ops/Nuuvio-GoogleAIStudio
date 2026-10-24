@@ -14,6 +14,7 @@ import { ConfirmModalHost } from './components/common/ConfirmModal';
 import { coreConfig } from './core/config';
 import { coreSecurity } from './core/security';
 import { useFondoLanding } from './hooks/useFondoLanding';
+import { useIconoSitio } from './hooks/useIconoSitio';
 import { comerciosModule } from './modules/comercios';
 import { vistaComoModule } from './modules/vistaComo';
 import { ofertasModule } from './modules/ofertas';
@@ -86,6 +87,7 @@ function urlPublicaDeSuperficie(s: ActiveSurface): string {
 export default function App() {
   const [superficieActiva, setSuperficieActiva] = useState<ActiveSurface>(obtenerSuperficieDesdeUrl);
   const fondoLanding = useFondoLanding();
+  useIconoSitio();
   const [ofertaSeleccionadaId, setOfertaSeleccionadaId] = useState<string | null>(null);
   const [modalRegistroAbierto, setModalRegistroAbierto] = useState(false);
   const [, setTick] = useState(0);

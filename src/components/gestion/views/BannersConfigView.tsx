@@ -32,6 +32,8 @@ export const BannersConfigView: React.FC = () => {
   const [logoImagenUrl, setLogoImagenUrl] = useState(() => bannersModule.obtenerLogo().imagenUrl);
   const [logoAltoPx, setLogoAltoPx] = useState(() => bannersModule.obtenerLogo().altoPx);
   const [logoModoOrigen, setLogoModoOrigen] = useState<'url' | 'upload'>('url');
+  const [iconoImagenUrl, setIconoImagenUrl] = useState(() => bannersModule.obtenerLogo().iconUrl || '');
+  const [iconoModoOrigen, setIconoModoOrigen] = useState<'url' | 'upload'>('upload');
 
   // Color de fondo de la landing: se configura aquí, debajo del logo.
   const [fondoColor, setFondoColor] = useState<string>(() => bannersModule.obtenerFondo() || FONDO_LANDING_DEFAULT);
@@ -50,6 +52,8 @@ export const BannersConfigView: React.FC = () => {
       setLogoImagenUrl(actual.imagenUrl);
       setLogoAltoPx(actual.altoPx);
       setFondoColor(bannersModule.obtenerFondo() || FONDO_LANDING_DEFAULT);
+      const iconoActual = bannersModule.obtenerLogo().iconUrl;
+      setIconoImagenUrl(iconoActual || '');
     });
     refrescarLista();
     const unsub = bannersModule.suscribir(() => {
@@ -113,6 +117,58 @@ export const BannersConfigView: React.FC = () => {
     setLogo(guardado);
     setLogoImagenUrl('');
     setNotificacion('Logo quitado: la landing vuelve al logo por defecto (Y + Yuddit).');
+    setTimeout(() => setNotificacion(null), 3000);
+  };
+
+  const handleSubirIcono = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alerta({ titulo: 'Imagen grande', mensaje: 'El ícono no debe superar los 5 MB.', tono: 'aviso' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      if (event.target?.result) {
+        const local = event.target.result as string;
+        const anterior = iconoImagenUrl;
+        setIconoImagenUrl(local);
+        try {
+          const { subirImagenAlServidor } = await import('../../../utils/uploadMedia');
+          const url = await subirImagenAlServidor(local, 'icono');
+          setIconoImagenUrl(url);
+        } catch (err) {
+          setIconoImagenUrl(anterior);
+          alerta({ titulo: 'Error al subir imagen', mensaje: 'No se pudo subir el ícono al servidor: ' + (err instanceof Error ? err.message : err), tono: 'error' });
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGuardarIcono = () => {
+    if (iconoImagenUrl.startsWith('data:')) {
+      alerta({ titulo: 'Espera', mensaje: 'La imagen aún se está subiendo al servidor. Espera a que termine.', tono: 'aviso' });
+      return;
+    }
+    const guardado = bannersModule.actualizarLogo({ iconUrl: iconoImagenUrl.trim() });
+    setLogo(guardado);
+    setIconoImagenUrl(guardado.iconUrl || '');
+    setNotificacion(
+      guardado.iconUrl
+        ? 'Ícono del sitio actualizado.'
+        : 'Ícono quitado: se usará el ícono por defecto del navegador.'
+    );
+    setTimeout(() => setNotificacion(null), 3000);
+  };
+
+  const handleQuitarIcono = () => {
+    const guardado = bannersModule.actualizarLogo({ iconUrl: '' });
+    setLogo(guardado);
+    setIconoImagenUrl('');
+    setNotificacion('Ícono quitado: se usará el ícono por defecto del navegador.');
     setTimeout(() => setNotificacion(null), 3000);
   };
 
@@ -446,6 +502,122 @@ export const BannersConfigView: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* ÍCONO DEL SITIO (Favicon) */}
+      <div className="bg-white rounded-3xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-100">
+            <div>
+              <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                <Images className="w-4 h-4 text-emerald-700" />
+                <span>Ícono del Sitio</span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Icono (favicon) que aparece en la pestaña del navegador y en la inicialización de la app.
+              </p>
+            </div>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border self-start sm:self-auto ${
+              iconoImagenUrl
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-stone-100 text-stone-600 border-stone-200'
+            }`}>
+              {iconoImagenUrl ? 'Icono personalizado' : 'Icono por defecto'}
+            </span>
+          </div>
+
+          <form onSubmit={handleGuardarIcono} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-700 block">
+                Origen del Ícono
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIconoModoOrigen('url')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    iconoModoOrigen === 'url'
+                      ? 'bg-[#1B4332] text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Ingresar URL</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIconoModoOrigen('upload')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    iconoModoOrigen === 'upload'
+                      ? 'bg-[#1B4332] text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Subir Archivo</span>
+                </button>
+              </div>
+
+              {iconoModoOrigen === 'url' ? (
+                <input
+                  type="text"
+                  placeholder="/favicon.png o https://ejemplo.com/icono.png"
+                  value={iconoImagenUrl}
+                  onChange={(e) => setIconoImagenUrl(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-mono text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#1B4332]/20 focus:border-[#1B4332]"
+                />
+              ) : (
+                <div className="p-4 bg-stone-50 border-2 border-dashed border-stone-200 rounded-2xl text-center space-y-2">
+                  <Upload className="w-6 h-6 text-stone-400 mx-auto" />
+                  <p className="text-xs text-stone-600 font-bold">Selecciona el ícono de tu equipo</p>
+                  <p className="text-[10px] text-stone-400">PNG cuadrado, ideal 512×512 px (máx 5 MB). Se convierte a WebP.</p>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleSubirIcono}
+                    className="block w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Previsualización del ícono */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Previsualización</span>
+              <div className="rounded-2xl border border-stone-200 bg-[#FBF9F4] px-4 py-3 min-h-[48px] flex items-center justify-center gap-2 overflow-hidden">
+                {iconoImagenUrl ? (
+                  <img
+                    src={withResourceVersion(iconoImagenUrl)}
+                    alt="Vista previa del icono"
+                    className="block w-10 h-10 object-contain"
+                  />
+                ) : (
+                  <p className="text-[11px] text-stone-400 font-semibold">
+                    Sin icono: se usará el favicon por defecto del navegador.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              {iconoImagenUrl && (
+                <button
+                  type="button"
+                  onClick={handleQuitarIcono}
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Quitar Icono</span>
+                </button>
+              )}
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>Guardar Ícono</span>
+              </button>
+            </div>
+          </form>
+        </div>
 
       {/* FONDO DE LA LANDING */}
       <div className="bg-white rounded-3xl border border-stone-200/80 p-5 sm:p-6 shadow-2xs space-y-4">

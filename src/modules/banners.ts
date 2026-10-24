@@ -25,6 +25,7 @@ export interface FeedBanner {
 export interface LogoLanding {
   imagenUrl: string;
   altoPx: number;
+  iconUrl?: string;
 }
 
 export const LOGO_LANDING_ALTO_MIN = 24;
@@ -32,7 +33,8 @@ export const LOGO_LANDING_ALTO_MAX = 160;
 
 export const DEFAULT_LOGO_LANDING: LogoLanding = {
   imagenUrl: '',
-  altoPx: 40
+  altoPx: 40,
+  iconUrl: ''
 };
 
 const LOCAL_STORAGE_KEY_LOGO = 'vuuy_landing_logo_v1';
@@ -74,7 +76,8 @@ function normalizarLogo(raw: unknown): LogoLanding {
   const altoPx = Number.isFinite(alto)
     ? Math.min(LOGO_LANDING_ALTO_MAX, Math.max(LOGO_LANDING_ALTO_MIN, alto))
     : DEFAULT_LOGO_LANDING.altoPx;
-  return { imagenUrl, altoPx };
+  const iconUrl = typeof datos.iconUrl === 'string' ? datos.iconUrl.trim() : '';
+  return { imagenUrl, altoPx, iconUrl };
 }
 
 const LOCAL_STORAGE_KEY_BANNERS = 'vuuy_feed_banners_v2';
@@ -300,6 +303,7 @@ class BannersModule {
     const base: LogoLanding = { ...this.logo };
     if (typeof datos.imagenUrl === 'string') base.imagenUrl = datos.imagenUrl;
     if (datos.altoPx !== undefined) base.altoPx = datos.altoPx;
+    if (typeof datos.iconUrl === 'string') base.iconUrl = datos.iconUrl;
     this.logo = normalizarLogo(base);
     this.guardarLogoLocal();
     this.guardarEnServidor({ incluirLogo: true });
